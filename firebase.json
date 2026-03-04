@@ -3,6 +3,12 @@
   "hosting": {
     "public": "public",
     "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+    "rewrites": [
+      {
+        "source": "/api/nearby",
+        "function": "nearby"
+      }
+    ],
     "headers": [
       {
         "source": "**/*.js",

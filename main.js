@@ -4,24 +4,23 @@ let markers = [];
 const defaultCenter = { lat: 37.6686, lng: 126.7440 };
 const defaultZoom = 14;
 
-// TODO: set your deployed function URL.
-// Example: https://asia-northeast3-<PROJECT_ID>.cloudfunctions.net/nearby
-const FUNCTIONS_NEARBY_URL = "YOUR_FUNCTIONS_NEARBY_URL";
+// Hosting rewrite path -> Cloud Function "nearby"
+const FUNCTIONS_NEARBY_URL = "/api/nearby";
 
-window.initMap = function initMap() {
-  map = new google.maps.Map(document.getElementById("map"), {
-    center: defaultCenter,
-    zoom: defaultZoom,
-    mapTypeControl: false,
-    streetViewControl: false,
-    fullscreenControl: false,
-  });
+document.addEventListener("DOMContentLoaded", initMap);
+
+function initMap() {
+  map = L.map("map", { zoomControl: true }).setView([defaultCenter.lat, defaultCenter.lng], defaultZoom);
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom: 19,
+    attribution: "&copy; OpenStreetMap contributors",
+  }).addTo(map);
 
   document.getElementById("btnRefresh").addEventListener("click", fetchNearby);
   document.getElementById("btnLocate").addEventListener("click", () => locateMe(true));
 
   locateMe(false);
-};
+}
 
 function locateMe(alsoFetch) {
   if (!navigator.geolocation) {
@@ -34,14 +33,12 @@ function locateMe(alsoFetch) {
       const lat = pos.coords.latitude;
       const lng = pos.coords.longitude;
       setUserLocation(lat, lng);
-      map.setCenter({ lat, lng });
-      map.setZoom(15);
+      map.setView([lat, lng], 15);
       if (alsoFetch) fetchNearby();
       else fetchNearby();
     },
     () => {
-      map.setCenter(defaultCenter);
-      map.setZoom(defaultZoom);
+      map.setView([defaultCenter.lat, defaultCenter.lng], defaultZoom);
       fetchNearby();
     },
     { enableHighAccuracy: true, timeout: 8000 }
@@ -49,15 +46,18 @@ function locateMe(alsoFetch) {
 }
 
 function setUserLocation(lat, lng) {
-  const p = { lat, lng };
+  const p = [lat, lng];
   if (!userMarker) {
-    userMarker = new google.maps.Marker({
-      position: p,
-      map,
-      title: "내 위치",
+    userMarker = L.circleMarker(p, {
+      radius: 8,
+      color: "#0b57d0",
+      fillColor: "#0b57d0",
+      fillOpacity: 0.7,
     });
+    userMarker.bindTooltip("내 위치");
+    userMarker.addTo(map);
   } else {
-    userMarker.setPosition(p);
+    userMarker.setLatLng(p);
   }
 }
 
@@ -65,18 +65,14 @@ async function fetchNearby() {
   clearMarkers();
 
   const center = map.getCenter();
-  const lat = center.lat();
-  const lng = center.lng();
+  const lat = center.lat;
+  const lng = center.lng;
   const radiusKm = Number(document.getElementById("radius").value || 2);
 
   setLoading(true);
 
   try {
-    if (!FUNCTIONS_NEARBY_URL || FUNCTIONS_NEARBY_URL.includes("YOUR_")) {
-      throw new Error("FUNCTIONS_NEARBY_URL을 설정하세요.");
-    }
-
-    const url = new URL(FUNCTIONS_NEARBY_URL);
+    const url = new URL(FUNCTIONS_NEARBY_URL, window.location.origin);
     url.searchParams.set("lat", String(lat));
     url.searchParams.set("lng", String(lng));
     url.searchParams.set("radiusKm", String(radiusKm));
@@ -98,13 +94,8 @@ async function fetchNearby() {
 
 function renderMarkers(items) {
   items.forEach((it) => {
-    const m = new google.maps.Marker({
-      position: { lat: it.lat, lng: it.lng },
-      map,
-      title: it.name,
-    });
-
-    m.addListener("click", () => renderDetail(it));
+    const m = L.marker([it.lat, it.lng], { title: it.name }).addTo(map);
+    m.on("click", () => renderDetail(it));
     markers.push(m);
   });
 }
@@ -127,8 +118,7 @@ function renderList(items) {
       <div class="dist">거리 ${it.distanceKm}km</div>
     `;
     el.addEventListener("click", () => {
-      map.panTo({ lat: it.lat, lng: it.lng });
-      map.setZoom(Math.max(map.getZoom(), 16));
+      map.setView([it.lat, it.lng], Math.max(map.getZoom(), 16));
       renderDetail(it);
     });
     list.appendChild(el);
@@ -173,7 +163,7 @@ function setLoading(isLoading) {
 }
 
 function clearMarkers() {
-  markers.forEach((m) => m.setMap(null));
+  markers.forEach((m) => m.remove());
   markers = [];
 }
 
