@@ -1,0 +1,10 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /projects/{docId} {
+      allow read: if true;
+      // MVP: block client writes; manage writes via Admin SDK/Console.
+      allow write: if false;
+    }
+  }
+}
