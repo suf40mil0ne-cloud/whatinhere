@@ -1,14 +1,35 @@
 <!doctype html>
-<html lang="en">
+<html lang="ko">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Hello World</title>
-  <link href='/style.css' rel='stylesheet'>
+  <title>여기 뭐 생겨요?</title>
+  <link href="/style.css" rel="stylesheet" />
+  <script async src="https://maps.googleapis.com/maps/api/js?key=YOUR_MAPS_API_KEY&callback=initMap"></script>
 </head>
 <body>
-  <h1>Hello, world!</h1>
-  <button onclick="console.log('hello');">Press me</button>
-  <script defer type="text/javascript" src="/main.js"></script>
+  <div class="topbar">
+    <div class="brand">여기 뭐 생겨요?</div>
+    <div class="controls">
+      <button id="btnLocate">내 위치로</button>
+      <label>
+        반경(km)
+        <input id="radius" type="number" min="0.2" step="0.2" value="2" />
+      </label>
+      <button id="btnRefresh">주변 조회</button>
+    </div>
+  </div>
+
+  <div class="layout">
+    <div id="map"></div>
+    <div class="panel">
+      <div class="panel-title">상세</div>
+      <div id="detail" class="detail empty">마커를 클릭하면 여기에 정보가 표시됩니다.</div>
+      <div class="panel-title">주변 목록</div>
+      <div id="list" class="list"></div>
+    </div>
+  </div>
+
+  <script defer src="/main.js"></script>
 </body>
 </html>
