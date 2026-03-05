@@ -23,9 +23,9 @@ const HIGHLIGHT_PROJECTS = [
     type: "building",
     status: "construction",
     statusText: "착공(2025-10-23), 2028년 준공 목표",
-    address: "경기 고양시 일산서구 대화동 킨텍스 일원",
-    lat: 37.6686,
-    lng: 126.744,
+    address: "경기 고양시 일산서구 킨텍스로 217-60 인근(제1전시장 주차장·제2전시장 서측 부지)",
+    lat: 37.6679,
+    lng: 126.7454,
     startDate: "2025-10-23",
     endDateEst: "2028-12-31",
     endDateEstText: "2028-12-31",
@@ -209,26 +209,15 @@ function renderList(items) {
 
 function renderDetail(it) {
   const detail = document.getElementById("detail");
-  const links = (it.sourceLinks || [])
-    .map(
-      (l) =>
-        `<li><a href="${escapeAttr(l.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(l.title || l.url)}</a></li>`
-    )
-    .join("");
 
   detail.classList.remove("empty");
   detail.innerHTML = `
     <div class="detail-title">${escapeHtml(it.name)}</div>
-    <div class="detail-sub">${escapeHtml(it.address || "주소 정보 없음")}</div>
     <div class="detail-grid">
       <div><b>유형</b>: ${escapeHtml(typeLabel(it.type))}</div>
-      <div><b>상태</b>: ${escapeHtml(it.status || "")}</div>
-      <div><b>완공예정</b>: ${escapeHtml(it.endDateEstText || it.endDateEst || "정보없음")}</div>
-      ${it.startDate ? `<div><b>착공/시작</b>: ${escapeHtml(it.startDate)}</div>` : ""}
-      <div><b>거리</b>: ${it.distanceKm}km</div>
-      ${it.source ? `<div><b>데이터 출처</b>: ${escapeHtml(it.source)}</div>` : ""}
+      <div><b>착공</b>: ${escapeHtml(it.startDate || "정보없음")}</div>
+      <div><b>준공(예정)</b>: ${escapeHtml(it.endDateEstText || it.endDateEst || "정보없음")}</div>
     </div>
-    ${links ? `<div class="detail-links-title">관련 링크</div><ul>${links}</ul>` : '<div class="detail-empty">관련 링크가 없습니다.</div>'}
   `;
 }
 
