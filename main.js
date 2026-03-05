@@ -2,8 +2,7 @@ let map;
 let userMarker = null;
 let markers = [];
 
-const KAKAO_MAP_JS_KEY = "196acd86c9ca7b2a46f77dd0d90f11f1";
-const APP_BUILD = "2026-03-05-static-kakao-1";
+const APP_BUILD = "2026-03-05-static-kakao-2";
 const defaultCenter = { lat: 37.6686, lng: 126.7440 };
 const defaultLevel = 6;
 
@@ -46,62 +45,23 @@ document.addEventListener("DOMContentLoaded", bootstrap);
 
 async function bootstrap() {
   try {
-    await loadKakaoSdk(KAKAO_MAP_JS_KEY);
+    await window.MapRuntime.ensureKakaoSdk();
     initMap();
   } catch (e) {
-    const message = e instanceof Error ? e.message : "Kakao Maps SDK 로딩 실패";
-    renderError(`${message}. 카카오 개발자 콘솔의 웹 도메인 등록을 확인하세요.`);
+    const message = e instanceof Error ? e.message : "지도 SDK 로딩 실패";
+    renderError(message);
     setSyncInfoError(`지도 초기화 실패 (build ${APP_BUILD})`);
   }
 }
 
-function loadKakaoSdk(appKey) {
-  return new Promise((resolve, reject) => {
-    if (!appKey) {
-      reject(new Error("카카오 JavaScript 키가 비어 있습니다"));
-      return;
-    }
-
-    if (window.kakao && window.kakao.maps) {
-      window.kakao.maps.load(resolve);
-      return;
-    }
-
-    const existing = document.getElementById("kakao-maps-sdk");
-    if (existing) {
-      existing.addEventListener("load", () => window.kakao.maps.load(resolve), { once: true });
-      existing.addEventListener("error", () => reject(new Error("Kakao Maps SDK script load error")), { once: true });
-      return;
-    }
-
-    const script = document.createElement("script");
-    script.id = "kakao-maps-sdk";
-    script.async = true;
-    script.src = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${encodeURIComponent(appKey)}&autoload=false`;
-    script.onload = () => {
-      if (!window.kakao || !window.kakao.maps) {
-        reject(new Error("Kakao Maps SDK is unavailable"));
-        return;
-      }
-      window.kakao.maps.load(resolve);
-    };
-    script.onerror = () => reject(new Error("Kakao Maps SDK script load error"));
-    document.head.appendChild(script);
-  });
-}
-
 function initMap() {
-  const mapNode = document.getElementById("map");
-  map = new window.kakao.maps.Map(mapNode, {
-    center: new window.kakao.maps.LatLng(defaultCenter.lat, defaultCenter.lng),
-    level: defaultLevel,
-  });
+  map = window.MapRuntime.createMap("map", defaultCenter.lat, defaultCenter.lng, defaultLevel);
 
   document.getElementById("btnRefresh").addEventListener("click", fetchNearby);
-  document.getElementById("btnLocate").addEventListener("click", () => locateMe(true));
+  document.getElementById("btnLocate").addEventListener("click", locateMe);
   document.getElementById("typeFilter").addEventListener("change", fetchNearby);
 
-  locateMe(false);
+  locateMe();
 }
 
 function locateMe() {
@@ -115,12 +75,12 @@ function locateMe() {
       const lat = pos.coords.latitude;
       const lng = pos.coords.longitude;
       setUserLocation(lat, lng);
-      map.setCenter(new window.kakao.maps.LatLng(lat, lng));
+      window.MapRuntime.setCenter(map, lat, lng);
       map.setLevel(4);
       fetchNearby();
     },
     () => {
-      map.setCenter(new window.kakao.maps.LatLng(defaultCenter.lat, defaultCenter.lng));
+      window.MapRuntime.setCenter(map, defaultCenter.lat, defaultCenter.lng);
       map.setLevel(defaultLevel);
       fetchNearby();
     },
@@ -129,17 +89,12 @@ function locateMe() {
 }
 
 function setUserLocation(lat, lng) {
-  const position = new window.kakao.maps.LatLng(lat, lng);
   if (!userMarker) {
-    userMarker = new window.kakao.maps.Marker({
-      position,
-      map,
-      title: "내 위치",
-    });
+    userMarker = window.MapRuntime.createMarker(map, lat, lng, "내 위치");
     return;
   }
 
-  userMarker.setPosition(position);
+  userMarker.setPosition(new window.kakao.maps.LatLng(lat, lng));
 }
 
 async function fetchNearby() {
@@ -202,13 +157,8 @@ async function fetchNearbyWithFallback({ lat, lng, radiusKm, type }) {
 
 function renderMarkers(items) {
   items.forEach((it) => {
-    const marker = new window.kakao.maps.Marker({
-      position: new window.kakao.maps.LatLng(it.lat, it.lng),
-      map,
-      title: it.name,
-    });
-
-    window.kakao.maps.event.addListener(marker, "click", () => renderDetail(it));
+    const marker = window.MapRuntime.createMarker(map, it.lat, it.lng, it.name);
+    window.MapRuntime.addMarkerClick(marker, () => renderDetail(it));
     markers.push(marker);
   });
 }
@@ -232,7 +182,7 @@ function renderList(items) {
       <div class="dist">거리 ${it.distanceKm}km</div>
     `;
     el.addEventListener("click", () => {
-      map.setCenter(new window.kakao.maps.LatLng(it.lat, it.lng));
+      window.MapRuntime.setCenter(map, it.lat, it.lng);
       if (map.getLevel() > 4) map.setLevel(4);
       renderDetail(it);
     });
