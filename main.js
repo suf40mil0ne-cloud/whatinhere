@@ -4,6 +4,7 @@ let markers = [];
 let wheelHandlerBound = false;
 let wheelGestureActive = false;
 let wheelGestureTimer = null;
+const APP_BUILD = "2026-03-05-static-1";
 const defaultCenter = { lat: 37.6686, lng: 126.7440 };
 const defaultZoom = 14;
 
@@ -247,7 +248,7 @@ function renderDetail(it) {
 function renderSyncInfo(items) {
   const el = document.getElementById("syncInfo");
   if (!items.length) {
-    el.textContent = "현재 반경 내 데이터가 없어 최신 동기화 시각을 표시할 수 없습니다.";
+    el.textContent = `현재 반경 내 데이터가 없어 최신 동기화 시각을 표시할 수 없습니다. (build ${APP_BUILD})`;
     return;
   }
 
@@ -257,11 +258,11 @@ function renderSyncInfo(items) {
     .sort((a, b) => b.getTime() - a.getTime());
 
   if (!dates.length) {
-    el.textContent = "공공데이터 동기화 시각 정보가 아직 없습니다.";
+    el.textContent = `공공데이터 동기화 시각 정보가 아직 없습니다. (build ${APP_BUILD})`;
     return;
   }
 
-  el.textContent = `공공데이터 기준 최근 동기화: ${dates[0].toLocaleString("ko-KR")}`;
+  el.textContent = `공공데이터 기준 최근 동기화: ${dates[0].toLocaleString("ko-KR")} (build ${APP_BUILD})`;
 }
 
 function renderError(msg) {
