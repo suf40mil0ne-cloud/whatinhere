@@ -45,6 +45,10 @@ const CURATED_CONSTRUCTION_PROJECTS = [
     source: "curated-public:kintex3",
     sourceLinks: [
       {
+        title: "공공데이터포털 - 경기도_KINTEX 시설 현황",
+        url: "https://www.data.go.kr/data/15075693/fileData.do",
+      },
+      {
         title: "산업통상자원부 보도자료 - 킨텍스 제3전시장 착공식(2025-10-23)",
         url: "https://www.motie.go.kr/kor/article/ATCL3f49a5a8c/73488/view?mno=&pageIndex=1&rowPageCnt=10&searchCondition=1&searchKeyword=%ED%82%A8%ED%85%8D%EC%8A%A4",
       },
@@ -304,6 +308,26 @@ function getCuratedConstructionProjects() {
   }));
 }
 
+function getCuratedConstructionProjectsForNearby() {
+  return CURATED_CONSTRUCTION_PROJECTS.map((p) => ({
+    id: `curated-${makeProjectId(p.name, p.address, p.lat, p.lng)}`,
+    name: p.name,
+    type: p.type || "building",
+    status: "construction",
+    statusText: p.statusText || "",
+    address: p.address || "",
+    lat: p.lat,
+    lng: p.lng,
+    startDate: p.startDate || "",
+    endDateEst: p.endDateEst || "",
+    endDateEstText: p.endDateEst || "",
+    source: p.source || "curated-public",
+    sourceLinks: Array.isArray(p.sourceLinks) ? p.sourceLinks : [],
+    sourceFetchedAt: null,
+    updatedAt: null,
+  }));
+}
+
 function normalizeRow(row, sourceName, sourceUrl, linkTemplate = "") {
   const name = asText(
     pick(row, [
@@ -541,6 +565,23 @@ exports.nearby = functions.https.onRequest(async (req, res) => {
         });
       }
     });
+
+    const keySet = new Set(items.map((it) => `${it.name}|${it.lat}|${it.lng}`));
+    const curatedItems = getCuratedConstructionProjectsForNearby();
+    for (const c of curatedItems) {
+      if (type !== "all" && c.type !== type) continue;
+      const key = `${c.name}|${c.lat}|${c.lng}`;
+      if (keySet.has(key)) continue;
+
+      const dist = haversineKm(lat, lng, c.lat, c.lng);
+      if (dist <= radiusKm) {
+        items.push({
+          ...c,
+          distanceKm: Math.round(dist * 100) / 100,
+        });
+        keySet.add(key);
+      }
+    }
 
     items.sort((a, b) => a.distanceKm - b.distanceKm);
     return res.json({ count: items.length, items });
