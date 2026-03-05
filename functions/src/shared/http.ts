@@ -1,5 +1,3 @@
-import fetch, { type RequestInit } from "node-fetch";
-
 export async function httpGetJson<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, init);
   if (!res.ok) {
