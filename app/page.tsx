@@ -1,5 +1,5 @@
-import MapView from "@/components/MapView";
+import Map from "@/components/Map";
 
-export default function Page() {
-  return <MapView />;
+export default function Page(): JSX.Element {
+  return <Map />;
 }
