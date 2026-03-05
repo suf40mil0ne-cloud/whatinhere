@@ -7,6 +7,10 @@
       {
         "source": "/api/nearby",
         "function": "nearby"
+      },
+      {
+        "source": "/api/sync-public-data",
+        "function": "syncPublicData"
       }
     ],
     "headers": [
