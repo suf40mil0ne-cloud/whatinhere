@@ -70,3 +70,22 @@ firebase deploy --project whatinhere --only hosting
 ```
 
 Cloudflare Pages를 사용 중이면 `main` 브랜치 푸시로 자동 배포되도록 설정합니다.
+
+## Cloudflare Pages (Next.js) 설정
+
+현재 저장소에는 Next.js App Router 코드가 포함되어 있습니다.
+Cloudflare Pages에서 이 코드를 배포하려면 프로젝트 설정에서 다음을 사용하세요.
+
+- Framework preset: `Next.js`
+- Build command: `npm run build`
+- Build output directory: `.next`
+
+필수 환경변수(Cloudflare Pages > Settings > Environment variables):
+
+- `NEXT_PUBLIC_KAKAO_MAP_JS_KEY`
+- `NEXT_PUBLIC_FIREBASE_API_KEY`
+- `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`
+- `NEXT_PUBLIC_FIREBASE_PROJECT_ID`
+- `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET`
+- `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID`
+- `NEXT_PUBLIC_FIREBASE_APP_ID`
