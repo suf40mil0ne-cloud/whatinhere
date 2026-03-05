@@ -16,6 +16,28 @@ const TYPE_LABELS = {
   road: "도로/교량",
 };
 
+const HIGHLIGHT_PROJECTS = [
+  {
+    id: "highlight-kintex-hall3",
+    name: "킨텍스 제3전시장 건립공사",
+    type: "building",
+    status: "construction",
+    statusText: "착공(2025-10-23), 2028년 준공 목표",
+    address: "경기 고양시 일산서구 대화동 킨텍스 일원",
+    lat: 37.6686,
+    lng: 126.744,
+    startDate: "2025-10-23",
+    endDateEst: "2028-12-31",
+    endDateEstText: "2028-12-31",
+    source: "curated-public:kintex3",
+    sourceLinks: [
+      { title: "공공데이터포털 - 경기도_KINTEX 시설 현황", url: "https://www.data.go.kr/data/15075693/fileData.do" },
+      { title: "산업통상자원부 - 킨텍스 제3전시장 착공식", url: "https://www.motie.go.kr/kor/article/ATCL3f49a5a8c/73488/view?mno=&pageIndex=1&rowPageCnt=10&searchCondition=1&searchKeyword=%ED%82%A8%ED%85%8D%EC%8A%A4" },
+      { title: "킨텍스 공식 - 제3전시장", url: "https://www.kintex.com/web/ko/html/company/exhibitionHall3.do" },
+    ],
+  },
+];
+
 document.addEventListener("DOMContentLoaded", initMap);
 
 function initMap() {
@@ -126,7 +148,7 @@ async function fetchNearby() {
     if (!resp.ok) throw new Error(`API error: ${resp.status}`);
 
     const data = await resp.json();
-    const items = data.items || [];
+    const items = mergeHighlightProjects(data.items || [], { lat, lng, type });
     renderList(items);
     renderMarkers(items);
     renderSyncInfo(items);
@@ -247,6 +269,38 @@ function markerColorForType(type) {
   if (type === "subway") return "#065f46";
   if (type === "road") return "#92400e";
   return "#1d4ed8";
+}
+
+function mergeHighlightProjects(items, { lat, lng, type }) {
+  const merged = [...items];
+  const keys = new Set(items.map((it) => `${it.name}|${it.lat}|${it.lng}`));
+
+  HIGHLIGHT_PROJECTS.forEach((p) => {
+    if (type !== "all" && p.type !== type) return;
+    const key = `${p.name}|${p.lat}|${p.lng}`;
+    if (keys.has(key)) return;
+
+    const dist = distanceKm(lat, lng, p.lat, p.lng);
+    merged.push({
+      ...p,
+      distanceKm: Math.round(dist * 100) / 100,
+    });
+    keys.add(key);
+  });
+
+  merged.sort((a, b) => a.distanceKm - b.distanceKm);
+  return merged;
+}
+
+function distanceKm(lat1, lng1, lat2, lng2) {
+  const toRad = (d) => (d * Math.PI) / 180;
+  const R = 6371;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(a));
 }
 
 function typeLabel(type) {
