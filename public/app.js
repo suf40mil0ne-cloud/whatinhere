@@ -1,8 +1,9 @@
 let map;
 let userMarker = null;
 let markers = [];
-let wheelNextAllowedAt = 0;
 let wheelHandlerBound = false;
+let wheelGestureActive = false;
+let wheelGestureTimer = null;
 const defaultCenter = { lat: 37.6686, lng: 126.7440 };
 const defaultZoom = 14;
 
@@ -48,12 +49,16 @@ function setupDiscreteWheelZoom() {
       ev.preventDefault();
       ev.stopPropagation();
 
-      const now = Date.now();
-      if (now < wheelNextAllowedAt) return;
-      wheelNextAllowedAt = now + 380;
+      if (!wheelGestureActive) {
+        wheelGestureActive = true;
+        if (ev.deltaY < 0) map.zoomIn(1, { animate: false });
+        else if (ev.deltaY > 0) map.zoomOut(1, { animate: false });
+      }
 
-      if (ev.deltaY < 0) map.zoomIn(1, { animate: false });
-      else if (ev.deltaY > 0) map.zoomOut(1, { animate: false });
+      if (wheelGestureTimer) clearTimeout(wheelGestureTimer);
+      wheelGestureTimer = setTimeout(() => {
+        wheelGestureActive = false;
+      }, 450);
     },
     { passive: false }
   );
