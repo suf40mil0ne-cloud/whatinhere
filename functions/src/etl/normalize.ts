@@ -20,15 +20,29 @@ export interface NormalizedRecord {
   dedup_key?: string;
 }
 
-export function normalizeAddress(addr?: string) {
-  if (!addr) return "";
-  return addr.replace(/\s+/g, " ").replace(/(특별시|광역시|특별자치시|특별자치도)/g, "").trim();
+export function normalizeAddress(addr?: string): string {
+  if (!addr || typeof addr !== "string") return "";
+  return addr
+    .replace(/\s+/g, " ")
+    .replace(/(특별시|광역시|특별자치시|특별자치도)/g, "")
+    .trim();
 }
 
-export function buildDedupKey(r: NormalizedRecord) {
-  const a = normalizeAddress(r.address_raw);
-  const p = r.pnu ?? "";
-  const use = (r.use ?? "").slice(0, 20);
-  const areaBucket = r.area_m2 ? Math.round(r.area_m2 / 100) : 0;
-  return `${p || a}|${use}|${areaBucket}`;
+export function buildDedupKey(record: NormalizedRecord): string {
+  const pnu = typeof record.pnu === "string" ? record.pnu.trim() : "";
+  const address = normalizeAddress(record.address_raw);
+  const use = typeof record.use === "string" ? record.use.trim().slice(0, 24) : "";
+  const areaBucket = Number.isFinite(record.area_m2) ? Math.round((record.area_m2 as number) / 100) : 0;
+  const seed = pnu || address || record.title || "unknown";
+  return `${seed}|${use}|${areaBucket}`;
+}
+
+export function inferStatusFromSource(record: NormalizedRecord): ProjectStatus {
+  if (record.source === "BUILD_PERMIT") return "APPROVED";
+
+  const text = `${record.title || ""} ${record.use || ""}`.toLowerCase();
+  if (text.includes("공사중") || text.includes("착공") || text.includes("in progress")) return "IN_PROGRESS";
+  if (text.includes("준공") || text.includes("완료") || text.includes("completed")) return "COMPLETED";
+
+  return "RECEIVED";
 }
