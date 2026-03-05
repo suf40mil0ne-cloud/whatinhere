@@ -5,6 +5,33 @@ const crypto = require("crypto");
 admin.initializeApp();
 const db = admin.firestore();
 
+const ACTIVE_STATUS_KEYWORDS = [
+  "construction",
+  "in progress",
+  "공사중",
+  "공사 진행",
+  "진행중",
+  "착공",
+  "시공",
+  "시행",
+  "추진",
+  "진행",
+];
+
+const INACTIVE_STATUS_KEYWORDS = [
+  "done",
+  "complete",
+  "completed",
+  "closed",
+  "준공",
+  "완료",
+  "종료",
+  "해제",
+  "취소",
+  "중지",
+  "보류",
+];
+
 function haversineKm(lat1, lng1, lat2, lng2) {
   const toRad = (d) => (d * Math.PI) / 180;
   const R = 6371;
@@ -29,7 +56,7 @@ function boundingBox(lat, lng, radiusKm) {
 
 function asNumber(v) {
   if (v === null || v === undefined || v === "") return null;
-  const n = Number(v);
+  const n = Number(String(v).replace(/,/g, "").trim());
   return Number.isFinite(n) ? n : null;
 }
 
@@ -45,25 +72,6 @@ function pick(obj, keys) {
     }
   }
   return "";
-}
-
-function inferType(name, rawType) {
-  const merged = `${asText(name)} ${asText(rawType)}`;
-  if (/지하철|역사|전철|철도|tram|metro/i.test(merged)) return "subway";
-  if (/도로|교량|터널|고속|인터체인지|ic|jc|램프/i.test(merged)) return "road";
-  return "building";
-}
-
-function makeProjectId(sourceName, name, address, lat, lng) {
-  const base = `${sourceName}|${name}|${address}|${lat}|${lng}`;
-  return crypto.createHash("sha1").update(base).digest("hex").slice(0, 24);
-}
-
-function isAuthorizedSync(req) {
-  const expected = process.env.SYNC_TOKEN || "";
-  if (!expected) return false;
-  const token = String(req.query.token || req.get("x-sync-token") || "");
-  return token === expected;
 }
 
 function readSetting(name, fallback = "") {
@@ -84,118 +92,241 @@ function readSetting(name, fallback = "") {
   return fallback;
 }
 
-async function fetchSeoulDatasetRows() {
-  const apiKey = readSetting("SEOUL_OPEN_API_KEY");
-  const dataset = readSetting("SEOUL_DATASET_NAME", "tbLnOpendataW");
-  const maxRows = Math.max(100, Math.min(5000, Number(readSetting("SEOUL_DATASET_MAX_ROWS", "1000"))));
+function parseDateMaybe(v) {
+  const raw = asText(v);
+  if (!raw) return null;
 
-  if (!apiKey) {
-    throw new Error("SEOUL_OPEN_API_KEY is missing");
+  const digits = raw.replace(/[^0-9]/g, "");
+  if (digits.length === 8) {
+    const y = Number(digits.slice(0, 4));
+    const m = Number(digits.slice(4, 6));
+    const d = Number(digits.slice(6, 8));
+    const dt = new Date(Date.UTC(y, m - 1, d));
+    if (!Number.isNaN(dt.getTime())) return dt;
   }
 
-  const url = `http://openapi.seoul.go.kr:8088/${encodeURIComponent(apiKey)}/json/${encodeURIComponent(dataset)}/1/${maxRows}/`;
-  const resp = await fetch(url);
-  if (!resp.ok) {
-    throw new Error(`Public data request failed: ${resp.status}`);
-  }
-
-  const json = await resp.json();
-  const root = json[dataset] || Object.values(json).find((v) => v && typeof v === "object" && Array.isArray(v.row));
-  if (!root || !Array.isArray(root.row)) {
-    throw new Error("Unexpected public data response format");
-  }
-
-  return {
-    sourceName: `seoul-openapi:${dataset}`,
-    sourceUrl: url,
-    rows: root.row,
-  };
+  const dt = new Date(raw);
+  if (!Number.isNaN(dt.getTime())) return dt;
+  return null;
 }
 
-async function runPublicDataSync() {
-  const { sourceName, sourceUrl, rows } = await fetchSeoulDatasetRows();
-
-  let total = 0;
-  let saved = 0;
-  let skipped = 0;
-
-  let batch = db.batch();
-  let opCount = 0;
-
-  for (const row of rows) {
-    total += 1;
-    const n = normalizeRow(row, sourceName, sourceUrl);
-    if (!n) {
-      skipped += 1;
-      continue;
-    }
-
-    const docId = makeProjectId(sourceName, n.name, n.address, n.lat, n.lng);
-    const ref = db.collection("projects").doc(docId);
-    batch.set(ref, n, { merge: true });
-    opCount += 1;
-    saved += 1;
-
-    if (opCount >= 400) {
-      await batch.commit();
-      batch = db.batch();
-      opCount = 0;
-    }
-  }
-
-  if (opCount > 0) {
-    await batch.commit();
-  }
-
-  return {
-    source: sourceName,
-    total,
-    saved,
-    skipped,
-    syncedAt: new Date().toISOString(),
-  };
+function inferType(name, rawType) {
+  const merged = `${asText(name)} ${asText(rawType)}`;
+  if (/지하철|역사|전철|철도|tram|metro|rail/i.test(merged)) return "subway";
+  if (/도로|교량|터널|고속|인터체인지|ic|jc|램프|road|bridge|tunnel/i.test(merged)) return "road";
+  return "building";
 }
 
-function normalizeRow(row, sourceName, sourceUrl) {
+function isActiveStatusText(statusText) {
+  const s = asText(statusText).toLowerCase();
+  if (!s) return null;
+
+  if (INACTIVE_STATUS_KEYWORDS.some((k) => s.includes(k.toLowerCase()))) return false;
+  if (ACTIVE_STATUS_KEYWORDS.some((k) => s.includes(k.toLowerCase()))) return true;
+  return null;
+}
+
+function deriveStatus(statusText, startDateText, endDateText) {
+  const byText = isActiveStatusText(statusText);
+  if (byText === true) return "construction";
+  if (byText === false) return "inactive";
+
+  const start = parseDateMaybe(startDateText);
+  const end = parseDateMaybe(endDateText);
+  const now = new Date();
+
+  if (start && end) {
+    if (start <= now && now <= end) return "construction";
+    return now > end ? "inactive" : "planned";
+  }
+
+  if (start && !end) {
+    return start <= now ? "construction" : "planned";
+  }
+
+  if (!start && end) {
+    return now <= end ? "construction" : "inactive";
+  }
+
+  return "unknown";
+}
+
+function makeProjectId(name, address, lat, lng) {
+  const base = `${name}|${address}|${lat}|${lng}`;
+  return crypto.createHash("sha1").update(base).digest("hex").slice(0, 24);
+}
+
+function isAuthorizedSync(req) {
+  const expected = readSetting("SYNC_TOKEN");
+  if (!expected) return false;
+  const token = String(req.query.token || req.get("x-sync-token") || "");
+  return token === expected;
+}
+
+function getByPath(obj, path) {
+  return path.split(".").reduce((acc, key) => {
+    if (acc === null || acc === undefined) return undefined;
+    return acc[key];
+  }, obj);
+}
+
+function buildSourceConfigs() {
+  const sources = [];
+
+  const seoulApiKey = readSetting("SEOUL_OPEN_API_KEY");
+  const seoulDatasetNames = readSetting("SEOUL_DATASET_NAMES", readSetting("SEOUL_DATASET_NAME", ""))
+    .split(",")
+    .map((v) => v.trim())
+    .filter(Boolean);
+  const seoulMaxRows = Math.max(100, Math.min(5000, Number(readSetting("SEOUL_DATASET_MAX_ROWS", "1000"))));
+
+  if (seoulApiKey && seoulDatasetNames.length) {
+    for (const dataset of seoulDatasetNames) {
+      sources.push({
+        kind: "seoul-openapi",
+        name: `seoul-openapi:${dataset}`,
+        apiKey: seoulApiKey,
+        dataset,
+        maxRows: seoulMaxRows,
+      });
+    }
+  }
+
+  const extraJson = readSetting("PUBLIC_DATA_SOURCES_JSON", "");
+  if (extraJson) {
+    try {
+      const parsed = JSON.parse(extraJson);
+      if (Array.isArray(parsed)) {
+        for (const s of parsed) {
+          if (!s || typeof s !== "object") continue;
+          if (!s.url || !s.name) continue;
+          sources.push({
+            kind: "json-url",
+            name: String(s.name),
+            url: String(s.url),
+            rowPaths: Array.isArray(s.rowPaths) && s.rowPaths.length
+              ? s.rowPaths.map((p) => String(p))
+              : ["response.body.items.item", "response.body.items", "items", "data", "results", "row"],
+            linkTemplate: s.linkTemplate ? String(s.linkTemplate) : "",
+          });
+        }
+      }
+    } catch (e) {
+      console.error("PUBLIC_DATA_SOURCES_JSON parse error", e.message || e);
+    }
+  }
+
+  return sources;
+}
+
+async function fetchRowsFromSource(source) {
+  if (source.kind === "seoul-openapi") {
+    const url = `http://openapi.seoul.go.kr:8088/${encodeURIComponent(source.apiKey)}/json/${encodeURIComponent(source.dataset)}/1/${source.maxRows}/`;
+    const resp = await fetch(url);
+    if (!resp.ok) {
+      throw new Error(`Seoul API request failed: ${resp.status}`);
+    }
+
+    const json = await resp.json();
+    const root =
+      json[source.dataset] ||
+      Object.values(json).find((v) => v && typeof v === "object" && Array.isArray(v.row));
+
+    if (!root || !Array.isArray(root.row)) {
+      throw new Error("Seoul API response has no row array");
+    }
+
+    return { rows: root.row, sourceUrl: url };
+  }
+
+  if (source.kind === "json-url") {
+    const resp = await fetch(source.url);
+    if (!resp.ok) {
+      throw new Error(`JSON source request failed: ${resp.status}`);
+    }
+
+    const json = await resp.json();
+    let rows = null;
+    for (const path of source.rowPaths) {
+      const candidate = getByPath(json, path);
+      if (Array.isArray(candidate)) {
+        rows = candidate;
+        break;
+      }
+    }
+
+    if (!rows) {
+      throw new Error("JSON source row path not found");
+    }
+
+    return { rows, sourceUrl: source.url };
+  }
+
+  throw new Error(`Unknown source kind: ${source.kind}`);
+}
+
+function applyLinkTemplate(linkTemplate, row) {
+  if (!linkTemplate) return "";
+  return linkTemplate.replace(/\{([A-Za-z0-9_]+)\}/g, (_, key) => asText(row[key]));
+}
+
+function normalizeRow(row, sourceName, sourceUrl, linkTemplate = "") {
   const name = asText(
-    pick(row, ["BIZ_NM", "CNSTRCT_NM", "PRJ_NM", "SITETITLE", "TITLE", "NAME", "사업명", "공사명"])
+    pick(row, [
+      "BIZ_NM", "CNSTRCT_NM", "PRJ_NM", "SITETITLE", "TITLE", "NAME", "사업명", "공사명", "현장명", "공사현장명",
+    ])
   );
   const address = asText(
-    pick(row, ["ADDR", "ADDRESS", "SITE_ADDR", "RD_ADDR", "ROAD_ADDR", "지번주소", "도로명주소", "주소"])
+    pick(row, [
+      "ADDR", "ADDRESS", "SITE_ADDR", "RD_ADDR", "ROAD_ADDR", "LOCPLC", "지번주소", "도로명주소", "주소", "위치",
+    ])
   );
 
   const lat = asNumber(
-    pick(row, ["YDNTS", "LAT", "WGS84_LAT", "Y", "위도", "Y_COORD", "YCOORD"])
+    pick(row, [
+      "YDNTS", "LAT", "WGS84_LAT", "Y", "위도", "Y_COORD", "YCOORD", "REFINE_WGS84_LAT", "mapY",
+    ])
   );
   const lng = asNumber(
-    pick(row, ["XDNTS", "LNG", "WGS84_LON", "WGS84_LNG", "X", "경도", "X_COORD", "XCOORD"])
+    pick(row, [
+      "XDNTS", "LNG", "LON", "WGS84_LON", "WGS84_LNG", "X", "경도", "X_COORD", "XCOORD", "REFINE_WGS84_LOGT", "mapX",
+    ])
   );
 
   if (!name || lat === null || lng === null) return null;
 
-  const status = asText(
-    pick(row, ["STATUS", "STAT_NM", "PRGS_STAT", "CONS_STAT", "공정상태", "상태"])
-  ) || "construction";
+  const statusText = asText(
+    pick(row, [
+      "STATUS", "STAT_NM", "PRGS_STAT", "CONS_STAT", "CSTRN_STTUS", "공정상태", "상태", "진행상태", "착공여부",
+    ])
+  );
 
   const rawType = asText(
-    pick(row, ["TYPE", "BIZ_SE", "FACILITY_TYPE", "공종", "시설구분", "사업구분"])
+    pick(row, ["TYPE", "BIZ_SE", "FACILITY_TYPE", "공종", "시설구분", "사업구분", "시설종류", "공사종류"])
   );
 
   const startDate = asText(
-    pick(row, ["START_DATE", "BEGIN_DE", "CONS_STRT_DE", "착공일", "공사시작일", "공사기간_시작"])
+    pick(row, ["START_DATE", "BEGIN_DE", "CONS_STRT_DE", "착공일", "공사시작일", "공사기간_시작", "STRTDAY"])
   );
   const endDateEst = asText(
-    pick(row, ["END_DATE", "END_DE", "CONS_COMP_DE", "준공예정일", "완료예정일", "공사기간_종료"])
+    pick(row, ["END_DATE", "END_DE", "CONS_COMP_DE", "준공예정일", "완료예정일", "공사기간_종료", "ENDDAY"])
   );
 
+  const status = deriveStatus(statusText, startDate, endDateEst);
+  if (status !== "construction") return null;
+
   const sourceTitle = asText(
-    pick(row, ["HOMEPAGE", "DETAIL_URL", "LINK", "URL", "자료링크"])
+    pick(row, ["HOMEPAGE", "DETAIL_URL", "LINK", "URL", "자료링크", "상세URL", "DTL_URL"])
   );
+
+  const templateLink = applyLinkTemplate(linkTemplate, row);
+  const finalLink = sourceTitle || templateLink || sourceUrl;
 
   return {
     name,
     type: inferType(name, rawType),
-    status,
+    status: "construction",
+    statusText,
     address,
     lat,
     lng,
@@ -203,11 +334,92 @@ function normalizeRow(row, sourceName, sourceUrl) {
     endDateEst,
     endDateEstText: endDateEst,
     source: sourceName,
-    sourceLinks: sourceTitle
-      ? [{ title: "공공데이터 원문", url: sourceTitle }]
-      : [{ title: "공공데이터 조회", url: sourceUrl }],
+    sourceLinks: [{ title: "공공데이터 원문", url: finalLink }],
     sourceFetchedAt: admin.firestore.FieldValue.serverTimestamp(),
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  };
+}
+
+async function runPublicDataSync({ sourceFilter = "", persist = true } = {}) {
+  const allSources = buildSourceConfigs();
+  const sources = sourceFilter
+    ? allSources.filter((s) => s.name === sourceFilter)
+    : allSources;
+
+  if (!sources.length) {
+    throw new Error("No public data source configured. Set SEOUL_* or PUBLIC_DATA_SOURCES_JSON");
+  }
+
+  let totalRows = 0;
+  let saved = 0;
+  let skipped = 0;
+  const reports = [];
+
+  let batch = db.batch();
+  let opCount = 0;
+
+  for (const source of sources) {
+    let sourceTotal = 0;
+    let sourceSaved = 0;
+    let sourceSkipped = 0;
+
+    try {
+      const { rows, sourceUrl } = await fetchRowsFromSource(source);
+
+      for (const row of rows) {
+        totalRows += 1;
+        sourceTotal += 1;
+
+        const normalized = normalizeRow(row, source.name, sourceUrl, source.linkTemplate || "");
+        if (!normalized) {
+          skipped += 1;
+          sourceSkipped += 1;
+          continue;
+        }
+
+        if (persist) {
+          const docId = makeProjectId(normalized.name, normalized.address, normalized.lat, normalized.lng);
+          const ref = db.collection("projects").doc(docId);
+          batch.set(ref, normalized, { merge: true });
+          opCount += 1;
+        }
+        saved += 1;
+        sourceSaved += 1;
+
+        if (persist && opCount >= 400) {
+          await batch.commit();
+          batch = db.batch();
+          opCount = 0;
+        }
+      }
+
+      reports.push({
+        source: source.name,
+        total: sourceTotal,
+        saved: sourceSaved,
+        skipped: sourceSkipped,
+      });
+    } catch (e) {
+      reports.push({
+        source: source.name,
+        total: sourceTotal,
+        saved: sourceSaved,
+        skipped: sourceSkipped,
+        error: String(e.message || e),
+      });
+    }
+  }
+
+  if (persist && opCount > 0) {
+    await batch.commit();
+  }
+
+  return {
+    totalRows,
+    saved,
+    skipped,
+    sources: reports,
+    syncedAt: new Date().toISOString(),
   };
 }
 
@@ -254,6 +466,7 @@ exports.nearby = functions.https.onRequest(async (req, res) => {
           name: d.name || "",
           type: d.type || "building",
           status: d.status || "",
+          statusText: d.statusText || "",
           address: d.address || "",
           lat: d.lat,
           lng: d.lng,
@@ -290,8 +503,12 @@ exports.syncPublicData = functions.https.onRequest(async (req, res) => {
       return res.status(401).json({ error: "Unauthorized" });
     }
 
-    const result = await runPublicDataSync();
-    return res.json({ ok: true, ...result });
+    const source = asText(req.query.source);
+    const dryRun = String(req.query.dryRun || "") === "1";
+
+    const result = await runPublicDataSync({ sourceFilter: source, persist: !dryRun });
+
+    return res.json({ ok: true, dryRun, ...result });
   } catch (e) {
     console.error(e);
     return res.status(500).json({ error: String(e.message || e) });

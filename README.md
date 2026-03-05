@@ -16,23 +16,37 @@
 
 - `SYNC_TOKEN`: 수동 동기화 호출 인증 토큰
 - `SEOUL_OPEN_API_KEY`: 서울 열린데이터 API 키
-- `SEOUL_DATASET_NAME`: 공사 데이터셋명 (기본값 `tbLnOpendataW`)
-- `SEOUL_DATASET_MAX_ROWS`: 최대 동기화 건수 (기본값 `1000`)
+- `SEOUL_DATASET_NAMES`: 서울 데이터셋명 목록(쉼표 구분)
+- `SEOUL_DATASET_MAX_ROWS`: 소스별 최대 동기화 건수 (기본값 `1000`)
+- `PUBLIC_DATA_SOURCES_JSON`: 추가 공공데이터 JSON 소스 목록
 
-예시:
-
-```bash
-firebase functions:config:set app.sync_token="YOUR_TOKEN"
-```
-
-실제 런타임에서 환경변수 주입 방식은 사용하는 배포 방식(Functions v1/v2)에 맞춰 설정하세요.
 `syncPublicDataDaily`는 `Asia/Seoul` 기준 매일 03:30에 자동 실행됩니다.
 
-## 로컬/배포 전 체크
+## 추천 수집 방안 (공사 진행중 데이터)
 
-1. `public/index.html`의 애드센스 client ID를 실제 값으로 교체
-2. 정책 페이지의 연락처/도메인을 실제 운영 정보로 교체
-3. Firestore 인덱스가 필요한 경우 콘솔 안내에 따라 생성
+데이터가 비어 있지 않게 하려면 단일 소스가 아닌 다중 소스를 쓰는 것이 안전합니다.
+
+1. 서울 열린데이터: 좌표 포함 공사/개발 관련 데이터셋 1개 이상
+2. data.go.kr OpenAPI(JSON): `_type=json`으로 조회 가능한 공사/인허가/기반시설 진행 정보
+3. 동기화 시 서버에서 `진행상태 + 기간(착공~준공예정)`를 결합해 `status=construction`만 저장
+
+## `PUBLIC_DATA_SOURCES_JSON` 예시
+
+```json
+[
+  {
+    "name": "datago:metro-construction",
+    "url": "https://api.example.go.kr/getConstructionList?serviceKey=YOUR_KEY&pageNo=1&numOfRows=1000&_type=json",
+    "rowPaths": ["response.body.items.item"],
+    "linkTemplate": "https://api.example.go.kr/detail?prjId={PRJ_ID}"
+  },
+  {
+    "name": "datago:road-work",
+    "url": "https://api.example.go.kr/getRoadWork?serviceKey=YOUR_KEY&pageNo=1&numOfRows=1000&_type=json",
+    "rowPaths": ["response.body.items.item", "items"]
+  }
+]
+```
 
 ## API
 
@@ -42,11 +56,20 @@ firebase functions:config:set app.sync_token="YOUR_TOKEN"
 
 - `type`: `all | building | subway | road`
 
-### 2) 공공데이터 동기화
+### 2) 공공데이터 동기화 (수동)
 
 `POST /api/sync-public-data?token=YOUR_SYNC_TOKEN`
 
-- 인증 토큰이 맞으면 공공데이터를 가져와 `projects` 컬렉션에 upsert
+선택 파라미터:
+- `source`: 특정 소스만 동기화 (`source` 이름 정확히 일치)
+- `dryRun=1`: 저장 없이 수집/필터링 결과 리포트 확인
+
+예시:
+
+```bash
+curl -X POST "https://<YOUR_DOMAIN>/api/sync-public-data?token=YOUR_SYNC_TOKEN"
+curl -X POST "https://<YOUR_DOMAIN>/api/sync-public-data?token=YOUR_SYNC_TOKEN&dryRun=1"
+```
 
 ## 배포
 
