@@ -7,7 +7,11 @@ let wheelGestureTimer = null;
 const defaultCenter = { lat: 37.6686, lng: 126.7440 };
 const defaultZoom = 14;
 
-const FUNCTIONS_NEARBY_URL = "/api/nearby";
+const FUNCTIONS_NEARBY_URL_CANDIDATES = [
+  "/api/nearby",
+  "https://us-central1-whatinhere.cloudfunctions.net/nearby",
+  "https://asia-northeast3-whatinhere.cloudfunctions.net/nearby",
+];
 
 const TYPE_LABELS = {
   all: "전체",
@@ -137,17 +141,7 @@ async function fetchNearby() {
   setLoading(true);
 
   try {
-    const url = new URL(FUNCTIONS_NEARBY_URL, window.location.origin);
-    url.searchParams.set("lat", String(lat));
-    url.searchParams.set("lng", String(lng));
-    url.searchParams.set("radiusKm", String(radiusKm));
-    url.searchParams.set("status", "construction");
-    url.searchParams.set("type", type);
-
-    const resp = await fetch(url.toString());
-    if (!resp.ok) throw new Error(`API error: ${resp.status}`);
-
-    const data = await resp.json();
+    const data = await fetchNearbyWithFallback({ lat, lng, radiusKm, type });
     const items = mergeHighlightProjects(data.items || [], { lat, lng });
     renderList(items);
     renderMarkers(items);
@@ -162,6 +156,35 @@ async function fetchNearby() {
   } finally {
     setLoading(false);
   }
+}
+
+async function fetchNearbyWithFallback({ lat, lng, radiusKm, type }) {
+  let lastError = null;
+
+  for (const endpoint of FUNCTIONS_NEARBY_URL_CANDIDATES) {
+    try {
+      const url = new URL(endpoint, window.location.origin);
+      url.searchParams.set("lat", String(lat));
+      url.searchParams.set("lng", String(lng));
+      url.searchParams.set("radiusKm", String(radiusKm));
+      url.searchParams.set("status", "construction");
+      url.searchParams.set("type", type);
+
+      const resp = await fetch(url.toString());
+      if (!resp.ok) throw new Error(`API error: ${resp.status} (${endpoint})`);
+
+      const contentType = String(resp.headers.get("content-type") || "").toLowerCase();
+      if (!contentType.includes("application/json")) {
+        throw new Error(`Non-JSON response (${endpoint})`);
+      }
+
+      return await resp.json();
+    } catch (e) {
+      lastError = e;
+    }
+  }
+
+  throw lastError || new Error("No nearby API endpoint available");
 }
 
 function renderMarkers(items) {
