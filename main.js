@@ -4,9 +4,11 @@ let markers = [];
 let wheelHandlerBound = false;
 let wheelGestureActive = false;
 let wheelGestureTimer = null;
-const defaultCenter = { lat: 37.6686, lng: 126.7440 };
-const defaultZoom = 14;
 
+const defaultCenter = { lat: 37.6686, lng: 126.7440 };
+const defaultLevel = 5;
+
+const KAKAO_MAP_JS_KEY = "YOUR_KAKAO_JS_KEY";
 const FUNCTIONS_NEARBY_URL_CANDIDATES = [
   "/api/nearby",
   "https://us-central1-whatinhere.cloudfunctions.net/nearby",
@@ -26,7 +28,6 @@ const HIGHLIGHT_PROJECTS = [
     name: "킨텍스 제3전시장 건립공사",
     type: "building",
     status: "construction",
-    statusText: "착공(2025-10-23), 2028년 준공 목표",
     address: "경기 고양시 일산서구 킨텍스로 217-60 인근(제1전시장 주차장·제2전시장 서측 부지)",
     lat: 37.6679,
     lng: 126.7454,
@@ -34,26 +35,48 @@ const HIGHLIGHT_PROJECTS = [
     endDateEst: "2028-12-31",
     endDateEstText: "2028-12-31",
     source: "curated-public:kintex3",
-    sourceLinks: [
-      { title: "공공데이터포털 - 경기도_KINTEX 시설 현황", url: "https://www.data.go.kr/data/15075693/fileData.do" },
-      { title: "산업통상자원부 - 킨텍스 제3전시장 착공식", url: "https://www.motie.go.kr/kor/article/ATCL3f49a5a8c/73488/view?mno=&pageIndex=1&rowPageCnt=10&searchCondition=1&searchKeyword=%ED%82%A8%ED%85%8D%EC%8A%A4" },
-      { title: "킨텍스 공식 - 제3전시장", url: "https://www.kintex.com/web/ko/html/company/exhibitionHall3.do" },
-    ],
   },
 ];
 
 document.addEventListener("DOMContentLoaded", initMap);
 
-function initMap() {
-  map = L.map("map", {
-    zoomControl: true,
-    scrollWheelZoom: false,
-  }).setView([defaultCenter.lat, defaultCenter.lng], defaultZoom);
+function loadKakaoMap() {
+  return new Promise((resolve, reject) => {
+    if (window.kakao && window.kakao.maps) {
+      window.kakao.maps.load(() => resolve());
+      return;
+    }
 
-  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-    maxZoom: 19,
-    attribution: "&copy; OpenStreetMap contributors",
-  }).addTo(map);
+    const key = window.KAKAO_MAP_JS_KEY || KAKAO_MAP_JS_KEY;
+    if (!key || key.includes("YOUR_")) {
+      reject(new Error("Kakao JavaScript 키가 설정되지 않았습니다."));
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.src = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${encodeURIComponent(key)}&autoload=false`;
+    script.async = true;
+    script.onload = () => window.kakao.maps.load(() => resolve());
+    script.onerror = () => reject(new Error("Kakao Maps SDK 로딩 실패"));
+    document.head.appendChild(script);
+  });
+}
+
+async function initMap() {
+  try {
+    await loadKakaoMap();
+  } catch (e) {
+    renderError(String(e.message || e));
+    return;
+  }
+
+  const center = new window.kakao.maps.LatLng(defaultCenter.lat, defaultCenter.lng);
+  map = new window.kakao.maps.Map(document.getElementById("map"), {
+    center,
+    level: defaultLevel,
+  });
+
+  map.setZoomable(false);
   setupDiscreteWheelZoom();
 
   document.getElementById("btnRefresh").addEventListener("click", fetchNearby);
@@ -67,18 +90,19 @@ function setupDiscreteWheelZoom() {
   if (wheelHandlerBound) return;
   wheelHandlerBound = true;
 
-  map.scrollWheelZoom.disable();
-  const container = map.getContainer();
+  const container = document.getElementById("map");
   container.addEventListener(
     "wheel",
     (ev) => {
       ev.preventDefault();
       ev.stopPropagation();
+      if (!map) return;
 
       if (!wheelGestureActive) {
         wheelGestureActive = true;
-        if (ev.deltaY < 0) map.zoomIn(1, { animate: false });
-        else if (ev.deltaY > 0) map.zoomOut(1, { animate: false });
+        const current = map.getLevel();
+        const next = ev.deltaY < 0 ? Math.max(1, current - 1) : Math.min(14, current + 1);
+        map.setLevel(next, { animate: false });
       }
 
       if (wheelGestureTimer) clearTimeout(wheelGestureTimer);
@@ -101,12 +125,13 @@ function locateMe(alsoFetch) {
       const lat = pos.coords.latitude;
       const lng = pos.coords.longitude;
       setUserLocation(lat, lng);
-      map.setView([lat, lng], 15);
-      if (alsoFetch) fetchNearby();
-      else fetchNearby();
+      map.setCenter(new window.kakao.maps.LatLng(lat, lng));
+      map.setLevel(4);
+      fetchNearby();
     },
     () => {
-      map.setView([defaultCenter.lat, defaultCenter.lng], defaultZoom);
+      map.setCenter(new window.kakao.maps.LatLng(defaultCenter.lat, defaultCenter.lng));
+      map.setLevel(defaultLevel);
       fetchNearby();
     },
     { enableHighAccuracy: true, timeout: 8000 }
@@ -114,18 +139,15 @@ function locateMe(alsoFetch) {
 }
 
 function setUserLocation(lat, lng) {
-  const p = [lat, lng];
+  const p = new window.kakao.maps.LatLng(lat, lng);
   if (!userMarker) {
-    userMarker = L.circleMarker(p, {
-      radius: 8,
-      color: "#0c4a6e",
-      fillColor: "#0c4a6e",
-      fillOpacity: 0.75,
+    userMarker = new window.kakao.maps.Marker({
+      position: p,
+      title: "내 위치",
     });
-    userMarker.bindTooltip("내 위치");
-    userMarker.addTo(map);
+    userMarker.setMap(map);
   } else {
-    userMarker.setLatLng(p);
+    userMarker.setPosition(p);
   }
 }
 
@@ -133,15 +155,14 @@ async function fetchNearby() {
   clearMarkers();
 
   const center = map.getCenter();
-  const lat = center.lat;
-  const lng = center.lng;
+  const lat = center.getLat();
+  const lng = center.getLng();
   const radiusKm = Number(document.getElementById("radius").value || 2);
-  const type = document.getElementById("typeFilter").value || "all";
 
   setLoading(true);
 
   try {
-    const data = await fetchNearbyWithFallback({ lat, lng, radiusKm, type });
+    const data = await fetchNearbyWithFallback({ lat, lng, radiusKm, type: "all" });
     const items = mergeHighlightProjects(data.items || [], { lat, lng });
     renderList(items);
     renderMarkers(items);
@@ -152,7 +173,7 @@ async function fetchNearby() {
     renderList(fallbackItems);
     renderMarkers(fallbackItems);
     renderDetail(fallbackItems[0]);
-    setSyncInfoError("공공데이터 API 연결 오류로 핵심 프로젝트(킨텍스 제3전시장)를 우선 표시합니다.");
+    setSyncInfoError("API 연결 오류로 핵심 프로젝트를 우선 표시합니다.");
   } finally {
     setLoading(false);
   }
@@ -174,9 +195,7 @@ async function fetchNearbyWithFallback({ lat, lng, radiusKm, type }) {
       if (!resp.ok) throw new Error(`API error: ${resp.status} (${endpoint})`);
 
       const contentType = String(resp.headers.get("content-type") || "").toLowerCase();
-      if (!contentType.includes("application/json")) {
-        throw new Error(`Non-JSON response (${endpoint})`);
-      }
+      if (!contentType.includes("application/json")) throw new Error(`Non-JSON response (${endpoint})`);
 
       return await resp.json();
     } catch (e) {
@@ -189,16 +208,14 @@ async function fetchNearbyWithFallback({ lat, lng, radiusKm, type }) {
 
 function renderMarkers(items) {
   items.forEach((it) => {
-    const markerColor = markerColorForType(it.type);
-    const m = L.circleMarker([it.lat, it.lng], {
-      radius: 7,
-      color: markerColor,
-      fillColor: markerColor,
-      fillOpacity: 0.78,
-    }).addTo(map);
+    const marker = new window.kakao.maps.Marker({
+      position: new window.kakao.maps.LatLng(it.lat, it.lng),
+      title: it.name,
+    });
+    marker.setMap(map);
 
-    m.on("click", () => renderDetail(it));
-    markers.push(m);
+    window.kakao.maps.event.addListener(marker, "click", () => renderDetail(it));
+    markers.push(marker);
   });
 }
 
@@ -207,7 +224,7 @@ function renderList(items) {
   list.innerHTML = "";
 
   if (!items.length) {
-    list.innerHTML = '<div class="item"><div class="name">주변 공사 정보가 없습니다</div><div class="meta">반경/유형을 바꿔보세요.</div></div>';
+    list.innerHTML = '<div class="item"><div class="name">주변 공사 정보가 없습니다</div><div class="meta">반경/위치를 바꿔보세요.</div></div>';
     return;
   }
 
@@ -216,12 +233,12 @@ function renderList(items) {
     el.className = "item";
     el.innerHTML = `
       <div class="name">${escapeHtml(it.name)}</div>
-      <div class="type-badge type-${escapeAttr(it.type || "building")}">${escapeHtml(typeLabel(it.type))}</div>
-      <div class="meta">예정 준공: ${escapeHtml(it.endDateEstText || it.endDateEst || "정보없음")}</div>
+      <div class="meta">준공(예정): ${escapeHtml(it.endDateEstText || it.endDateEst || "정보없음")}</div>
       <div class="dist">거리 ${it.distanceKm}km</div>
     `;
     el.addEventListener("click", () => {
-      map.setView([it.lat, it.lng], Math.max(map.getZoom(), 16));
+      map.setCenter(new window.kakao.maps.LatLng(it.lat, it.lng));
+      map.setLevel(Math.min(map.getLevel(), 3));
       renderDetail(it);
     });
     list.appendChild(el);
@@ -232,7 +249,6 @@ function renderList(items) {
 
 function renderDetail(it) {
   const detail = document.getElementById("detail");
-
   detail.classList.remove("empty");
   detail.innerHTML = `
     <div class="detail-title">${escapeHtml(it.name)}</div>
@@ -247,7 +263,7 @@ function renderDetail(it) {
 function renderSyncInfo(items) {
   const el = document.getElementById("syncInfo");
   if (!items.length) {
-    el.textContent = "현재 반경 내 데이터가 없어 최신 동기화 시각을 표시할 수 없습니다.";
+    el.textContent = "현재 반경 내 데이터가 없습니다.";
     return;
   }
 
@@ -257,11 +273,16 @@ function renderSyncInfo(items) {
     .sort((a, b) => b.getTime() - a.getTime());
 
   if (!dates.length) {
-    el.textContent = "공공데이터 동기화 시각 정보가 아직 없습니다.";
+    el.textContent = "동기화 시각 정보가 아직 없습니다.";
     return;
   }
 
-  el.textContent = `공공데이터 기준 최근 동기화: ${dates[0].toLocaleString("ko-KR")}`;
+  el.textContent = `최근 동기화: ${dates[0].toLocaleString("ko-KR")}`;
+}
+
+function setSyncInfoError(msg) {
+  const el = document.getElementById("syncInfo");
+  el.textContent = msg;
 }
 
 function renderError(msg) {
@@ -277,14 +298,8 @@ function setLoading(isLoading) {
 }
 
 function clearMarkers() {
-  markers.forEach((m) => m.remove());
+  markers.forEach((m) => m.setMap(null));
   markers = [];
-}
-
-function markerColorForType(type) {
-  if (type === "subway") return "#065f46";
-  if (type === "road") return "#92400e";
-  return "#1d4ed8";
 }
 
 function mergeHighlightProjects(items, { lat, lng }) {
@@ -307,11 +322,6 @@ function mergeHighlightProjects(items, { lat, lng }) {
   return merged;
 }
 
-function setSyncInfoError(msg) {
-  const el = document.getElementById("syncInfo");
-  el.textContent = msg;
-}
-
 function distanceKm(lat1, lng1, lat2, lng2) {
   const toRad = (d) => (d * Math.PI) / 180;
   const R = 6371;
@@ -329,16 +339,16 @@ function typeLabel(type) {
 
 function toDateSafe(v) {
   if (!v) return null;
-
   if (typeof v === "string") {
     const d = new Date(v);
     return Number.isNaN(d.getTime()) ? null : d;
   }
-
   if (typeof v === "object" && typeof v._seconds === "number") {
     return new Date(v._seconds * 1000);
   }
-
+  if (typeof v === "object" && typeof v.seconds === "number") {
+    return new Date(v.seconds * 1000);
+  }
   return null;
 }
 
@@ -349,8 +359,4 @@ function escapeHtml(s) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
-}
-
-function escapeAttr(s) {
-  return escapeHtml(s).replaceAll("`", "&#096;");
 }
