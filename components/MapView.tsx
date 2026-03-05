@@ -63,7 +63,7 @@ export default function MapView() {
   const [error, setError] = useState<string>("");
 
   useEffect(() => {
-    const key = process.env.NEXT_PUBLIC_KAKAO_MAP_JS_KEY || "";
+    const key = process.env.NEXT_PUBLIC_KAKAO_MAP_JS_KEY || "1cb090f11a07b5856a7fe756877f9718";
 
     (async () => {
       try {
