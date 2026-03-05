@@ -32,6 +32,8 @@
 4. 핵심 대형 프로젝트(예: 킨텍스 제3전시장)는 큐레이션 데이터로 보강해 누락을 방지
 5. `nearby` 응답에도 킨텍스 제3전시장 보강 데이터가 포함되어 지도에서 즉시 확인 가능
 
+실행안 문서: `docs/data-ingestion-plan.md`
+
 ## `PUBLIC_DATA_SOURCES_JSON` 예시
 
 ```json
