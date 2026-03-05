@@ -32,6 +32,30 @@ const INACTIVE_STATUS_KEYWORDS = [
   "보류",
 ];
 
+const CURATED_CONSTRUCTION_PROJECTS = [
+  {
+    name: "킨텍스 제3전시장 건립공사",
+    type: "building",
+    statusText: "착공(2025-10-23), 2028년 준공 목표",
+    address: "경기 고양시 일산서구 대화동 킨텍스 일원(제1전시장 주차장 및 제2전시장 서측 부지)",
+    lat: 37.6686,
+    lng: 126.744,
+    startDate: "2025-10-23",
+    endDateEst: "2028-12-31",
+    source: "curated-public:kintex3",
+    sourceLinks: [
+      {
+        title: "산업통상자원부 보도자료 - 킨텍스 제3전시장 착공식(2025-10-23)",
+        url: "https://www.motie.go.kr/kor/article/ATCL3f49a5a8c/73488/view?mno=&pageIndex=1&rowPageCnt=10&searchCondition=1&searchKeyword=%ED%82%A8%ED%85%8D%EC%8A%A4",
+      },
+      {
+        title: "킨텍스 공식 안내 - 제3전시장",
+        url: "https://www.kintex.com/web/ko/html/company/exhibitionHall3.do",
+      },
+    ],
+  },
+];
+
 function haversineKm(lat1, lng1, lat2, lng2) {
   const toRad = (d) => (d * Math.PI) / 180;
   const R = 6371;
@@ -270,6 +294,16 @@ function applyLinkTemplate(linkTemplate, row) {
   return linkTemplate.replace(/\{([A-Za-z0-9_]+)\}/g, (_, key) => asText(row[key]));
 }
 
+function getCuratedConstructionProjects() {
+  return CURATED_CONSTRUCTION_PROJECTS.map((p) => ({
+    ...p,
+    status: "construction",
+    endDateEstText: p.endDateEst,
+    sourceFetchedAt: admin.firestore.FieldValue.serverTimestamp(),
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  }));
+}
+
 function normalizeRow(row, sourceName, sourceUrl, linkTemplate = "") {
   const name = asText(
     pick(row, [
@@ -409,6 +443,32 @@ async function runPublicDataSync({ sourceFilter = "", persist = true } = {}) {
       });
     }
   }
+
+  const curatedItems = getCuratedConstructionProjects();
+  let curatedSaved = 0;
+  for (const item of curatedItems) {
+    totalRows += 1;
+    if (persist) {
+      const docId = makeProjectId(item.name, item.address, item.lat, item.lng);
+      const ref = db.collection("projects").doc(docId);
+      batch.set(ref, item, { merge: true });
+      opCount += 1;
+    }
+    saved += 1;
+    curatedSaved += 1;
+
+    if (persist && opCount >= 400) {
+      await batch.commit();
+      batch = db.batch();
+      opCount = 0;
+    }
+  }
+  reports.push({
+    source: "curated-public:manual",
+    total: curatedItems.length,
+    saved: curatedSaved,
+    skipped: 0,
+  });
 
   if (persist && opCount > 0) {
     await batch.commit();
