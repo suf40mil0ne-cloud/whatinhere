@@ -11,6 +11,18 @@
       {
         "source": "/api/sync-public-data",
         "function": "syncPublicData"
+      },
+      {
+        "source": "/api/rebuild-tiles-cache",
+        "function": "rebuildTilesCache"
+      },
+      {
+        "source": "/api/projects",
+        "function": "projects"
+      },
+      {
+        "source": "/api/project-detail",
+        "function": "projectDetail"
       }
     ],
     "headers": [

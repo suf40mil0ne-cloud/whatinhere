@@ -19,6 +19,10 @@
 - `SEOUL_DATASET_NAMES`: 서울 데이터셋명 목록(쉼표 구분)
 - `SEOUL_DATASET_MAX_ROWS`: 소스별 최대 동기화 건수 (기본값 `1000`)
 - `PUBLIC_DATA_SOURCES_JSON`: 추가 공공데이터 JSON 소스 목록
+- `VWORLD_API_KEY`: 브이월드 지오코딩 키(주소 -> 좌표)
+- `KAKAO_REST_API_KEY`: 카카오 로컬 REST 키(지오코딩 보조)
+- `GEOCODER_PROVIDER_ORDER`: 지오코더 우선순위(기본 `vworld,kakao`)
+- `REBUILD_TILES_ON_SYNC`: 동기화 후 타일캐시 재빌드 여부 (`true|false`)
 
 `syncPublicDataDaily`는 `Asia/Seoul` 기준 매일 03:30에 자동 실행됩니다.
 
@@ -84,6 +88,18 @@ firebase functions:config:set app.public_data_sources_json="$PUBLIC_JSON_MINIFIE
 curl -X POST "https://<YOUR_DOMAIN>/api/sync-public-data?token=YOUR_SYNC_TOKEN"
 curl -X POST "https://<YOUR_DOMAIN>/api/sync-public-data?token=YOUR_SYNC_TOKEN&dryRun=1"
 ```
+
+### 3) 지도 프로젝트 조회 (tiles_cache 기반)
+
+`GET /api/projects?south=...&west=...&north=...&east=...&level=6&status=IN_PROGRESS&category=공공`
+
+### 4) 프로젝트 상세 조회
+
+`GET /api/project-detail?id=<projectId>`
+
+### 5) 타일 캐시 수동 재구축
+
+`POST /api/rebuild-tiles-cache?token=YOUR_SYNC_TOKEN&limit=6000`
 
 ## 배포
 

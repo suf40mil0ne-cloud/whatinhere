@@ -37,6 +37,7 @@ const CURATED_CONSTRUCTION_PROJECTS = [
     name: "킨텍스 제3전시장 건립공사",
     type: "building",
     statusText: "착공(2025-10-23), 2028년 준공 목표",
+    use: "전시장",
     address: "경기 고양시 일산서구 대화동 킨텍스 일원(제1전시장 주차장 및 제2전시장 서측 부지)",
     lat: 37.6686,
     lng: 126.744,
@@ -91,6 +92,10 @@ function asNumber(v) {
 function asText(v) {
   if (v === null || v === undefined) return "";
   return String(v).trim();
+}
+
+function normalizeAddressText(v) {
+  return asText(v).replace(/\s+/g, " ").trim();
 }
 
 function pick(obj, keys) {
@@ -182,6 +187,93 @@ function deriveStatus(statusText, startDateText, endDateText) {
 function makeProjectId(name, address, lat, lng) {
   const base = `${name}|${address}|${lat}|${lng}`;
   return crypto.createHash("sha1").update(base).digest("hex").slice(0, 24);
+}
+
+function hashId(prefix, value) {
+  return `${prefix}_${crypto.createHash("sha1").update(String(value)).digest("hex").slice(0, 20)}`;
+}
+
+function normalizeAddress(addr) {
+  return normalizeAddressText(addr)
+    .replace(/(특별시|광역시|특별자치시|특별자치도)/g, "")
+    .trim();
+}
+
+function buildDedupKey(item) {
+  const pnu = asText(item.pnu);
+  const addr = normalizeAddress(item.address);
+  const use = asText(item.use).slice(0, 20);
+  const areaBucket = item.areaM2 ? Math.round(Number(item.areaM2) / 100) : 0;
+  return `${pnu || addr}|${use}|${areaBucket}`;
+}
+
+function projectIdFromDedupKey(dedupKey) {
+  return hashId("p", dedupKey);
+}
+
+function incomingStageFromSource(sourceName, statusText) {
+  const s = asText(sourceName).toLowerCase();
+  const st = asText(statusText).toLowerCase();
+
+  if (st.includes("완료") || st.includes("준공") || st.includes("completed")) return "COMPLETED";
+  if (st.includes("공사") || st.includes("착공") || st.includes("진행")) return "IN_PROGRESS";
+
+  if (s.includes("dev") || s.includes("개발행위")) return "RECEIVED";
+  if (s.includes("build") || s.includes("건축")) return "APPROVED";
+  return "RECEIVED";
+}
+
+function upgradeStage(current, incoming) {
+  const order = {
+    RECEIVED: 1,
+    APPROVED: 2,
+    STARTED: 3,
+    IN_PROGRESS: 4,
+    COMPLETED: 5,
+  };
+  const cur = order[current] || 0;
+  const inc = order[incoming] || 0;
+  return inc > cur ? incoming : current || incoming;
+}
+
+function guessCategory(use, title, type) {
+  const t = `${asText(use)} ${asText(title)} ${asText(type)}`.toLowerCase();
+  if (/(아파트|주택|오피스텔|residential)/i.test(t)) return "주거";
+  if (/(물류|창고|logistics|warehouse)/i.test(t)) return "물류";
+  if (/(공장|산업|industrial)/i.test(t)) return "산업";
+  if (/(학교|도서관|체육|전시장|공공|공원|역사|철도|도로|public)/i.test(t)) return "공공";
+  return "기타";
+}
+
+function cellSizeDeg(zoom) {
+  return zoom === 12 ? 0.02 : 0.005;
+}
+
+function gridIdFor(lat, lng, zoom) {
+  const cell = cellSizeDeg(zoom);
+  const x = Math.floor((lng + 180) / cell);
+  const y = Math.floor((lat + 90) / cell);
+  return `${zoom}_${x}_${y}`;
+}
+
+function gridIdsForBounds(south, west, north, east, zoom) {
+  const cell = cellSizeDeg(zoom);
+  const x1 = Math.floor((west + 180) / cell);
+  const x2 = Math.floor((east + 180) / cell);
+  const y1 = Math.floor((south + 90) / cell);
+  const y2 = Math.floor((north + 90) / cell);
+  const ids = [];
+  for (let x = x1; x <= x2; x += 1) {
+    for (let y = y1; y <= y2; y += 1) {
+      ids.push(`${zoom}_${x}_${y}`);
+    }
+  }
+  return ids;
+}
+
+function chooseZoomByLevel(level) {
+  if (Number.isFinite(level) && Number(level) <= 5) return 14;
+  return 12;
 }
 
 function isAuthorizedSync(req) {
@@ -298,6 +390,100 @@ function applyLinkTemplate(linkTemplate, row) {
   return linkTemplate.replace(/\{([A-Za-z0-9_]+)\}/g, (_, key) => asText(row[key]));
 }
 
+async function geocodeWithVworld(address) {
+  const key = readSetting("VWORLD_API_KEY");
+  if (!key) return null;
+
+  async function requestByType(type) {
+    const url = new URL("https://api.vworld.kr/req/address");
+    url.searchParams.set("service", "address");
+    url.searchParams.set("request", "getcoord");
+    url.searchParams.set("version", "2.0");
+    url.searchParams.set("crs", "epsg:4326");
+    url.searchParams.set("address", address);
+    url.searchParams.set("refine", "true");
+    url.searchParams.set("simple", "false");
+    url.searchParams.set("format", "json");
+    url.searchParams.set("type", type);
+    url.searchParams.set("key", key);
+
+    const resp = await fetch(url.toString());
+    if (!resp.ok) return null;
+    const json = await resp.json();
+    const point = json?.response?.result?.point;
+    const lng = asNumber(point?.x);
+    const lat = asNumber(point?.y);
+    if (lat === null || lng === null) return null;
+    return { lat, lng, provider: "vworld" };
+  }
+
+  return (await requestByType("ROAD")) || (await requestByType("PARCEL"));
+}
+
+async function geocodeWithKakao(address) {
+  const key = readSetting("KAKAO_REST_API_KEY");
+  if (!key) return null;
+
+  const url = new URL("https://dapi.kakao.com/v2/local/search/address.json");
+  url.searchParams.set("query", address);
+  const resp = await fetch(url.toString(), {
+    headers: {
+      Authorization: `KakaoAK ${key}`,
+    },
+  });
+  if (!resp.ok) return null;
+  const json = await resp.json();
+  const first = Array.isArray(json?.documents) ? json.documents[0] : null;
+  const lng = asNumber(first?.x);
+  const lat = asNumber(first?.y);
+  if (lat === null || lng === null) return null;
+  return { lat, lng, provider: "kakao" };
+}
+
+async function geocodeAddressCached(address, { persistCache = true } = {}) {
+  const normalized = normalizeAddressText(address);
+  if (!normalized) return null;
+
+  const cacheId = crypto.createHash("sha1").update(normalized).digest("hex").slice(0, 24);
+  const ref = db.collection("geocache").doc(cacheId);
+  const cached = await ref.get();
+  if (cached.exists) {
+    const d = cached.data() || {};
+    if (typeof d.lat === "number" && typeof d.lng === "number") {
+      return { lat: d.lat, lng: d.lng, provider: d.provider || "cache" };
+    }
+  }
+
+  const providerOrder = readSetting("GEOCODER_PROVIDER_ORDER", "vworld,kakao")
+    .split(",")
+    .map((v) => v.trim().toLowerCase())
+    .filter(Boolean);
+
+  let result = null;
+  for (const provider of providerOrder) {
+    if (provider === "vworld") result = await geocodeWithVworld(normalized);
+    if (!result && provider === "kakao") result = await geocodeWithKakao(normalized);
+    if (result) break;
+  }
+
+  if (!result) return null;
+
+  if (persistCache) {
+    await ref.set(
+      {
+        address: normalized,
+        lat: result.lat,
+        lng: result.lng,
+        provider: result.provider,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
+  }
+
+  return result;
+}
+
 function getCuratedConstructionProjects() {
   return CURATED_CONSTRUCTION_PROJECTS.map((p) => ({
     ...p,
@@ -351,7 +537,7 @@ function normalizeRow(row, sourceName, sourceUrl, linkTemplate = "") {
     ])
   );
 
-  if (!name || lat === null || lng === null) return null;
+  if (!name) return null;
 
   const statusText = asText(
     pick(row, [
@@ -361,6 +547,21 @@ function normalizeRow(row, sourceName, sourceUrl, linkTemplate = "") {
 
   const rawType = asText(
     pick(row, ["TYPE", "BIZ_SE", "FACILITY_TYPE", "공종", "시설구분", "사업구분", "시설종류", "공사종류"])
+  );
+  const pnu = asText(
+    pick(row, ["PNU", "MNNM_SGG_CD", "법정동코드", "지번코드", "필지코드"])
+  );
+  const use = asText(
+    pick(row, ["MAIN_PURPS_CD_NM", "PURPS_NM", "USE", "용도", "주용도"])
+  );
+  const areaM2 = asNumber(
+    pick(row, ["TOTAREA", "TOT_AREA", "AREA", "ARCH_AREA", "대지면적", "건축면적", "연면적"])
+  );
+  const floors = asNumber(
+    pick(row, ["GRND_FLR_CNT", "FLR_CNT", "층수", "지상층수"])
+  );
+  const units = asNumber(
+    pick(row, ["HHLD_CNT", "UNIT_CNT", "세대수"])
   );
 
   const startDate = asText(
@@ -372,6 +573,9 @@ function normalizeRow(row, sourceName, sourceUrl, linkTemplate = "") {
 
   const status = deriveStatus(statusText, startDate, endDateEst);
   if (status !== "construction") return null;
+  if (lat === null || lng === null) {
+    if (!address) return null;
+  }
 
   const sourceTitle = asText(
     pick(row, ["HOMEPAGE", "DETAIL_URL", "LINK", "URL", "자료링크", "상세URL", "DTL_URL"])
@@ -386,6 +590,11 @@ function normalizeRow(row, sourceName, sourceUrl, linkTemplate = "") {
     status: "construction",
     statusText,
     address,
+    pnu,
+    use,
+    areaM2,
+    floors,
+    units,
     lat,
     lng,
     startDate,
@@ -396,6 +605,136 @@ function normalizeRow(row, sourceName, sourceUrl, linkTemplate = "") {
     sourceFetchedAt: admin.firestore.FieldValue.serverTimestamp(),
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
   };
+}
+
+function queueWriteForProjectRecordEvent(batch, item) {
+  const dedupKey = buildDedupKey(item);
+  const projectId = projectIdFromDedupKey(dedupKey);
+  const sourceRecordId = asText(item.sourceRecordId) || `${item.name}|${item.address}|${item.startDate}|${item.endDateEst}`;
+  const recordId = hashId("rec", `${item.source}|${projectId}|${sourceRecordId}`);
+  const eventId = `ev_${recordId}`;
+  const stage = incomingStageFromSource(item.source, item.statusText);
+
+  const center = { lat: item.lat, lng: item.lng };
+  const gridKeys = [gridIdFor(center.lat, center.lng, 12), gridIdFor(center.lat, center.lng, 14)];
+
+  batch.set(
+    db.collection("records").doc(recordId),
+    {
+      projectId,
+      source: item.source,
+      sourceRecordId,
+      title: item.name,
+      address_raw: item.address || "",
+      address_norm: normalizeAddress(item.address),
+      pnu: item.pnu || null,
+      issued_at: item.issuedAt || item.startDate || null,
+      applied_at: item.appliedAt || null,
+      use: item.use || null,
+      area_m2: item.areaM2 || null,
+      floors: item.floors || null,
+      units: item.units || null,
+      evidence_urls: Array.isArray(item.sourceLinks) ? item.sourceLinks.map((v) => v.url).filter(Boolean) : [],
+      lat: item.lat,
+      lng: item.lng,
+      geocode_accuracy: item.geocodeAccuracy || null,
+      dedup_key: dedupKey,
+      updated_at: admin.firestore.FieldValue.serverTimestamp(),
+    },
+    { merge: true }
+  );
+
+  batch.set(
+    db.collection("projects").doc(projectId),
+    {
+      title: item.name,
+      center,
+      lat: item.lat,
+      lng: item.lng,
+      gridKeys,
+      address_display: item.address || "",
+      address_norm: normalizeAddress(item.address),
+      pnu: item.pnu || null,
+      status: item.status || "construction",
+      projectStage: stage,
+      category: guessCategory(item.use, item.name, item.type),
+      confidence: item.geocodeAccuracy || 0.7,
+      last_updated_at: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      sourceLinks: Array.isArray(item.sourceLinks) ? item.sourceLinks : [],
+      sources: admin.firestore.FieldValue.arrayUnion(item.source),
+      sources_summary: {
+        devPermit: /dev|개발행위/i.test(item.source),
+        buildPermit: /build|건축/i.test(item.source),
+        urbanPlan: /urban|도시계획/i.test(item.source),
+        news: false,
+      },
+      type: item.type || "building",
+      startDate: item.startDate || "",
+      endDateEst: item.endDateEst || "",
+      endDateEstText: item.endDateEstText || "",
+    },
+    { merge: true }
+  );
+
+  batch.set(
+    db.doc(`projects/${projectId}/events/${eventId}`),
+    {
+      type: stage,
+      at: item.startDate || item.issuedAt || null,
+      text: item.name,
+      evidence_url: Array.isArray(item.sourceLinks) && item.sourceLinks[0] ? item.sourceLinks[0].url : null,
+      created_at: admin.firestore.FieldValue.serverTimestamp(),
+      source: item.source,
+    },
+    { merge: true }
+  );
+
+  return projectId;
+}
+
+async function rebuildTilesCache({ limit = 5000 } = {}) {
+  const snap = await db
+    .collection("projects")
+    .orderBy("updatedAt", "desc")
+    .limit(limit)
+    .get();
+
+  const gridToProjectIds = new Map();
+  snap.forEach((doc) => {
+    const d = doc.data();
+    const gridKeys = Array.isArray(d.gridKeys) ? d.gridKeys : [];
+    for (const gridId of gridKeys) {
+      if (!gridToProjectIds.has(gridId)) gridToProjectIds.set(gridId, new Set());
+      gridToProjectIds.get(gridId).add(doc.id);
+    }
+  });
+
+  let batch = db.batch();
+  let opCount = 0;
+  for (const [gridId, idSet] of gridToProjectIds.entries()) {
+    const zoom = Number(String(gridId).split("_")[0]) || 12;
+    batch.set(
+      db.collection("tiles_cache").doc(gridId),
+      {
+        zoom,
+        gridId,
+        projectIds: Array.from(idSet),
+        updated_at: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
+    opCount += 1;
+
+    if (opCount >= 400) {
+      await batch.commit();
+      batch = db.batch();
+      opCount = 0;
+    }
+  }
+  if (opCount > 0) await batch.commit();
+
+  return { grids: gridToProjectIds.size, projectsScanned: snap.size };
 }
 
 async function runPublicDataSync({ sourceFilter = "", persist = true } = {}) {
@@ -415,6 +754,7 @@ async function runPublicDataSync({ sourceFilter = "", persist = true } = {}) {
 
   let batch = db.batch();
   let opCount = 0;
+  const touchedProjectIds = new Set();
 
   for (const source of sources) {
     let sourceTotal = 0;
@@ -435,16 +775,27 @@ async function runPublicDataSync({ sourceFilter = "", persist = true } = {}) {
           continue;
         }
 
-        if (persist) {
-          const docId = makeProjectId(normalized.name, normalized.address, normalized.lat, normalized.lng);
-          const ref = db.collection("projects").doc(docId);
-          batch.set(ref, normalized, { merge: true });
-          opCount += 1;
+        let item = normalized;
+        if (item.lat === null || item.lng === null) {
+          const geo = await geocodeAddressCached(item.address, { persistCache: persist });
+          if (!geo) {
+            skipped += 1;
+            sourceSkipped += 1;
+            continue;
+          }
+          item = { ...item, lat: geo.lat, lng: geo.lng, geocodeAccuracy: 0.8 };
         }
+
+        if (persist) {
+          const projectId = queueWriteForProjectRecordEvent(batch, item);
+          touchedProjectIds.add(projectId);
+          opCount += 3;
+        }
+
         saved += 1;
         sourceSaved += 1;
 
-        if (persist && opCount >= 400) {
+        if (persist && opCount >= 390) {
           await batch.commit();
           batch = db.batch();
           opCount = 0;
@@ -473,15 +824,14 @@ async function runPublicDataSync({ sourceFilter = "", persist = true } = {}) {
   for (const item of curatedItems) {
     totalRows += 1;
     if (persist) {
-      const docId = makeProjectId(item.name, item.address, item.lat, item.lng);
-      const ref = db.collection("projects").doc(docId);
-      batch.set(ref, item, { merge: true });
-      opCount += 1;
+      const projectId = queueWriteForProjectRecordEvent(batch, item);
+      touchedProjectIds.add(projectId);
+      opCount += 3;
     }
     saved += 1;
     curatedSaved += 1;
 
-    if (persist && opCount >= 400) {
+    if (persist && opCount >= 390) {
       await batch.commit();
       batch = db.batch();
       opCount = 0;
@@ -494,8 +844,12 @@ async function runPublicDataSync({ sourceFilter = "", persist = true } = {}) {
     skipped: 0,
   });
 
-  if (persist && opCount > 0) {
-    await batch.commit();
+  if (persist && opCount > 0) await batch.commit();
+
+  const rebuildOnSync = readSetting("REBUILD_TILES_ON_SYNC", "false") === "true";
+  let tiles = null;
+  if (persist && rebuildOnSync) {
+    tiles = await rebuildTilesCache({ limit: 6000 });
   }
 
   return {
@@ -503,6 +857,8 @@ async function runPublicDataSync({ sourceFilter = "", persist = true } = {}) {
     saved,
     skipped,
     sources: reports,
+    touchedProjects: touchedProjectIds.size,
+    tiles,
     syncedAt: new Date().toISOString(),
   };
 }
@@ -624,3 +980,143 @@ exports.syncPublicDataDaily = functions.pubsub
     console.log("syncPublicDataDaily", result);
     return null;
   });
+
+exports.tilesCacheDaily = functions.pubsub
+  .schedule("every day 06:10")
+  .timeZone("Asia/Seoul")
+  .onRun(async () => {
+    const result = await rebuildTilesCache({ limit: 6000 });
+    console.log("tilesCacheDaily", result);
+    return null;
+  });
+
+exports.rebuildTilesCache = functions.https.onRequest(async (req, res) => {
+  try {
+    res.set("Access-Control-Allow-Origin", "*");
+    if (req.method === "OPTIONS") {
+      res.set("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
+      res.set("Access-Control-Allow-Headers", "Content-Type,x-sync-token");
+      return res.status(204).send("");
+    }
+
+    if (!isAuthorizedSync(req)) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const limit = Number(req.query.limit || 6000);
+    const result = await rebuildTilesCache({ limit: Number.isFinite(limit) ? limit : 6000 });
+    return res.json({ ok: true, ...result });
+  } catch (e) {
+    console.error(e);
+    return res.status(500).json({ error: String(e.message || e) });
+  }
+});
+
+exports.projects = functions.https.onRequest(async (req, res) => {
+  try {
+    res.set("Access-Control-Allow-Origin", "*");
+    if (req.method === "OPTIONS") {
+      res.set("Access-Control-Allow-Methods", "GET,OPTIONS");
+      res.set("Access-Control-Allow-Headers", "Content-Type");
+      return res.status(204).send("");
+    }
+
+    const south = Number(req.query.south);
+    const west = Number(req.query.west);
+    const north = Number(req.query.north);
+    const east = Number(req.query.east);
+    const level = Number(req.query.level);
+    const status = asText(req.query.status);
+    const category = asText(req.query.category);
+
+    if (![south, west, north, east].every(Number.isFinite)) {
+      return res.status(400).json({ error: "bounds required" });
+    }
+
+    const zoom = chooseZoomByLevel(level);
+    const gridIds = gridIdsForBounds(south, west, north, east, zoom).slice(0, 120);
+    const tileSnaps = await Promise.all(gridIds.map((gid) => db.collection("tiles_cache").doc(gid).get()));
+
+    const idSet = new Set();
+    tileSnaps.forEach((snap) => {
+      if (!snap.exists) return;
+      const ids = Array.isArray(snap.get("projectIds")) ? snap.get("projectIds") : [];
+      ids.forEach((id) => idSet.add(id));
+    });
+
+    const ids = Array.from(idSet).slice(0, 600);
+    const projectDocs = ids.length
+      ? await Promise.all(ids.map((id) => db.collection("projects").doc(id).get()))
+      : [];
+
+    let items = projectDocs
+      .filter((d) => d.exists)
+      .map((d) => ({ id: d.id, ...d.data() }))
+      .filter((p) => {
+        if (!p.center || typeof p.center.lat !== "number" || typeof p.center.lng !== "number") return false;
+        return p.center.lat >= south && p.center.lat <= north && p.center.lng >= west && p.center.lng <= east;
+      });
+
+    if (status) items = items.filter((p) => asText(p.projectStage) === status || asText(p.status) === status);
+    if (category) items = items.filter((p) => asText(p.category) === category);
+
+    const tsSeconds = (v) => {
+      if (!v) return 0;
+      if (typeof v.seconds === "number") return v.seconds;
+      if (typeof v._seconds === "number") return v._seconds;
+      return 0;
+    };
+
+    items.sort((a, b) => {
+      const ta = tsSeconds(a.last_updated_at || a.updatedAt);
+      const tb = tsSeconds(b.last_updated_at || b.updatedAt);
+      return tb - ta;
+    });
+
+    return res.json({ zoom, gridCount: gridIds.length, count: items.length, items: items.slice(0, 300) });
+  } catch (e) {
+    console.error(e);
+    return res.status(500).json({ error: String(e.message || e) });
+  }
+});
+
+exports.projectDetail = functions.https.onRequest(async (req, res) => {
+  try {
+    res.set("Access-Control-Allow-Origin", "*");
+    if (req.method === "OPTIONS") {
+      res.set("Access-Control-Allow-Methods", "GET,OPTIONS");
+      res.set("Access-Control-Allow-Headers", "Content-Type");
+      return res.status(204).send("");
+    }
+
+    const projectId = asText(req.query.id);
+    if (!projectId) return res.status(400).json({ error: "id required" });
+
+    const projectSnap = await db.collection("projects").doc(projectId).get();
+    if (!projectSnap.exists) return res.status(404).json({ error: "not_found" });
+
+    const eventsSnap = await db
+      .collection("projects")
+      .doc(projectId)
+      .collection("events")
+      .orderBy("created_at", "desc")
+      .limit(30)
+      .get();
+
+    const recordsSnap = await db
+      .collection("records")
+      .where("projectId", "==", projectId)
+      .orderBy("issued_at", "desc")
+      .limit(20)
+      .get();
+
+    const project = { id: projectSnap.id, ...projectSnap.data() };
+    const events = eventsSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    const records = recordsSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+
+    return res.json({ project, events, records });
+  } catch (e) {
+    console.error(e);
+    return res.status(500).json({ error: String(e.message || e) });
+  }
+});
