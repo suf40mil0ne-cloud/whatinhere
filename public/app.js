@@ -1,6 +1,7 @@
 let map;
 let userMarker = null;
 let markers = [];
+let wheelLockUntil = 0;
 const defaultCenter = { lat: 37.6686, lng: 126.7440 };
 const defaultZoom = 14;
 
@@ -18,21 +19,38 @@ document.addEventListener("DOMContentLoaded", initMap);
 function initMap() {
   map = L.map("map", {
     zoomControl: true,
-    scrollWheelZoom: true,
-    wheelPxPerZoomLevel: 240,
-    wheelDebounceTime: 80,
+    scrollWheelZoom: false,
   }).setView([defaultCenter.lat, defaultCenter.lng], defaultZoom);
 
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
     maxZoom: 19,
     attribution: "&copy; OpenStreetMap contributors",
   }).addTo(map);
+  setupDiscreteWheelZoom();
 
   document.getElementById("btnRefresh").addEventListener("click", fetchNearby);
   document.getElementById("btnLocate").addEventListener("click", () => locateMe(true));
   document.getElementById("typeFilter").addEventListener("change", fetchNearby);
 
   locateMe(false);
+}
+
+function setupDiscreteWheelZoom() {
+  const container = map.getContainer();
+  container.addEventListener(
+    "wheel",
+    (ev) => {
+      ev.preventDefault();
+
+      const now = Date.now();
+      if (now < wheelLockUntil) return;
+      wheelLockUntil = now + 140;
+
+      if (ev.deltaY < 0) map.zoomIn(1, { animate: false });
+      else if (ev.deltaY > 0) map.zoomOut(1, { animate: false });
+    },
+    { passive: false }
+  );
 }
 
 function locateMe(alsoFetch) {
