@@ -66,10 +66,28 @@ function isAuthorizedSync(req) {
   return token === expected;
 }
 
+function readSetting(name, fallback = "") {
+  const env = process.env[name];
+  if (env !== undefined && env !== null && String(env).trim() !== "") return String(env);
+
+  try {
+    const cfg = functions.config();
+    const appCfg = cfg && cfg.app ? cfg.app : {};
+    const key = name.toLowerCase();
+    if (appCfg[key] !== undefined && appCfg[key] !== null && String(appCfg[key]).trim() !== "") {
+      return String(appCfg[key]);
+    }
+  } catch (_) {
+    // ignore config read errors and use fallback
+  }
+
+  return fallback;
+}
+
 async function fetchSeoulDatasetRows() {
-  const apiKey = process.env.SEOUL_OPEN_API_KEY || "";
-  const dataset = process.env.SEOUL_DATASET_NAME || "tbLnOpendataW";
-  const maxRows = Math.max(100, Math.min(5000, Number(process.env.SEOUL_DATASET_MAX_ROWS || 1000)));
+  const apiKey = readSetting("SEOUL_OPEN_API_KEY");
+  const dataset = readSetting("SEOUL_DATASET_NAME", "tbLnOpendataW");
+  const maxRows = Math.max(100, Math.min(5000, Number(readSetting("SEOUL_DATASET_MAX_ROWS", "1000"))));
 
   if (!apiKey) {
     throw new Error("SEOUL_OPEN_API_KEY is missing");
@@ -91,6 +109,50 @@ async function fetchSeoulDatasetRows() {
     sourceName: `seoul-openapi:${dataset}`,
     sourceUrl: url,
     rows: root.row,
+  };
+}
+
+async function runPublicDataSync() {
+  const { sourceName, sourceUrl, rows } = await fetchSeoulDatasetRows();
+
+  let total = 0;
+  let saved = 0;
+  let skipped = 0;
+
+  let batch = db.batch();
+  let opCount = 0;
+
+  for (const row of rows) {
+    total += 1;
+    const n = normalizeRow(row, sourceName, sourceUrl);
+    if (!n) {
+      skipped += 1;
+      continue;
+    }
+
+    const docId = makeProjectId(sourceName, n.name, n.address, n.lat, n.lng);
+    const ref = db.collection("projects").doc(docId);
+    batch.set(ref, n, { merge: true });
+    opCount += 1;
+    saved += 1;
+
+    if (opCount >= 400) {
+      await batch.commit();
+      batch = db.batch();
+      opCount = 0;
+    }
+  }
+
+  if (opCount > 0) {
+    await batch.commit();
+  }
+
+  return {
+    source: sourceName,
+    total,
+    saved,
+    skipped,
+    syncedAt: new Date().toISOString(),
   };
 }
 
@@ -228,50 +290,19 @@ exports.syncPublicData = functions.https.onRequest(async (req, res) => {
       return res.status(401).json({ error: "Unauthorized" });
     }
 
-    const { sourceName, sourceUrl, rows } = await fetchSeoulDatasetRows();
-
-    let total = 0;
-    let saved = 0;
-    let skipped = 0;
-
-    let batch = db.batch();
-    let opCount = 0;
-
-    for (const row of rows) {
-      total += 1;
-      const n = normalizeRow(row, sourceName, sourceUrl);
-      if (!n) {
-        skipped += 1;
-        continue;
-      }
-
-      const docId = makeProjectId(sourceName, n.name, n.address, n.lat, n.lng);
-      const ref = db.collection("projects").doc(docId);
-      batch.set(ref, n, { merge: true });
-      opCount += 1;
-      saved += 1;
-
-      if (opCount >= 400) {
-        await batch.commit();
-        batch = db.batch();
-        opCount = 0;
-      }
-    }
-
-    if (opCount > 0) {
-      await batch.commit();
-    }
-
-    return res.json({
-      ok: true,
-      source: sourceName,
-      total,
-      saved,
-      skipped,
-      syncedAt: new Date().toISOString(),
-    });
+    const result = await runPublicDataSync();
+    return res.json({ ok: true, ...result });
   } catch (e) {
     console.error(e);
     return res.status(500).json({ error: String(e.message || e) });
   }
 });
+
+exports.syncPublicDataDaily = functions.pubsub
+  .schedule("every day 03:30")
+  .timeZone("Asia/Seoul")
+  .onRun(async () => {
+    const result = await runPublicDataSync();
+    console.log("syncPublicDataDaily", result);
+    return null;
+  });

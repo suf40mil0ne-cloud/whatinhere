@@ -6,7 +6,7 @@
 ## 구조
 
 - `public/`: Leaflet 기반 프론트엔드 및 정책/안내 페이지
-- `functions/`: `nearby`, `syncPublicData` API
+- `functions/`: `nearby`, `syncPublicData`, `syncPublicDataDaily` API/배치
 - `firestore.rules`: 읽기 공개, 쓰기 차단(MVP)
 - `firestore.indexes.json`: 조회 인덱스
 
@@ -26,6 +26,7 @@ firebase functions:config:set app.sync_token="YOUR_TOKEN"
 ```
 
 실제 런타임에서 환경변수 주입 방식은 사용하는 배포 방식(Functions v1/v2)에 맞춰 설정하세요.
+`syncPublicDataDaily`는 `Asia/Seoul` 기준 매일 03:30에 자동 실행됩니다.
 
 ## 로컬/배포 전 체크
 
