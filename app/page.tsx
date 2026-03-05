@@ -1,5 +1,6 @@
 import Map from "@/components/Map";
 
+export const runtime = "edge";
 export const dynamic = "force-dynamic";
 const DEFAULT_KAKAO_MAP_JS_KEY = "1cb090f11a07b5856a7fe756877f9718";
 
