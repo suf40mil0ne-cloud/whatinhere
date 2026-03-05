@@ -148,13 +148,17 @@ async function fetchNearby() {
     if (!resp.ok) throw new Error(`API error: ${resp.status}`);
 
     const data = await resp.json();
-    const items = mergeHighlightProjects(data.items || [], { lat, lng, type });
+    const items = mergeHighlightProjects(data.items || [], { lat, lng });
     renderList(items);
     renderMarkers(items);
     renderSyncInfo(items);
   } catch (e) {
     console.error(e);
-    renderError(String(e.message || e));
+    const fallbackItems = mergeHighlightProjects([], { lat, lng });
+    renderList(fallbackItems);
+    renderMarkers(fallbackItems);
+    renderDetail(fallbackItems[0]);
+    setSyncInfoError("공공데이터 API 연결 오류로 핵심 프로젝트(킨텍스 제3전시장)를 우선 표시합니다.");
   } finally {
     setLoading(false);
   }
@@ -271,12 +275,11 @@ function markerColorForType(type) {
   return "#1d4ed8";
 }
 
-function mergeHighlightProjects(items, { lat, lng, type }) {
+function mergeHighlightProjects(items, { lat, lng }) {
   const merged = [...items];
   const keys = new Set(items.map((it) => `${it.name}|${it.lat}|${it.lng}`));
 
   HIGHLIGHT_PROJECTS.forEach((p) => {
-    if (type !== "all" && p.type !== type) return;
     const key = `${p.name}|${p.lat}|${p.lng}`;
     if (keys.has(key)) return;
 
@@ -290,6 +293,11 @@ function mergeHighlightProjects(items, { lat, lng, type }) {
 
   merged.sort((a, b) => a.distanceKm - b.distanceKm);
   return merged;
+}
+
+function setSyncInfoError(msg) {
+  const el = document.getElementById("syncInfo");
+  el.textContent = msg;
 }
 
 function distanceKm(lat1, lng1, lat2, lng2) {
