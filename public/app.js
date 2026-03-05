@@ -16,7 +16,12 @@ const TYPE_LABELS = {
 document.addEventListener("DOMContentLoaded", initMap);
 
 function initMap() {
-  map = L.map("map", { zoomControl: true }).setView([defaultCenter.lat, defaultCenter.lng], defaultZoom);
+  map = L.map("map", {
+    zoomControl: true,
+    scrollWheelZoom: true,
+    wheelPxPerZoomLevel: 240,
+    wheelDebounceTime: 80,
+  }).setView([defaultCenter.lat, defaultCenter.lng], defaultZoom);
 
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
     maxZoom: 19,
