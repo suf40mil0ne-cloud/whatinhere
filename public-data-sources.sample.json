@@ -1,0 +1,20 @@
+[
+  {
+    "name": "datago:building-construction",
+    "url": "https://api.data.go.kr/openapi/REPLACE_WITH_BUILDING_ENDPOINT?serviceKey=REPLACE_WITH_SERVICE_KEY&pageNo=1&numOfRows=1000&_type=json",
+    "rowPaths": ["response.body.items.item", "response.body.items", "items", "data"],
+    "linkTemplate": ""
+  },
+  {
+    "name": "datago:subway-construction",
+    "url": "https://api.data.go.kr/openapi/REPLACE_WITH_SUBWAY_ENDPOINT?serviceKey=REPLACE_WITH_SERVICE_KEY&pageNo=1&numOfRows=1000&_type=json",
+    "rowPaths": ["response.body.items.item", "response.body.items", "items", "data"],
+    "linkTemplate": ""
+  },
+  {
+    "name": "datago:road-construction",
+    "url": "https://api.data.go.kr/openapi/REPLACE_WITH_ROAD_ENDPOINT?serviceKey=REPLACE_WITH_SERVICE_KEY&pageNo=1&numOfRows=1000&_type=json",
+    "rowPaths": ["response.body.items.item", "response.body.items", "items", "data"],
+    "linkTemplate": ""
+  }
+]

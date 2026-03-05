@@ -48,6 +48,16 @@
 ]
 ```
 
+빠른 적용:
+
+```bash
+cd /home/user/whatinhere
+PUBLIC_JSON_MINIFIED=$(tr -d '\n' < public-data-sources.sample.json)
+firebase functions:config:set app.public_data_sources_json="$PUBLIC_JSON_MINIFIED"
+```
+
+`public-data-sources.sample.json`에서 각 `url`을 실제 data.go.kr 엔드포인트로 교체한 뒤 적용하세요.
+
 ## API
 
 ### 1) 주변 조회
