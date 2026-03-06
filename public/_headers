@@ -1,5 +1,5 @@
-/_next/static/*
-  Cache-Control: public,max-age=31536000,immutable
+/robots.txt
+  Cache-Control: public,max-age=3600
 
-/config.js
-  Cache-Control: no-store
+/sitemap.xml
+  Cache-Control: public,max-age=3600

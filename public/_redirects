@@ -1,5 +1,1 @@
-/api/nearby https://us-central1-whatinhere.cloudfunctions.net/nearby 200
-/api/sync-public-data https://us-central1-whatinhere.cloudfunctions.net/syncPublicData 200
-/api/projects https://us-central1-whatinhere.cloudfunctions.net/projects 200
-/api/project-detail https://us-central1-whatinhere.cloudfunctions.net/projectDetail 200
-/api/rebuild-tiles-cache https://us-central1-whatinhere.cloudfunctions.net/rebuildTilesCache 200
+/* /index.html 200
