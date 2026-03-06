@@ -1,13 +1,30 @@
 {
-  "name": "whatsinhere-static",
+  "name": "whatinhere-mvp",
   "private": true,
   "version": "1.0.0",
+  "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "npm-run-all -p dev:web dev:api",
+    "dev:web": "vite",
+    "dev:api": "wrangler dev worker/src/index.ts --local --port 8787",
     "build": "vite build",
-    "preview": "vite preview"
+    "build:web": "vite build",
+    "preview": "vite preview",
+    "deploy:worker": "wrangler deploy",
+    "db:migrate": "wrangler d1 execute whatinhere-db --file ./worker/src/db/schema.sql"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
   },
   "devDependencies": {
-    "vite": "^5.4.11"
+    "@cloudflare/workers-types": "^4.20250303.0",
+    "@types/react": "^18.3.18",
+    "@types/react-dom": "^18.3.5",
+    "@vitejs/plugin-react": "^4.3.4",
+    "npm-run-all": "^4.1.5",
+    "typescript": "^5.7.3",
+    "vite": "^5.4.11",
+    "wrangler": "^3.99.0"
   }
 }

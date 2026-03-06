@@ -1,0 +1,4 @@
+# Wrangler local vars (.dev.vars)
+DATA_GO_KR_SERVICE_KEY=your_data_go_kr_service_key
+KAKAO_REST_API_KEY=your_kakao_rest_api_key
+ADMIN_TOKEN=local-admin-token

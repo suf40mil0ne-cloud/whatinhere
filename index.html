@@ -7,27 +7,7 @@
     <meta name="description" content="주변 공사·개발·도시계획 정보를 지도에서 확인하세요." />
   </head>
   <body>
-    <div id="app" class="app">
-      <header class="header">
-        <h1>여기 뭐 생겨요?</h1>
-        <p>주변 공사·개발·도시계획 정보를 지도에서 확인하세요.</p>
-      </header>
-
-      <main class="layout">
-        <section class="map-section" aria-label="지도 영역">
-          <div id="map" class="map"></div>
-          <div id="global-error" class="error-banner hidden" role="alert"></div>
-        </section>
-
-        <aside class="panel" aria-label="사업 정보 패널">
-          <h2>사업 정보</h2>
-          <div id="project-detail" class="project-detail empty">
-            지도 마커를 클릭하면 상세 정보가 표시됩니다.
-          </div>
-        </aside>
-      </main>
-    </div>
-
-    <script type="module" src="/src/main.js"></script>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
