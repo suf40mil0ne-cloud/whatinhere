@@ -1,9 +1,21 @@
 (function () {
-  const KAKAO_MAP_JS_KEY = "196acd86c9ca7b2a46f77dd0d90f11f1";
+  const KAKAO_MAP_JS_KEY =
+    (window.__APP_CONFIG__ && window.__APP_CONFIG__.KAKAO_MAP_JS_KEY) ||
+    window.__KAKAO_MAP_JS_KEY__ ||
+    "";
   const KAKAO_SDK_URL = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${KAKAO_MAP_JS_KEY}&autoload=false`;
 
   function ensureKakaoSdk() {
     return new Promise((resolve, reject) => {
+      if (!KAKAO_MAP_JS_KEY) {
+        reject(
+          new Error(
+            "Missing Kakao Maps key. Set NEXT_PUBLIC_KAKAO_MAP_JS_KEY or KAKAO_MAP_JS_KEY at build time."
+          )
+        );
+        return;
+      }
+
       if (window.kakao && window.kakao.maps) {
         window.kakao.maps.load(() => resolve(window.kakao));
         return;

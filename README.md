@@ -18,7 +18,7 @@ Framework preset:
 None
 
 Build command:
-(leave empty)
+npm run build:pages
 
 Build output directory:
 public
@@ -33,7 +33,12 @@ This project is a static site.
 Settings:
 
 Framework preset: None  
-Build command: (empty)  
-Build output directory: public  
+Build command: `npm run build:pages`  
+Build output directory: `public`  
 
-Then connect the repository and deploy.
+Environment Variables (Cloudflare Pages > Settings > Environment variables):
+
+- `NEXT_PUBLIC_KAKAO_MAP_JS_KEY` (recommended)
+- or `KAKAO_MAP_JS_KEY`
+
+`npm run build:pages` writes `public/config.js` from the env var, and `public/map.js` reads that value to load Kakao Maps SDK.

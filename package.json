@@ -6,6 +6,7 @@
     "node": "20.x"
   },
   "scripts": {
+    "build:pages": "node scripts/build-pages.js",
     "serve": "cd public && python3 -m http.server 8080",
     "deploy:hosting": "firebase deploy --only hosting",
     "deploy": "firebase deploy"
