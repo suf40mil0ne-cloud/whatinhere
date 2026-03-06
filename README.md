@@ -16,18 +16,24 @@
 │  ├─ App.tsx
 │  ├─ main.tsx
 │  ├─ styles.css
-│  ├─ api/client.ts
 │  ├─ components/
-│  │  ├─ MapView.tsx
-│  │  ├─ SearchBox.tsx
-│  │  ├─ Filters.tsx
-│  │  └─ DetailPanel.tsx
+│  │  ├─ HomeMap.tsx
+│  │  ├─ ProjectCard.tsx
+│  │  └─ SiteLayout.tsx
+│  ├─ data/projects.ts
+│  ├─ hooks/usePageMeta.ts
+│  ├─ lib/
+│  │  ├─ content.ts
+│  │  ├─ env.ts
+│  │  └─ kakao.ts
+│  ├─ pages/
+│  │  ├─ HomePage.tsx
+│  │  ├─ AreaPage.tsx
+│  │  ├─ ProjectPage.tsx
+│  │  └─ ...
 │  ├─ types/
-│  │  ├─ project.ts
+│  │  ├─ content.ts
 │  │  └─ kakao.d.ts
-│  └─ utils/
-│     ├─ loadKakaoMap.ts
-│     └─ humanize.ts
 ├─ worker/
 │  └─ src/
 │     ├─ index.ts
@@ -134,7 +140,9 @@ npm run dev
 
 ```env
 # frontend
-VITE_KAKAO_MAP_JS_KEY=...
+VITE_KAKAO_MAP_JS_KEY=your_kakao_javascript_key_here
+# optional legacy bridge only when migrating old settings
+VITE_NEXT_PUBLIC_KAKAO_MAP_JS_KEY=
 VITE_API_BASE_URL=
 
 # backend
@@ -150,10 +158,13 @@ Worker 로컬 실행(`wrangler dev`)은 `.dev.vars`를 사용한다.
 cp .dev.vars.example .dev.vars
 ```
 
-Kakao JS 키 자동 탐색 순서
+Kakao JS 키 탐색 순서
 1. `VITE_KAKAO_MAP_JS_KEY`
-2. `NEXT_PUBLIC_KAKAO_MAP_JS_KEY`
-3. `KAKAO_MAP_JS_KEY`
+2. `VITE_NEXT_PUBLIC_KAKAO_MAP_JS_KEY`
+3. `window.__APP_CONFIG__.KAKAO_MAP_JS_KEY`
+
+Vite 클라이언트 코드에서는 `process.env.NEXT_PUBLIC_*` 또는 `KAKAO_MAP_JS_KEY`를 직접 읽지 않는다.
+표준 이름은 `VITE_KAKAO_MAP_JS_KEY`로 유지하는 것이 안전하다.
 
 ## 8. Cloudflare 배포
 
@@ -161,7 +172,24 @@ Kakao JS 키 자동 탐색 순서
 - Framework preset: `Vite`
 - Build command: `npm run build`
 - Build output directory: `dist`
-- Env: `VITE_KAKAO_MAP_JS_KEY`, `VITE_API_BASE_URL`
+- Env:
+  - `VITE_KAKAO_MAP_JS_KEY`
+  - `VITE_API_BASE_URL`
+
+Cloudflare Pages에서는 `Production`과 `Preview` 환경 모두에 `VITE_KAKAO_MAP_JS_KEY`를 넣는 편이 안전하다.
+값을 바꾼 뒤에는 재배포가 필요하며, 문제가 남아 있으면 `Clear build cache` 후 다시 배포한다.
+
+로컬 개발 예시:
+
+```env
+# .env.local
+VITE_KAKAO_MAP_JS_KEY=your_kakao_javascript_key_here
+```
+
+카카오 개발자 콘솔에서는 JavaScript 키를 사용해야 하며, 아래 도메인을 Web 플랫폼에 등록해야 할 수 있다.
+- `http://localhost:5173`
+- `https://whatsinhere.pages.dev`
+- 커스텀 도메인 사용 시 그 도메인도 추가
 
 ### Workers (API)
 - `wrangler.toml`에서 D1 binding 설정
@@ -180,6 +208,7 @@ npm run db:migrate
 ### Kakao SDK 로드 실패
 - 도메인 미등록 또는 키 오설정
 - Kakao Developers > 플랫폼 > Web 도메인 확인
+- Pages 환경변수는 `VITE_KAKAO_MAP_JS_KEY` 사용
 
 ### 일부 데이터 미표시
 - 원천 데이터 필드 불일치/누락

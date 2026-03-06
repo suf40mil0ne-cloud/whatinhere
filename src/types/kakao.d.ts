@@ -1,6 +1,9 @@
 declare global {
   interface Window {
     kakao?: any;
+    __APP_CONFIG__?: {
+      KAKAO_MAP_JS_KEY?: string;
+    };
   }
 
   namespace kakao.maps {

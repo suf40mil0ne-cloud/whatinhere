@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useRef } from "react";
-import { Link } from "react-router-dom";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ProjectData } from "../types/content";
-import { loadKakaoMap } from "../utils/loadKakaoMap";
+import { getKakaoMapKey } from "../lib/env";
+import { KakaoSdkLoadError, loadKakaoMapsSdk } from "../lib/kakao";
 
 interface Props {
   projects: ProjectData[];
@@ -9,10 +9,38 @@ interface Props {
   onSelect: (slug: string) => void;
 }
 
+function toMapFallbackMessage(error: unknown): { title: string; description: string; detail: string | null } {
+  if (error instanceof KakaoSdkLoadError) {
+    if (error.code === "MISSING_API_KEY") {
+      return {
+        title: "지도를 불러오지 못했습니다.",
+        description: "카카오맵 API 키가 설정되지 않았거나 SDK 로드에 실패했습니다.",
+        detail: import.meta.env.DEV
+          ? "개발 환경 확인: VITE_KAKAO_MAP_JS_KEY 또는 VITE_NEXT_PUBLIC_KAKAO_MAP_JS_KEY 값을 설정하세요."
+          : null,
+      };
+    }
+
+    return {
+      title: "지도를 불러오지 못했습니다.",
+      description: "카카오맵 API 키가 설정되지 않았거나 SDK 로드에 실패했습니다.",
+      detail: import.meta.env.DEV ? error.message : null,
+    };
+  }
+
+  return {
+    title: "지도를 불러오지 못했습니다.",
+    description: "카카오맵 API 키가 설정되지 않았거나 SDK 로드에 실패했습니다.",
+    detail: import.meta.env.DEV && error instanceof Error ? error.message : null,
+  };
+}
+
 export function HomeMap({ projects, selectedSlug, onSelect }: Props) {
   const mapRef = useRef<HTMLDivElement | null>(null);
   const mapInstanceRef = useRef<kakao.maps.Map | null>(null);
   const markerRef = useRef<kakao.maps.Marker[]>([]);
+  const [mapError, setMapError] = useState<unknown>(null);
+  const [isMapReady, setIsMapReady] = useState(false);
 
   const center = useMemo(() => {
     if (!projects.length) return { lat: 37.6686, lng: 126.7452 };
@@ -21,16 +49,22 @@ export function HomeMap({ projects, selectedSlug, onSelect }: Props) {
   }, [projects, selectedSlug]);
 
   useEffect(() => {
-    loadKakaoMap()
+    const apiKey = getKakaoMapKey();
+
+    loadKakaoMapsSdk(apiKey)
       .then((kakao) => {
         if (!mapRef.current || mapInstanceRef.current) return;
         mapInstanceRef.current = new kakao.maps.Map(mapRef.current, {
           center: new kakao.maps.LatLng(center.lat, center.lng),
           level: 5,
         });
+        setMapError(null);
+        setIsMapReady(true);
       })
       .catch((error) => {
-        console.error("map load failed", error);
+        console.error("kakao-map-load-failed", error);
+        setMapError(error);
+        setIsMapReady(false);
       });
   }, [center.lat, center.lng]);
 
@@ -72,14 +106,36 @@ export function HomeMap({ projects, selectedSlug, onSelect }: Props) {
     map.setCenter(new window.kakao.maps.LatLng(center.lat, center.lng));
   }, [projects, center.lat, center.lng, onSelect]);
 
+  if (mapError) {
+    const fallback = toMapFallbackMessage(mapError);
+
+    return (
+      <section className="map-fallback" aria-live="polite">
+        <strong>{fallback.title}</strong>
+        <p>{fallback.description}</p>
+        {fallback.detail ? <p className="map-fallback-detail">{fallback.detail}</p> : null}
+      </section>
+    );
+  }
+
   if (!projects.length) {
     return (
       <div className="empty-result">
         <p>검색 결과가 없습니다.</p>
-        <p>추천: <Link to="/area/kintex">킨텍스권</Link>, <Link to="/area/ilsan">일산</Link>, <Link to="/area/gimpo">김포</Link></p>
+        <p>추천 지역에서 최근 추가 프로젝트를 먼저 살펴보세요.</p>
       </div>
     );
   }
 
-  return <div className="home-map" ref={mapRef} aria-label="공사 개발 지도" />;
+  return (
+    <div className="home-map-shell">
+      {!isMapReady ? (
+        <section className="map-fallback map-loading" aria-live="polite">
+          <strong>지도를 준비하고 있습니다.</strong>
+          <p>주변 공사·개발 위치를 불러오는 중입니다.</p>
+        </section>
+      ) : null}
+      <div className="home-map" ref={mapRef} aria-label="공사 개발 지도" />
+    </div>
+  );
 }

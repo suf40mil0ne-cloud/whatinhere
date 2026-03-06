@@ -151,6 +151,38 @@ a {
   min-height: 500px;
 }
 
+.home-map-shell {
+  position: relative;
+}
+
+.map-fallback {
+  display: grid;
+  gap: 8px;
+  min-height: 280px;
+  align-content: center;
+  padding: 20px;
+  background: linear-gradient(180deg, #fffdf8 0%, #f7f9fc 100%);
+  color: var(--text);
+}
+
+.map-fallback p,
+.map-fallback strong {
+  margin: 0;
+  line-height: 1.6;
+}
+
+.map-fallback-detail {
+  color: var(--sub);
+  font-size: 14px;
+}
+
+.map-loading {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  border-bottom: 1px solid var(--line);
+}
+
 .list-panel {
   padding: 12px;
   max-height: 500px;
