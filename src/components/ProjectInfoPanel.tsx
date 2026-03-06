@@ -1,9 +1,8 @@
 import { Link } from "react-router-dom";
-import type { ProjectRecord } from "../types/content";
-import { getDisplayStatus } from "../lib/project-status";
+import type { NearbyConstructionRecord } from "../types/content";
 
 interface Props {
-  project: ProjectRecord | null;
+  project: NearbyConstructionRecord | null;
   visibleCount: number;
 }
 
@@ -11,9 +10,8 @@ function renderDate(value: string | null): string {
   return value || "미확인";
 }
 
-function renderConfidence(project: ProjectRecord): string {
-  const label = project.confidenceLabel === "high" ? "높음" : project.confidenceLabel === "medium" ? "보통" : "낮음";
-  return `${label} (${Math.round(project.confidenceScore * 100)}점)`;
+function renderConfidence(project: NearbyConstructionRecord): string {
+  return project.confidenceLabel === "high" ? "높음" : project.confidenceLabel === "medium" ? "보통" : "낮음";
 }
 
 export function ProjectInfoPanel({ project, visibleCount }: Props) {
@@ -21,20 +19,18 @@ export function ProjectInfoPanel({ project, visibleCount }: Props) {
     return (
       <aside className="info-panel empty">
         <strong>선택된 마커가 없습니다.</strong>
-        <p>지도에서 마커를 누르면 출처, 기준일, 상태 근거가 정리된 상세 패널이 열립니다.</p>
+        <p>지도에서 마커를 누르면 사업명, 상태, 출처, 기준일이 표시됩니다.</p>
         <p>현재 범위에서 확인된 공공데이터 {visibleCount}건</p>
       </aside>
     );
   }
 
-  const displayStatus = getDisplayStatus(project);
-
   return (
     <aside className="info-panel">
-      <p className="eyebrow">{project.region1} {project.region2} · {project.sourceName}</p>
+      <p className="eyebrow">{project.sido} {project.sigungu} · {project.sourceName}</p>
       <h2>{project.title}</h2>
       <div className="status-row">
-        <span className={`status-pill status-${project.status}`}>{displayStatus.label}</span>
+        <span className={`status-pill status-${project.status}`}>{project.statusText}</span>
         <span className={`confidence-badge confidence-${project.confidenceLabel}`}>신뢰도 {renderConfidence(project)}</span>
       </div>
       <p className="fact-summary">{project.summary || "출처 기반 요약 정보가 아직 정리되지 않았습니다."}</p>
@@ -75,8 +71,8 @@ export function ProjectInfoPanel({ project, visibleCount }: Props) {
       </dl>
 
       <section className="panel-section">
-        <h3>설명</h3>
-        <p>{project.description || "원문 기준 사실 위주로 표시하며, 세부 내용은 출처 문서를 확인해 주세요."}</p>
+        <h3>한 줄 안내</h3>
+        <p>{project.description || "원문 기준 사실 위주로 표시합니다."}</p>
       </section>
 
       <section className="panel-section">

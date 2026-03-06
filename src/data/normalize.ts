@@ -1,12 +1,11 @@
 import { geocodeAddress } from "./connectors/geocoder";
-import { deriveProjectStatus, buildFactSummary } from "../lib/project-status";
+import { deriveProjectStatus, buildFactSummary, getDisplayStatus } from "../lib/project-status";
 import { scoreConfidence } from "./score";
 import type { ProjectRecord, SourceReference, SourceLinkType } from "../types/content";
 
 export interface RawSourceSeed {
   id: string;
   slug: string;
-  areaSlug: string;
   source: string;
   sourceRecordId: string | null;
   sourceName: string;
@@ -14,9 +13,9 @@ export interface RawSourceSeed {
   sourceType?: SourceLinkType;
   title: string;
   address: string | null;
-  region1: string | null;
-  region2: string | null;
-  region3: string | null;
+  sido: string | null;
+  sigungu: string | null;
+  eupmyeondong: string | null;
   permitDate?: string | null;
   startDate?: string | null;
   approvalDate?: string | null;
@@ -52,6 +51,11 @@ export function normalizeSourceSeed(seed: RawSourceSeed): ProjectRecord {
   const startDate = normalizeDate(seed.startDate);
   const approvalDate = normalizeDate(seed.approvalDate);
   const status = deriveProjectStatus({ permitDate, startDate, approvalDate });
+  const statusText = getDisplayStatus({
+    status: status.status,
+    startDate,
+    approvalDate,
+  }).label;
   const summary = seed.summary || buildFactSummary({
     status: status.status,
     permitDate,
@@ -81,20 +85,20 @@ export function normalizeSourceSeed(seed: RawSourceSeed): ProjectRecord {
   return {
     id: seed.id,
     slug: seed.slug,
-    areaSlug: seed.areaSlug,
     source: seed.source,
     sourceRecordId: seed.sourceRecordId,
     title: seed.title.trim(),
     address,
     lat: coordinates?.lat ?? null,
     lng: coordinates?.lng ?? null,
-    region1: seed.region1,
-    region2: seed.region2,
-    region3: seed.region3,
+    sido: seed.sido,
+    sigungu: seed.sigungu,
+    eupmyeondong: seed.eupmyeondong,
     permitDate,
     startDate,
     approvalDate,
     status: status.status,
+    statusText,
     statusReason: status.reason,
     buildingUse: seed.buildingUse ?? null,
     mainPurpose: seed.mainPurpose ?? null,

@@ -11,6 +11,9 @@ const GEO_CACHE: Record<string, { lat: number; lng: number }> = {
   "서울 중구 세종대로 110 일원": { lat: 37.5673, lng: 126.9779 },
   "서울 마포구 상암동 1605": { lat: 37.5796, lng: 126.8895 },
   "서울 영등포구 여의도동 23-1": { lat: 37.5241, lng: 126.9241 },
+  "인천 연수구 송도동 212-3": { lat: 37.3897, lng: 126.6432 },
+  "인천 서구 청라동 6-12": { lat: 37.5382, lng: 126.6467 },
+  "인천 부평구 부평동 738-21": { lat: 37.4901, lng: 126.7235 },
 };
 
 export function geocodeAddress(address: string | null | undefined): { lat: number; lng: number } | null {

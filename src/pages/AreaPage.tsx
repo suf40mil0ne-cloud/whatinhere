@@ -45,7 +45,7 @@ export function AreaPage() {
       <section>
         <h2>공공데이터로 확인된 프로젝트</h2>
         <p className="section-description">
-          아래 카드는 사업명, 상태 근거, 기준일, 출처 중심으로 정리했습니다. 공사중 여부는 착공일/사용승인일 조합으로 판단합니다.
+          아래 카드는 사업명, 상태, 기준일, 출처 중심으로 정리했습니다. 공사중 여부는 착공일/사용승인일 조합으로만 표시합니다.
         </p>
         <div className="list-panel area-list">
           {projects.map((project) => (

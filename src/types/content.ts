@@ -10,10 +10,9 @@ export interface SourceReference {
   type: SourceLinkType;
 }
 
-export type ProjectRecord = {
+export type NearbyConstructionRecord = {
   id: string;
   slug: string;
-  areaSlug: string;
   source: string;
   sourceRecordId: string | null;
 
@@ -22,14 +21,15 @@ export type ProjectRecord = {
   lat: number | null;
   lng: number | null;
 
-  region1: string | null;
-  region2: string | null;
-  region3: string | null;
+  sido: string | null;
+  sigungu: string | null;
+  eupmyeondong: string | null;
 
   permitDate: string | null;
   startDate: string | null;
   approvalDate: string | null;
   status: ProjectStatus;
+  statusText: string;
   statusReason: string | null;
 
   buildingUse: string | null;
@@ -50,6 +50,8 @@ export type ProjectRecord = {
   raw: Record<string, unknown>;
   supportingSources: SourceReference[];
 };
+
+export type ProjectRecord = NearbyConstructionRecord;
 
 export interface AreaInfo {
   slug: string;

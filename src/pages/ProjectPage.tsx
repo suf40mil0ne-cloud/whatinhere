@@ -1,7 +1,6 @@
 import { Link, useParams } from "react-router-dom";
 import { getProjectBySlug } from "../data/projects";
 import { useJsonLd, usePageMeta } from "../hooks/usePageMeta";
-import { getDisplayStatus } from "../lib/project-status";
 
 export function ProjectPage() {
   const { slug = "" } = useParams();
@@ -17,10 +16,8 @@ export function ProjectPage() {
     );
   }
 
-  const displayStatus = getDisplayStatus(project);
-
   usePageMeta({
-    title: `${project.title} | ${project.region2 || project.region1 || "지역"} 공사·개발 상세`,
+    title: `${project.title} | ${project.sigungu || project.sido || "지역"} 공사·개발 상세`,
     description: `${project.title}의 상태, 허가·착공·사용승인 기준일, 출처, 신뢰도를 확인하세요.`,
     canonicalPath: `/project/${project.slug}`,
   });
@@ -37,7 +34,7 @@ export function ProjectPage() {
   return (
     <div className="page project-page">
       <p className="project-meta-top">
-        {project.region1} {project.region2} {project.region3} · {project.sourceName} · 최종 확인일 {project.verifiedAt || project.updatedAt || "미확인"}
+        {project.sido} {project.sigungu} {project.eupmyeondong} · {project.sourceName} · 최종 확인일 {project.verifiedAt || project.updatedAt || "미확인"}
       </p>
       <h1>{project.title}</h1>
       <p className="lead">{project.summary}</p>
@@ -55,7 +52,7 @@ export function ProjectPage() {
 
       <section>
         <h2>현재 상태</h2>
-        <p><strong>대표 표시:</strong> {displayStatus.label}</p>
+        <p><strong>대표 표시:</strong> {project.statusText}</p>
         <p><strong>내부 표준 상태:</strong> {project.status}</p>
         <p><strong>상태 근거:</strong> {project.statusReason || "핵심 일정 정보 부족"}</p>
       </section>
@@ -92,7 +89,7 @@ export function ProjectPage() {
         <ul>
           <li>대표 출처: {project.sourceName}</li>
           <li>원본 레코드 ID: {project.sourceRecordId || "미확인"}</li>
-          <li>신뢰도: {project.confidenceLabel} ({Math.round(project.confidenceScore * 100)}점)</li>
+          <li>신뢰도: {project.confidenceLabel}</li>
           <li>검증 시각: {project.verifiedAt || "미확인"}</li>
         </ul>
         {project.sourceUrl ? (
