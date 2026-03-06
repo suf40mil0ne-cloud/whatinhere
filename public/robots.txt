@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://whatinhere.web.app/sitemap.xml
+Sitemap: https://whatsinhere.pages.dev/sitemap.xml

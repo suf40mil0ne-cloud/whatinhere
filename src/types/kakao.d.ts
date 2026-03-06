@@ -8,6 +8,7 @@ declare global {
       constructor(container: HTMLElement, options: Record<string, unknown>);
       getBounds(): LatLngBounds;
       getLevel(): number;
+      setCenter(latLng: LatLng): void;
     }
 
     class Marker {
