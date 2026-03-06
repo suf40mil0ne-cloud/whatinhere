@@ -1,14 +1,7 @@
+import { getKakaoMapJsKey, loadKakaoMap } from "./utils/loadKakaoMap";
+
 const DEFAULT_CENTER = { lat: 37.6686, lng: 126.7452 };
 const DEFAULT_LEVEL = 5;
-const SDK_SCRIPT_ID = "kakao-maps-sdk";
-
-function getKakaoJsKey() {
-  return (
-    import.meta.env.NEXT_PUBLIC_KAKAO_MAP_JS_KEY ||
-    import.meta.env.KAKAO_MAP_JS_KEY ||
-    ""
-  ).trim();
-}
 
 function showGlobalError(errorContainer, lines) {
   if (!errorContainer) return;
@@ -45,75 +38,6 @@ function renderProjectDetail(detailContainer, project) {
   `;
 }
 
-function resolveExistingSdkPromise() {
-  if (window.__kakaoSdkPromise) {
-    return window.__kakaoSdkPromise;
-  }
-  return null;
-}
-
-function loadKakaoSdk(key) {
-  const existingPromise = resolveExistingSdkPromise();
-  if (existingPromise) return existingPromise;
-
-  window.__kakaoSdkPromise = new Promise((resolve, reject) => {
-    if (!key) {
-      reject(new Error("MISSING_KAKAO_KEY"));
-      return;
-    }
-
-    if (window.kakao && window.kakao.maps) {
-      window.kakao.maps.load(() => resolve(window.kakao));
-      return;
-    }
-
-    const existingScript = document.getElementById(SDK_SCRIPT_ID);
-    if (existingScript) {
-      existingScript.addEventListener(
-        "load",
-        () => {
-          if (!window.kakao || !window.kakao.maps) {
-            reject(new Error("KAKAO_SDK_UNAVAILABLE"));
-            return;
-          }
-          window.kakao.maps.load(() => resolve(window.kakao));
-        },
-        { once: true }
-      );
-      existingScript.addEventListener(
-        "error",
-        () => reject(new Error("KAKAO_SDK_LOAD_FAILED")),
-        { once: true }
-      );
-      return;
-    }
-
-    const script = document.createElement("script");
-    script.id = SDK_SCRIPT_ID;
-    script.async = true;
-    script.src = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${encodeURIComponent(
-      key
-    )}&autoload=false`;
-
-    script.onload = () => {
-      if (!window.kakao || !window.kakao.maps) {
-        reject(new Error("KAKAO_SDK_UNAVAILABLE"));
-        return;
-      }
-      window.kakao.maps.load(() => resolve(window.kakao));
-    };
-
-    script.onerror = () => reject(new Error("KAKAO_SDK_LOAD_FAILED"));
-    document.head.appendChild(script);
-  })
-    .catch((err) => {
-      window.__kakaoSdkPromise = null;
-      throw err;
-    });
-
-  return window.__kakaoSdkPromise;
-}
-
 function createMap(mapContainer) {
   return new window.kakao.maps.Map(mapContainer, {
     center: new window.kakao.maps.LatLng(DEFAULT_CENTER.lat, DEFAULT_CENTER.lng),
@@ -148,19 +72,22 @@ function addMarkers(map, projects, detailContainer) {
 export async function initMapApp({ mapContainer, detailContainer, errorContainer, projects }) {
   if (!mapContainer) return;
 
-  const key = getKakaoJsKey();
+  const key = getKakaoMapJsKey();
   hideGlobalError(errorContainer);
 
   if (!key) {
-    const message = "카카오 JavaScript 키가 설정되지 않았습니다.";
-    console.error(message);
-    showGlobalError(errorContainer, [message]);
+    console.error("카카오 JavaScript 키가 설정되지 않았습니다.");
+    showGlobalError(errorContainer, [
+      "카카오 JavaScript 키가 설정되지 않았습니다.",
+      "Cloudflare Pages Settings → Environment Variables 에",
+      "VITE_KAKAO_MAP_JS_KEY 를 추가하세요.",
+    ]);
     renderProjectDetail(detailContainer, null);
     return;
   }
 
   try {
-    await loadKakaoSdk(key);
+    await loadKakaoMap();
     const map = createMap(mapContainer);
     addMarkers(map, projects, detailContainer);
   } catch (error) {

@@ -16,10 +16,18 @@ npm run dev
 프로젝트 루트에 `.env` 파일을 생성하고 아래 둘 중 하나를 설정하세요.
 
 ```env
-NEXT_PUBLIC_KAKAO_MAP_JS_KEY=여기에_카카오_JS_키
+VITE_KAKAO_MAP_JS_KEY=여기에_카카오_JS_키
+# 또는
+# NEXT_PUBLIC_KAKAO_MAP_JS_KEY=여기에_카카오_JS_키
 # 또는
 KAKAO_MAP_JS_KEY=여기에_카카오_JS_키
 ```
+
+앱은 아래 순서로 키를 자동 감지합니다.
+1. `VITE_KAKAO_MAP_JS_KEY`
+2. `NEXT_PUBLIC_KAKAO_MAP_JS_KEY`
+3. `KAKAO_MAP_JS_KEY`
+4. 모두 없으면 내부 fallback 키 사용
 
 ## 3) Cloudflare Pages 배포 방법
 
@@ -27,6 +35,7 @@ KAKAO_MAP_JS_KEY=여기에_카카오_JS_키
 - Build command: `npm run build`
 - Build output directory: `dist`
 - Environment variables:
+  - `VITE_KAKAO_MAP_JS_KEY` (권장)
   - `NEXT_PUBLIC_KAKAO_MAP_JS_KEY`
   - 또는 `KAKAO_MAP_JS_KEY`
 
