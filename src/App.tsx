@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
-import { fetchProjectDetail, fetchProjects, searchProjects } from "./api/client";
+import { ApiError, fetchProjectDetail, fetchProjects, searchProjects } from "./api/client";
 import { DetailPanel } from "./components/DetailPanel";
 import { Filters } from "./components/Filters";
 import { MapView } from "./components/MapView";
@@ -16,6 +16,19 @@ export function App() {
   const [status, setStatus] = useState("전체");
   const [useType, setUseType] = useState("전체");
   const [sort, setSort] = useState("permit_desc");
+
+  const toUserError = useCallback((error: unknown, context: string) => {
+    if (error instanceof ApiError) {
+      if (error.status === 0) {
+        return `${context}\n- 원인: API 서버에 연결하지 못했습니다.\n- 확인: Worker(API) 실행 상태 또는 VITE_API_BASE_URL\n- endpoint: ${error.endpoint}`;
+      }
+      return `${context}\n- HTTP ${error.status}\n- endpoint: ${error.endpoint}\n- detail: ${error.details || "응답 상세 없음"}`;
+    }
+    if (error instanceof Error) {
+      return `${context}\n- 원인: ${error.message}`;
+    }
+    return `${context}\n- 원인: 알 수 없는 오류`;
+  }, []);
 
   const onBoundsChanged = useCallback(
     async ({ bbox, zoom }: { bbox: string; zoom: number }) => {
@@ -34,12 +47,17 @@ export function App() {
         }
       } catch (e) {
         console.error(e);
-        setError("일부 데이터가 아직 정리 중입니다. 잠시 후 다시 시도해 주세요.");
+        setError(
+          toUserError(
+            e,
+            "프로젝트 목록을 불러오지 못했습니다. 일부 데이터가 아직 정리 중일 수 있습니다."
+          )
+        );
       } finally {
         setLoading(false);
       }
     },
-    [status, useType, sort]
+    [status, useType, sort, toUserError]
   );
 
   const onSelect = useCallback(async (projectId: string) => {
@@ -48,9 +66,9 @@ export function App() {
       setSelected(detail);
     } catch (e) {
       console.error(e);
-      setError("상세 정보를 불러오는 중 오류가 발생했습니다.");
+      setError(toUserError(e, "상세 정보를 불러오는 중 오류가 발생했습니다."));
     }
-  }, []);
+  }, [toUserError]);
 
   const onSearch = useCallback(async (q: string) => {
     if (!q) return;
@@ -61,9 +79,9 @@ export function App() {
       setBanner(`${data.length.toLocaleString("ko-KR")}건 검색됨`);
     } catch (e) {
       console.error(e);
-      setError("검색 중 오류가 발생했습니다.");
+      setError(toUserError(e, "검색 중 오류가 발생했습니다."));
     }
-  }, []);
+  }, [toUserError]);
 
   const filters = useMemo(
     () => ({

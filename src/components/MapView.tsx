@@ -94,7 +94,10 @@ export function MapView({ projects, onSelect, onBoundsChanged, onMapError }: Pro
       })
       .catch((error) => {
         console.error(error);
-        onMapError("카카오맵을 불러오지 못했습니다. 일부 데이터가 아직 정리 중입니다.");
+        const reason = error instanceof Error ? error.message : "알 수 없는 오류";
+        onMapError(
+          `카카오맵을 불러오지 못했습니다.\n- 원인: ${reason}\n- 확인: VITE_KAKAO_MAP_JS_KEY / Kakao Developers 도메인 등록`
+        );
       });
 
     return () => {
