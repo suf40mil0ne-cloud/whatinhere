@@ -1,4 +1,5 @@
 import { Repository } from "../db/repository";
+import { toApiProjectRecord } from "./projectMapper";
 import { SAMPLE_PROJECTS } from "../mock/sampleData";
 import type { Env } from "../types";
 import { badRequest, json } from "./http";
@@ -43,7 +44,7 @@ export async function listProjects(request: Request, env: Env): Promise<Response
     return json({ mode: "projects", total: SAMPLE_PROJECTS.length, projects: SAMPLE_PROJECTS });
   }
 
-  return json({ mode: "projects", total, projects });
+  return json({ mode: "projects", total, projects: projects.map(toApiProjectRecord) });
 }
 
 export async function getProject(_request: Request, env: Env, projectId: string): Promise<Response> {
@@ -51,12 +52,12 @@ export async function getProject(_request: Request, env: Env, projectId: string)
   const project = await repo.getProject(projectId);
 
   if (!project) {
-    const sample = SAMPLE_PROJECTS.find((item) => item.project_id === projectId);
+    const sample = SAMPLE_PROJECTS.find((item) => item.id === projectId || item.slug === projectId);
     if (!sample) return json({ error: "Not found" }, 404);
     return json(sample);
   }
 
-  return json(project);
+  return json(toApiProjectRecord(project));
 }
 
 export async function searchProject(request: Request, env: Env): Promise<Response> {
@@ -70,11 +71,11 @@ export async function searchProject(request: Request, env: Env): Promise<Respons
     const lowered = q.toLowerCase();
     return json({
       projects: SAMPLE_PROJECTS.filter((p) => {
-        const hay = `${p.title} ${p.address_road ?? ""} ${p.main_use ?? ""}`.toLowerCase();
+        const hay = `${p.title} ${p.address ?? ""} ${p.buildingUse ?? ""}`.toLowerCase();
         return hay.includes(lowered);
       }),
     });
   }
 
-  return json({ projects });
+  return json({ projects: projects.map(toApiProjectRecord) });
 }

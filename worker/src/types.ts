@@ -62,6 +62,7 @@ export interface NormalizedProject {
   local_government: string | null;
   source_count: number;
   confidence_score: number;
+  updated_at?: string | null;
 }
 
 export interface SourceAdapter {
@@ -69,4 +70,48 @@ export interface SourceAdapter {
   name: string;
   type: SourceType;
   fetch: (env: Env) => Promise<SourceRecord[]>;
+}
+
+export type ApiProjectStatus = "permit" | "start" | "construction" | "approval" | "unknown";
+
+export type ApiConfidenceLabel = "high" | "medium" | "low";
+
+export interface ApiProjectRecord {
+  id: string;
+  source: string;
+  sourceRecordId: string | null;
+  slug: string;
+  title: string;
+  address: string | null;
+  lat: number | null;
+  lng: number | null;
+  region1: string | null;
+  region2: string | null;
+  region3: string | null;
+  permitDate: string | null;
+  startDate: string | null;
+  approvalDate: string | null;
+  status: ApiProjectStatus;
+  statusReason: string | null;
+  buildingUse: string | null;
+  mainPurpose: string | null;
+  category: string | null;
+  summary: string | null;
+  description: string | null;
+  sourceUrl: string | null;
+  sourceName: string;
+  updatedAt: string | null;
+  verifiedAt: string | null;
+  confidenceScore: number;
+  confidenceLabel: ApiConfidenceLabel;
+  raw: Record<string, unknown>;
+}
+
+export interface ApiProjectListResponse {
+  mode: "projects" | "summary";
+  total: number;
+  projects: ApiProjectRecord[];
+  summary?: {
+    by_status: Record<string, number>;
+  };
 }
