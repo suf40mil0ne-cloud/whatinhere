@@ -10,8 +10,11 @@ declare global {
     class Map {
       constructor(container: HTMLElement, options: Record<string, unknown>);
       getBounds(): LatLngBounds;
+      getCenter(): LatLng;
       getLevel(): number;
+      panTo(latLng: LatLng): void;
       setCenter(latLng: LatLng): void;
+      setLevel(level: number): void;
     }
 
     class Marker {

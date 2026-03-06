@@ -1,20 +1,23 @@
 import { Link } from "react-router-dom";
-import type { ProjectData } from "../types/content";
+import type { ProjectRecord } from "../types/content";
+import { getDisplayStatus } from "../lib/project-status";
 
 interface Props {
-  project: ProjectData;
+  project: ProjectRecord;
 }
 
 export function ProjectCard({ project }: Props) {
+  const displayStatus = getDisplayStatus(project);
+
   return (
     <article className="project-card">
-      <p className="project-meta">{project.area} · {project.category}</p>
+      <p className="project-meta">{project.region1} {project.region2} · {project.sourceName}</p>
       <h3>
         <Link to={`/project/${project.slug}`}>{project.title}</Link>
       </h3>
-      <p className="project-status">상태: {project.status} · 완료 예상: {project.expectedCompletion}</p>
-      <p>{project.summary}</p>
-      <p className="project-address">위치: {project.address}</p>
+      <p className="project-status">{displayStatus.label} · 기준일 {project.verifiedAt || project.updatedAt || "미확인"}</p>
+      <p>{project.summary || "출처 기반 핵심 일정 정보 정리 중"}</p>
+      <p className="project-address">위치: {project.address || "미확인"}</p>
     </article>
   );
 }

@@ -1,50 +1,55 @@
-export type ProjectStatus =
-  | "예정"
-  | "접수"
-  | "허가"
-  | "착공준비"
-  | "착공"
-  | "공사중"
-  | "사용승인"
-  | "완공예정"
-  | "준공/완료"
-  | "정보부족";
+export type ProjectStatus = "permit" | "start" | "construction" | "approval" | "unknown";
 
-export interface ProjectSourceLink {
+export type ConfidenceLabel = "high" | "medium" | "low";
+
+export type SourceLinkType = "공공데이터" | "지자체" | "공식문서" | "보도자료";
+
+export interface SourceReference {
   label: string;
   url: string;
-  type: "공공데이터" | "지자체" | "공식문서" | "보도자료";
+  type: SourceLinkType;
 }
 
-export interface ProjectData {
+export type ProjectRecord = {
   id: string;
   slug: string;
-  title: string;
-  area: string;
   areaSlug: string;
-  address: string;
-  lat: number;
-  lng: number;
-  category: string;
+  source: string;
+  sourceRecordId: string | null;
+
+  title: string;
+  address: string | null;
+  lat: number | null;
+  lng: number | null;
+
+  region1: string | null;
+  region2: string | null;
+  region3: string | null;
+
+  permitDate: string | null;
+  startDate: string | null;
+  approvalDate: string | null;
   status: ProjectStatus;
-  expectedCompletion: string;
-  permitDate?: string;
-  startDate?: string;
-  approvalDate?: string;
-  mainUse: string;
-  buildingArea?: number;
-  grossFloorArea?: number;
-  floorsAbove?: number;
-  floorsBelow?: number;
-  households?: number;
-  summary: string;
-  description: string;
-  context: string;
-  impact: string;
-  timelineNote: string;
-  sources: ProjectSourceLink[];
-  updatedAt: string;
-}
+  statusReason: string | null;
+
+  buildingUse: string | null;
+  mainPurpose: string | null;
+  category: string | null;
+
+  summary: string | null;
+  description: string | null;
+
+  sourceUrl: string | null;
+  sourceName: string;
+  updatedAt: string | null;
+  verifiedAt: string | null;
+
+  confidenceScore: number;
+  confidenceLabel: ConfidenceLabel;
+
+  raw: Record<string, unknown>;
+  supportingSources: SourceReference[];
+};
 
 export interface AreaInfo {
   slug: string;
@@ -52,9 +57,19 @@ export interface AreaInfo {
   shortDescription: string;
   regionalContext: string;
   whyImportant: string;
+  fallbackCenter: {
+    lat: number;
+    lng: number;
+  };
 }
 
 export interface FaqItem {
   q: string;
   a: string;
+}
+
+export interface RadiusOption {
+  value: "1km" | "3km" | "5km" | "bounds";
+  label: string;
+  distanceKm: number | null;
 }

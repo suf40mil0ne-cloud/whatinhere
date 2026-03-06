@@ -1,56 +1,57 @@
 import { AREAS, PROJECTS } from "../data/projects";
-import type { ProjectData } from "../types/content";
+import { getDistanceKm, type Coordinates } from "./geolocation";
+import { getDisplayStatus } from "./project-status";
+import type { ProjectRecord } from "../types/content";
 
-export type SortKey = "updated_desc" | "completion_asc" | "area_desc";
+export type SortKey = "updated_desc" | "confidence_desc" | "status_asc";
 
 export function filterProjects(options: {
   query?: string;
   status?: string;
   area?: string;
   sort?: SortKey;
-}): ProjectData[] {
+}): ProjectRecord[] {
   const query = (options.query || "").trim().toLowerCase();
-  const status = options.status && options.status !== "전체" ? options.status : "";
-  const area = options.area && options.area !== "전체" ? options.area : "";
+  const status = options.status && options.status !== "all" ? options.status : "";
+  const area = options.area && options.area !== "all" ? options.area : "";
 
   const filtered = PROJECTS.filter((project) => {
     if (status && project.status !== status) return false;
     if (area && project.areaSlug !== area) return false;
+
     if (!query) return true;
 
     const haystack = [
       project.title,
-      project.area,
       project.address,
-      project.category,
-      project.mainUse,
+      project.region1,
+      project.region2,
+      project.region3,
+      project.buildingUse,
+      project.mainPurpose,
       project.summary,
-      project.description,
-      "여기 뭐 생겨요",
-      "이 공사 뭐짓는거지",
-      "언제 완공돼요",
-      "여기 개발 예정",
+      project.sourceName,
     ]
+      .filter(Boolean)
       .join(" ")
       .toLowerCase();
 
     return haystack.includes(query);
   });
 
-  const sorted = [...filtered];
-  const sort = options.sort || "updated_desc";
-
-  sorted.sort((a, b) => {
-    if (sort === "area_desc") return a.area.localeCompare(b.area, "ko");
-    if (sort === "completion_asc") return a.expectedCompletion.localeCompare(b.expectedCompletion, "ko");
-    return b.updatedAt.localeCompare(a.updatedAt);
-  });
-
-  return sorted;
+  return sortProjects(filtered, options.sort || "updated_desc");
 }
 
-export function getRecentProjects(limit = 6): ProjectData[] {
-  return [...PROJECTS].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).slice(0, limit);
+export function sortProjects(projects: ProjectRecord[], sort: SortKey): ProjectRecord[] {
+  return [...projects].sort((a, b) => {
+    if (sort === "confidence_desc") return b.confidenceScore - a.confidenceScore;
+    if (sort === "status_asc") return getDisplayStatus(a).label.localeCompare(getDisplayStatus(b).label, "ko");
+    return (b.verifiedAt || b.updatedAt || "").localeCompare(a.verifiedAt || a.updatedAt || "");
+  });
+}
+
+export function getRecentProjects(limit = 6): ProjectRecord[] {
+  return sortProjects(PROJECTS, "updated_desc").slice(0, limit);
 }
 
 export function getAreaShortcuts() {
@@ -58,4 +59,27 @@ export function getAreaShortcuts() {
     ...area,
     count: PROJECTS.filter((project) => project.areaSlug === area.slug).length,
   }));
+}
+
+export function getProjectsNearCenter(projects: ProjectRecord[], center: Coordinates, radiusKm: number): ProjectRecord[] {
+  return projects.filter((project) => {
+    if (project.lat == null || project.lng == null) return false;
+    return getDistanceKm(center, { lat: project.lat, lng: project.lng }) <= radiusKm;
+  });
+}
+
+export function getProjectsInBounds(
+  projects: ProjectRecord[],
+  bounds: { swLat: number; swLng: number; neLat: number; neLng: number } | null
+): ProjectRecord[] {
+  if (!bounds) return projects.filter((project) => project.lat != null && project.lng != null);
+  return projects.filter((project) => {
+    if (project.lat == null || project.lng == null) return false;
+    return (
+      project.lat >= bounds.swLat &&
+      project.lat <= bounds.neLat &&
+      project.lng >= bounds.swLng &&
+      project.lng <= bounds.neLng
+    );
+  });
 }
