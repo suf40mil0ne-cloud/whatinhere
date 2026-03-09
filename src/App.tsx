@@ -14,7 +14,7 @@ import {
   type MapViewport,
 } from "./lib/project-utils";
 
-const ALL_CATEGORIES: ProjectCategory[] = ["building", "railway", "housing"];
+const ALL_CATEGORIES: ProjectCategory[] = ["public_construction", "railway", "housing", "urban_plan", "road"];
 const SITE_URL = "https://whatsinhere.pages.dev";
 
 type RouteKey = "/" | "/about" | "/contact" | "/privacy" | "/terms";
