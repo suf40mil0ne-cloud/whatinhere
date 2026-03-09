@@ -137,14 +137,7 @@ export function App() {
 
     let isMounted = true;
 
-    fetch("/data/projects.json")
-      .then(async (response) => {
-        if (!response.ok) {
-          throw new Error(`Failed to load projects.json: ${response.status}`);
-        }
-
-        return (await response.json()) as ProjectItem[];
-      })
+    loadProjects()
       .then((items) => {
         if (!isMounted) return;
         setProjects(items);
@@ -296,6 +289,18 @@ export function App() {
       <Footer />
     </main>
   );
+}
+
+async function loadProjects(): Promise<ProjectItem[]> {
+  const candidates = ["/data/projects.generated.json", "/data/projects.json"];
+
+  for (const url of candidates) {
+    const response = await fetch(url);
+    if (!response.ok) continue;
+    return (await response.json()) as ProjectItem[];
+  }
+
+  throw new Error("Failed to load generated or fallback project data.");
 }
 
 function renderContentPage(pathname: RouteKey) {

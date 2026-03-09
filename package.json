@@ -10,6 +10,13 @@
     "build": "vite build",
     "build:web": "vite build",
     "preview": "vite preview",
+    "data:kiscon": "node scripts/fetch-kiscon.js",
+    "data:railway": "node scripts/fetch-railway.js",
+    "data:housing": "node scripts/fetch-housing.js",
+    "data:urban-plan": "node scripts/fetch-urban-plan.js",
+    "data:road": "node scripts/fetch-road.js",
+    "data:merge": "node scripts/merge-projects.js",
+    "data:build": "npm-run-all data:kiscon data:railway data:housing data:urban-plan data:road data:merge",
     "deploy:worker": "wrangler deploy",
     "db:migrate": "wrangler d1 execute whatinhere-db --file ./worker/src/db/schema.sql"
   },
