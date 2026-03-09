@@ -16,6 +16,12 @@ import {
 
 const ALL_CATEGORIES: ProjectCategory[] = ["public_construction", "railway", "housing", "urban_plan", "road"];
 const SITE_URL = "https://whatsinhere.pages.dev";
+const SUPPORTED_DATA_BOUNDS = {
+  south: 33,
+  west: 124,
+  north: 39.5,
+  east: 132,
+};
 
 type RouteKey = "/" | "/about" | "/contact" | "/privacy" | "/terms";
 
@@ -77,6 +83,15 @@ function ensureCanonicalLink(href: string) {
   }
 
   element.href = href;
+}
+
+function isWithinSupportedDataBounds(coords: Coordinates): boolean {
+  return (
+    coords.lat >= SUPPORTED_DATA_BOUNDS.south &&
+    coords.lat <= SUPPORTED_DATA_BOUNDS.north &&
+    coords.lng >= SUPPORTED_DATA_BOUNDS.west &&
+    coords.lng <= SUPPORTED_DATA_BOUNDS.east
+  );
 }
 
 export function App() {
@@ -185,7 +200,12 @@ export function App() {
 
     try {
       const coords = await getCurrentBrowserLocation();
-      setCurrentLocation(coords);
+      if (isWithinSupportedDataBounds(coords)) {
+        setCurrentLocation(coords);
+      } else {
+        setCurrentLocation(DEFAULT_MAP_CENTER);
+        setLocationError("현재 위치 주변에는 준비된 공공데이터가 없어 수도권 기본 위치로 시작합니다.");
+      }
       setLocationRequestId((value) => value + 1);
     } catch (error) {
       setLocationError(error instanceof Error ? error.message : "현재 위치를 가져오지 못했습니다.");
