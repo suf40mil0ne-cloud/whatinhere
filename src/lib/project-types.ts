@@ -1,4 +1,4 @@
-export type ProjectCategory = "public_construction" | "railway" | "housing" | "urban_plan" | "road";
+export type ProjectCategory = "public_construction" | "railway" | "housing" | "urban_plan" | "road" | "environment";
 
 export type GeometryType = "point" | "polygon";
 
@@ -27,4 +27,6 @@ export interface ProjectItem {
   startDate?: string;
   endDate?: string;
   updatedAt?: string;
+  projectOrigin?: "public" | "private" | "mixed" | "unknown";
+  confidence?: "high" | "medium" | "low";
 }

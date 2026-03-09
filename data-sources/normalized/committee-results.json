@@ -1,0 +1,62 @@
+[
+  {
+    "id": "committee-results-잠실역-인근-업무-숙박-복합개발",
+    "category": "urban_plan",
+    "name": "잠실역 인근 업무·숙박 복합개발",
+    "geometryType": "point",
+    "latitude": 37.5133,
+    "longitude": 127.1002,
+    "status": "unknown",
+    "sourceName": "건축위원회·도시건축공동위원회 심의 결과",
+    "sourceUrl": "https://www.data.go.kr/",
+    "description": "도시건축공동위원회 심의 결과가 공개된 민간 복합개발 후보.",
+    "updatedAt": "2026-03-09",
+    "projectOrigin": "private",
+    "confidence": "low"
+  },
+  {
+    "id": "committee-results-여의도-국제금융지구-업무시설-증축",
+    "category": "urban_plan",
+    "name": "여의도 국제금융지구 업무시설 증축",
+    "geometryType": "point",
+    "latitude": 37.5216,
+    "longitude": 126.9248,
+    "status": "unknown",
+    "sourceName": "건축위원회·도시건축공동위원회 심의 결과",
+    "sourceUrl": "https://www.data.go.kr/",
+    "description": "건축위원회 심의 이력이 확인된 민간 업무시설 개발 후보.",
+    "updatedAt": "2026-03-09",
+    "projectOrigin": "private",
+    "confidence": "low"
+  },
+  {
+    "id": "committee-results-성수-전략정비구역-판매-업무-복합동",
+    "category": "urban_plan",
+    "name": "성수 전략정비구역 판매·업무 복합동",
+    "geometryType": "point",
+    "latitude": 37.5456,
+    "longitude": 127.0439,
+    "status": "unknown",
+    "sourceName": "건축위원회·도시건축공동위원회 심의 결과",
+    "sourceUrl": "https://www.data.go.kr/",
+    "description": "재정비 구역 내 민간 복합개발 심의 결과.",
+    "updatedAt": "2026-03-09",
+    "projectOrigin": "private",
+    "confidence": "low"
+  },
+  {
+    "id": "committee-results-광교-중심광장-인근-업무복합시설",
+    "category": "urban_plan",
+    "name": "광교 중심광장 인근 업무복합시설",
+    "geometryType": "point",
+    "latitude": 37.2861,
+    "longitude": 127.0443,
+    "status": "unknown",
+    "sourceName": "건축위원회·도시건축공동위원회 심의 결과",
+    "sourceUrl": "https://www.data.go.kr/",
+    "description": "광교 중심지 내 민간 업무복합시설 심의 결과.",
+    "updatedAt": "2026-03-09",
+    "projectOrigin": "private",
+    "confidence": "low"
+  }
+]

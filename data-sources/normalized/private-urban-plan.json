@@ -1,0 +1,47 @@
+[
+  {
+    "id": "private-urban-plan-서울역-서부역세권-민간복합개발",
+    "category": "urban_plan",
+    "name": "서울역 서부역세권 민간복합개발",
+    "geometryType": "point",
+    "latitude": 37.5541,
+    "longitude": 126.9692,
+    "status": "approved",
+    "sourceName": "민간 개발 관련 지구단위계획·실시계획 인가 자료",
+    "sourceUrl": "https://www.data.go.kr/",
+    "description": "민간 복합개발과 연계된 도시계획 절차 이력.",
+    "updatedAt": "2025-10-14",
+    "projectOrigin": "mixed",
+    "confidence": "medium"
+  },
+  {
+    "id": "private-urban-plan-상암-dmc-민간-업무복합-개발계획",
+    "category": "urban_plan",
+    "name": "상암 DMC 민간 업무복합 개발계획",
+    "geometryType": "point",
+    "latitude": 37.5796,
+    "longitude": 126.8929,
+    "status": "planned",
+    "sourceName": "민간 개발 관련 지구단위계획·실시계획 인가 자료",
+    "sourceUrl": "https://www.data.go.kr/",
+    "description": "DMC 권역 민간 업무복합 개발을 위한 지구단위계획 단계.",
+    "updatedAt": "2025-07-03",
+    "projectOrigin": "mixed",
+    "confidence": "medium"
+  },
+  {
+    "id": "private-urban-plan-부천영상문화산업단지-민간복합개발",
+    "category": "urban_plan",
+    "name": "부천영상문화산업단지 민간복합개발",
+    "geometryType": "point",
+    "latitude": 37.5034,
+    "longitude": 126.7535,
+    "status": "approved",
+    "sourceName": "민간 개발 관련 지구단위계획·실시계획 인가 자료",
+    "sourceUrl": "https://www.data.go.kr/",
+    "description": "민간 복합개발과 연계된 도시계획 인가 자료.",
+    "updatedAt": "2025-06-26",
+    "projectOrigin": "mixed",
+    "confidence": "medium"
+  }
+]

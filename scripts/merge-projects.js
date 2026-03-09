@@ -11,7 +11,18 @@ import {
 ensurePipelineDirs();
 
 const seedProjects = readJsonFile(path.resolve("public/data/projects.json"), []);
-const sourceKeys = ["kiscon", "railway", "housing", "urban-plan", "road"];
+const sourceKeys = [
+  "kiscon",
+  "railway",
+  "housing",
+  "urban-plan",
+  "road",
+  "building-permits",
+  "housing-approvals",
+  "committee-results",
+  "private-urban-plan",
+  "eia",
+];
 const sourceItems = sourceKeys.flatMap((sourceKey) => readNormalizedSource(sourceKey));
 const mergedProjects = dedupeProjects([...seedProjects, ...sourceItems]);
 

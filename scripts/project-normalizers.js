@@ -30,13 +30,13 @@ export function resolveRawFile(sourceKey) {
   return candidates.find((candidate) => fs.existsSync(candidate)) ?? null;
 }
 
-export function readSourceRows(sourceKey) {
+export function readSourceRows(sourceKey, fallbackRows = []) {
   ensurePipelineDirs();
   const rawFile = resolveRawFile(sourceKey);
 
   if (!rawFile) {
     console.warn(`[${sourceKey}] raw source file not found in ${RAW_DIR}`);
-    return [];
+    return fallbackRows;
   }
 
   const content = fs.readFileSync(rawFile, "utf8");
@@ -119,6 +119,8 @@ export function normalizePointProject({
   record,
   index,
   trafficControl = false,
+  projectOrigin = "public",
+  confidence,
 }) {
   const latitude = pickNumber(record, ["latitude", "lat", "위도", "Y좌표", "centerLat"]);
   const longitude = pickNumber(record, ["longitude", "lng", "경도", "X좌표", "centerLng"]);
@@ -148,6 +150,8 @@ export function normalizePointProject({
     endDate,
     description: pickString(record, ["description", "공사개요", "사업개요", "사업내용", "사유"]),
     updatedAt: normalizeDate(pickString(record, ["updatedAt", "수정일", "갱신일", "고시일자", "기준일자"])) || new Date().toISOString().slice(0, 10),
+    projectOrigin,
+    confidence,
   };
 }
 

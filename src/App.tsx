@@ -14,7 +14,7 @@ import {
   type MapViewport,
 } from "./lib/project-utils";
 
-const ALL_CATEGORIES: ProjectCategory[] = ["public_construction", "railway", "housing", "urban_plan", "road"];
+const ALL_CATEGORIES: ProjectCategory[] = ["public_construction", "railway", "housing", "urban_plan", "road", "environment"];
 const SITE_URL = "https://whatsinhere.pages.dev";
 const SUPPORTED_DATA_BOUNDS = {
   south: 33,

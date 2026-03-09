@@ -21,6 +21,7 @@ export const CATEGORY_OPTIONS: Array<{ value: ProjectCategory; label: string }> 
   { value: "housing", label: "택지개발" },
   { value: "urban_plan", label: "도시계획" },
   { value: "road", label: "도로" },
+  { value: "environment", label: "환경영향" },
 ];
 
 const CATEGORY_LABELS: Record<ProjectCategory, string> = {
@@ -29,6 +30,7 @@ const CATEGORY_LABELS: Record<ProjectCategory, string> = {
   housing: "택지개발",
   urban_plan: "도시계획",
   road: "도로",
+  environment: "환경영향",
 };
 
 const STATUS_LABELS: Record<ProjectStatus, string> = {

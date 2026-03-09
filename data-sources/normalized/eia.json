@@ -1,0 +1,32 @@
+[
+  {
+    "id": "eia-용인-반도체-클러스터-일반산업단지",
+    "category": "environment",
+    "name": "용인 반도체 클러스터 일반산업단지",
+    "geometryType": "point",
+    "latitude": 37.1607,
+    "longitude": 127.3148,
+    "status": "unknown",
+    "sourceName": "환경영향평가 사업구역 정보",
+    "sourceUrl": "https://www.data.go.kr/",
+    "description": "환경영향평가 사업구역 정보로 확인되는 대규모 민간 산업개발.",
+    "updatedAt": "2026-03-09",
+    "projectOrigin": "private",
+    "confidence": "high"
+  },
+  {
+    "id": "eia-청라-의료복합타운-민간개발",
+    "category": "environment",
+    "name": "청라 의료복합타운 민간개발",
+    "geometryType": "point",
+    "latitude": 37.5352,
+    "longitude": 126.6487,
+    "status": "unknown",
+    "sourceName": "환경영향평가 사업구역 정보",
+    "sourceUrl": "https://www.data.go.kr/",
+    "description": "환경영향평가 절차에 남는 대규모 민간 복합개발 사업.",
+    "updatedAt": "2026-03-09",
+    "projectOrigin": "private",
+    "confidence": "high"
+  }
+]
