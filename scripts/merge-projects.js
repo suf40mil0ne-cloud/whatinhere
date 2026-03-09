@@ -5,6 +5,8 @@ import {
   readJsonFile,
   readNormalizedSource,
   summarizeByCategory,
+  summarizeByOrigin,
+  summarizeByRegion,
   writeJsonFile,
 } from "./project-normalizers.js";
 
@@ -34,3 +36,5 @@ sourceKeys.forEach((sourceKey) => {
 });
 console.log("[merge-projects] total:", mergedProjects.length);
 console.log("[merge-projects] by category:", summarizeByCategory(mergedProjects));
+console.log("[merge-projects] by origin:", summarizeByOrigin(mergedProjects));
+console.log("[merge-projects] by region:", summarizeByRegion(mergedProjects));

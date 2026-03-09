@@ -62,7 +62,7 @@ export function readNormalizedSource(sourceKey) {
 export function buildSourceProjectId(sourceKey, record, index) {
   const seed =
     pickString(record, ["id", "ID", "관리번호", "공사ID", "사업ID", "고시번호", "지구코드"]) ||
-    pickString(record, ["name", "공사명", "사업명", "고시명", "지구명"]) ||
+    pickString(record, ["name", "공사명", "사업명", "고시명", "지구명", "대지위치"]) ||
     `${sourceKey}-${index + 1}`;
 
   return `${sourceKey}-${slugify(seed)}`;
@@ -125,10 +125,12 @@ export function normalizePointProject({
   const latitude = pickNumber(record, ["latitude", "lat", "위도", "Y좌표", "centerLat"]);
   const longitude = pickNumber(record, ["longitude", "lng", "경도", "X좌표", "centerLng"]);
   const name = pickString(record, ["name", "공사명", "사업명", "고시명", "지구명", "노선명"]);
-  const address = pickString(record, ["address", "소재지", "위치", "공사위치", "구간"]);
-  const startDate = normalizeDate(pickString(record, ["startDate", "착공일", "공사시작일", "사업시작일", "시작일"]));
-  const endDate = normalizeDate(pickString(record, ["endDate", "준공예정일", "공사종료일", "사업종료일", "종료일"]));
-  const rawStatus = pickString(record, ["status", "진행단계", "공정상태", "사업단계", "단계"]);
+  const address = pickString(record, ["address", "소재지", "위치", "공사위치", "구간", "대지위치"]);
+  const startDate = normalizeDate(
+    pickString(record, ["startDate", "착공일", "공사시작일", "사업시작일", "시작일", "허가일", "승인일", "심의일"])
+  );
+  const endDate = normalizeDate(pickString(record, ["endDate", "준공예정일", "공사종료일", "사업종료일", "종료일", "사용승인일"]));
+  const rawStatus = pickString(record, ["status", "진행단계", "공정상태", "사업단계", "단계", "심의결과"]);
 
   if (!name || latitude == null || longitude == null) {
     return null;
@@ -145,11 +147,13 @@ export function normalizePointProject({
     status: determineStatus({ rawStatus, startDate, endDate, trafficControl }),
     sourceName,
     sourceUrl,
-    agency: agency || pickString(record, ["agency", "발주청", "시행자", "기관명", "사업시행자"]),
+    agency: agency || pickString(record, ["agency", "발주청", "시행자", "기관명", "사업시행자", "사업주체"]),
     startDate,
     endDate,
-    description: pickString(record, ["description", "공사개요", "사업개요", "사업내용", "사유"]),
-    updatedAt: normalizeDate(pickString(record, ["updatedAt", "수정일", "갱신일", "고시일자", "기준일자"])) || new Date().toISOString().slice(0, 10),
+    description: pickString(record, ["description", "공사개요", "사업개요", "사업내용", "사유", "주용도"]),
+    updatedAt:
+      normalizeDate(pickString(record, ["updatedAt", "수정일", "갱신일", "고시일자", "기준일자", "승인일", "허가일"])) ||
+      new Date().toISOString().slice(0, 10),
     projectOrigin,
     confidence,
   };
@@ -182,8 +186,37 @@ export function summarizeByCategory(items) {
   }, {});
 }
 
+export function summarizeByOrigin(items) {
+  return items.reduce((acc, item) => {
+    const origin = item.projectOrigin || "unknown";
+    acc[origin] = (acc[origin] || 0) + 1;
+    return acc;
+  }, {});
+}
+
+export function summarizeByRegion(items) {
+  return items.reduce((acc, item) => {
+    const region = inferRegion(item.address);
+    acc[region] = (acc[region] || 0) + 1;
+    return acc;
+  }, {});
+}
+
 function roundForFingerprint(value) {
   return value == null ? "" : value.toFixed(3);
+}
+
+function inferRegion(address) {
+  if (!address) return "unknown";
+  if (address.startsWith("서울")) return "seoul";
+  if (address.startsWith("인천")) return "incheon";
+  if (address.startsWith("경기")) return "gyeonggi";
+  if (address.startsWith("부산")) return "busan";
+  if (address.startsWith("대구")) return "daegu";
+  if (address.startsWith("광주")) return "gwangju";
+  if (address.startsWith("대전")) return "daejeon";
+  if (address.startsWith("울산")) return "ulsan";
+  return "other";
 }
 
 function slugify(value) {
