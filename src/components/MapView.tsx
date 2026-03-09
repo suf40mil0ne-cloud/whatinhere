@@ -34,6 +34,7 @@ export function MapView({
   const mapRef = useRef<kakao.maps.Map | null>(null);
   const markerRefs = useRef<kakao.maps.Marker[]>([]);
   const currentLocationMarkerRef = useRef<kakao.maps.Marker | null>(null);
+  const lastPannedProjectIdRef = useRef<string | null>(null);
   const [mapError, setMapError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -113,11 +114,23 @@ export function MapView({
   }, [currentLocation, currentLocationRequest]);
 
   useEffect(() => {
-    const selectedProject = projects.find((project) => project.id === selectedProjectId);
     const map = mapRef.current;
-    if (!selectedProject || !map || !window.kakao?.maps) return;
+    if (!map || !window.kakao?.maps) return;
+
+    if (!selectedProjectId) {
+      lastPannedProjectIdRef.current = null;
+      return;
+    }
+
+    if (lastPannedProjectIdRef.current === selectedProjectId) {
+      return;
+    }
+
+    const selectedProject = projects.find((project) => project.id === selectedProjectId);
+    if (!selectedProject) return;
 
     map.panTo(new window.kakao.maps.LatLng(selectedProject.latitude, selectedProject.longitude));
+    lastPannedProjectIdRef.current = selectedProjectId;
   }, [projects, selectedProjectId]);
 
   if (mapError) {
