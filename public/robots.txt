@@ -1,4 +1,8 @@
 User-agent: *
 Allow: /
+Allow: /about
+Allow: /contact
+Allow: /privacy
+Allow: /terms
 
 Sitemap: https://whatsinhere.pages.dev/sitemap.xml
