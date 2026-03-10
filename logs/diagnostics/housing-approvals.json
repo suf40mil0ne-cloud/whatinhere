@@ -1,0 +1,27 @@
+{
+  "sourceKey": "housing-approvals",
+  "sourceName": "지자체 주택건설사업계획 승인 현황",
+  "sourceUrl": "https://www.data.go.kr/",
+  "strategy": "B/C",
+  "endpointType": "municipal-file-or-openapi",
+  "collectedAt": "2026-03-10T02:07:48.854Z",
+  "runtime": "script-prebuild",
+  "requiredEnv": {},
+  "rawFile": null,
+  "fetchAttempted": false,
+  "fetchSucceeded": false,
+  "rawRowCount": 12,
+  "normalizedRowCount": 12,
+  "mergedRowCount": 12,
+  "fallbackRowCount": 12,
+  "failureReasons": [
+    "not-official-ingest-seed-fallback"
+  ],
+  "skipReasons": [
+    "official-raw-missing-using-seed-fallback"
+  ],
+  "notes": [
+    "수도권 공동주택 승인 데이터는 지자체 파일/XLS/CSV 중심이라 사전 수집이 맞다.",
+    "현재 저장소에서는 공식 raw 파일이 없을 때 seed fallback이 사용된다."
+  ]
+}

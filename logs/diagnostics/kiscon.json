@@ -1,0 +1,27 @@
+{
+  "sourceKey": "kiscon",
+  "sourceName": "국토교통부 공공건설 공사위치정보",
+  "sourceUrl": "https://www.data.go.kr/data/15094259/fileData.do",
+  "strategy": "C",
+  "endpointType": "portal-file-link",
+  "collectedAt": "2026-03-10T02:07:46.256Z",
+  "runtime": "script-prebuild",
+  "requiredEnv": {},
+  "rawFile": null,
+  "fetchAttempted": false,
+  "fetchSucceeded": false,
+  "rawRowCount": 0,
+  "normalizedRowCount": 0,
+  "mergedRowCount": 21,
+  "fallbackRowCount": 0,
+  "failureReasons": [
+    "raw-file-missing"
+  ],
+  "skipReasons": [
+    "manual-download-required"
+  ],
+  "notes": [
+    "KISCON은 data.go.kr 파일데이터 상세 페이지가 기관 링크(kiscon map)로 연결되는 반자동 소스다.",
+    "앱 런타임이 아니라 사전 다운로드 후 raw ingest가 맞다."
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "sourceKey": "building-permits",
+  "sourceName": "지자체 세움터 기반 건축허가·착공 자료",
+  "sourceUrl": "https://www.data.go.kr/",
+  "strategy": "B/C",
+  "endpointType": "municipal-file-or-openapi",
+  "collectedAt": "2026-03-10T02:07:48.409Z",
+  "runtime": "script-prebuild",
+  "requiredEnv": {},
+  "rawFile": null,
+  "fetchAttempted": false,
+  "fetchSucceeded": false,
+  "rawRowCount": 13,
+  "normalizedRowCount": 13,
+  "mergedRowCount": 13,
+  "fallbackRowCount": 13,
+  "failureReasons": [
+    "not-official-ingest-seed-fallback"
+  ],
+  "skipReasons": [
+    "official-raw-missing-using-seed-fallback"
+  ],
+  "notes": [
+    "지자체별 형식이 달라 앱 런타임 직접호출보다 사전 수집/정규화가 맞다.",
+    "현재 저장소에서는 공식 raw 파일이 없을 때 seed fallback이 사용된다."
+  ]
+}

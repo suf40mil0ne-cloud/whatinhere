@@ -1,0 +1,31 @@
+{
+  "sourceKey": "railway",
+  "sourceName": "국가철도공단 철도공단사업",
+  "sourceUrl": "https://www.data.go.kr/data/15088605/fileData.do",
+  "strategy": "A/B",
+  "endpointType": "datago-auto-converted-api-or-file",
+  "collectedAt": "2026-03-10T02:07:46.685Z",
+  "runtime": "script-prebuild",
+  "requiredEnv": {
+    "DATA_GO_KR_SERVICE_KEY": false,
+    "RAILWAY_API_URL": false
+  },
+  "rawFile": null,
+  "fetchAttempted": false,
+  "fetchSucceeded": false,
+  "rawRowCount": 0,
+  "normalizedRowCount": 0,
+  "mergedRowCount": 7,
+  "fallbackRowCount": 0,
+  "failureReasons": [
+    "endpoint-not-configured",
+    "service-key-missing"
+  ],
+  "skipReasons": [
+    "raw-file-missing"
+  ],
+  "notes": [
+    "철도공단사업은 raw CSV/XLS 다운로드 후 ingest가 가능하고, data.go.kr 자동변환 JSON/XML API도 가능하다.",
+    "현재 저장소에는 API URL이 고정되어 있지 않아 환경변수로 주입해야 한다."
+  ]
+}

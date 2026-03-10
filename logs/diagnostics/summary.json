@@ -1,0 +1,191 @@
+[
+  {
+    "sourceKey": "building-permits",
+    "sourceName": "지자체 세움터 기반 건축허가·착공 자료",
+    "sourceUrl": "https://www.data.go.kr/",
+    "strategy": "B/C",
+    "endpointType": "municipal-file-or-openapi",
+    "collectedAt": "2026-03-10T02:07:48.409Z",
+    "runtime": "script-prebuild",
+    "requiredEnv": {},
+    "rawFile": null,
+    "fetchAttempted": false,
+    "fetchSucceeded": false,
+    "rawRowCount": 13,
+    "normalizedRowCount": 13,
+    "mergedRowCount": 13,
+    "fallbackRowCount": 13,
+    "failureReasons": [
+      "not-official-ingest-seed-fallback"
+    ],
+    "skipReasons": [
+      "official-raw-missing-using-seed-fallback"
+    ],
+    "notes": [
+      "지자체별 형식이 달라 앱 런타임 직접호출보다 사전 수집/정규화가 맞다.",
+      "현재 저장소에서는 공식 raw 파일이 없을 때 seed fallback이 사용된다."
+    ]
+  },
+  {
+    "sourceKey": "capital-construction",
+    "sourceName": "행정안전부 생활안전지도 건설공사현황",
+    "sourceUrl": "https://www.safemap.go.kr/openApiService/wms/getLayerData.do",
+    "strategy": "C",
+    "endpointType": "wms-link-api",
+    "collectedAt": "2026-03-10T02:07:49.711Z",
+    "runtime": "script-prebuild",
+    "requiredEnv": {
+      "SAFEMAP_API_KEY": false
+    },
+    "rawFile": null,
+    "fetchAttempted": false,
+    "fetchSucceeded": false,
+    "rawRowCount": 12,
+    "normalizedRowCount": 12,
+    "mergedRowCount": 12,
+    "fallbackRowCount": 12,
+    "failureReasons": [
+      "service-key-missing",
+      "link-api-not-row-rest",
+      "not-official-ingest-seed-fallback"
+    ],
+    "skipReasons": [
+      "official-raw-missing-using-seed-fallback"
+    ],
+    "notes": [
+      "생활안전지도 공개 예시는 WMS getLayerData.do + apikey 조합으로 제공된다.",
+      "브라우저 런타임 호출보다 사전 수집 또는 반자동 export ingest가 맞다.",
+      "현재 저장소에는 서비스키와 공식 raw export가 없어 seed fallback만 사용 중이다."
+    ],
+    "linkType": "WMS",
+    "requiresPagination": "unknown-until-row-endpoint-confirmed",
+    "corsAssessment": "browser-call-risk-high",
+    "coordinateFields": [
+      "X좌표",
+      "Y좌표",
+      "경도",
+      "위도"
+    ],
+    "sourceChecklist": {
+      "actualUrl": "https://www.safemap.go.kr/openApiService/wms/getLayerData.do",
+      "serviceKeyRequired": true,
+      "serviceKeyPresent": false,
+      "directRestEndpointConfirmed": false,
+      "totalCountFieldConfirmed": false,
+      "pageParamsConfirmed": false,
+      "capitalFilterParamConfirmed": false
+    }
+  },
+  {
+    "sourceKey": "committee-results",
+    "sourceName": "건축위원회·도시건축공동위원회 심의 결과",
+    "sourceUrl": "https://www.data.go.kr/",
+    "strategy": "B/C",
+    "endpointType": "municipal-file-or-portal",
+    "collectedAt": "2026-03-10T02:07:49.267Z",
+    "runtime": "script-prebuild",
+    "requiredEnv": {},
+    "rawFile": null,
+    "fetchAttempted": false,
+    "fetchSucceeded": false,
+    "rawRowCount": 8,
+    "normalizedRowCount": 8,
+    "mergedRowCount": 8,
+    "fallbackRowCount": 8,
+    "failureReasons": [
+      "not-official-ingest-seed-fallback"
+    ],
+    "skipReasons": [
+      "official-raw-missing-using-seed-fallback"
+    ],
+    "notes": [
+      "심의 결과는 시군구 게시판/파일형 공고 비중이 높아 앱 런타임 직접호출에 부적합하다.",
+      "현재 저장소에서는 공식 raw 파일이 없을 때 seed fallback이 사용된다."
+    ]
+  },
+  {
+    "sourceKey": "housing-approvals",
+    "sourceName": "지자체 주택건설사업계획 승인 현황",
+    "sourceUrl": "https://www.data.go.kr/",
+    "strategy": "B/C",
+    "endpointType": "municipal-file-or-openapi",
+    "collectedAt": "2026-03-10T02:07:48.854Z",
+    "runtime": "script-prebuild",
+    "requiredEnv": {},
+    "rawFile": null,
+    "fetchAttempted": false,
+    "fetchSucceeded": false,
+    "rawRowCount": 12,
+    "normalizedRowCount": 12,
+    "mergedRowCount": 12,
+    "fallbackRowCount": 12,
+    "failureReasons": [
+      "not-official-ingest-seed-fallback"
+    ],
+    "skipReasons": [
+      "official-raw-missing-using-seed-fallback"
+    ],
+    "notes": [
+      "수도권 공동주택 승인 데이터는 지자체 파일/XLS/CSV 중심이라 사전 수집이 맞다.",
+      "현재 저장소에서는 공식 raw 파일이 없을 때 seed fallback이 사용된다."
+    ]
+  },
+  {
+    "sourceKey": "kiscon",
+    "sourceName": "국토교통부 공공건설 공사위치정보",
+    "sourceUrl": "https://www.data.go.kr/data/15094259/fileData.do",
+    "strategy": "C",
+    "endpointType": "portal-file-link",
+    "collectedAt": "2026-03-10T02:07:46.256Z",
+    "runtime": "script-prebuild",
+    "requiredEnv": {},
+    "rawFile": null,
+    "fetchAttempted": false,
+    "fetchSucceeded": false,
+    "rawRowCount": 0,
+    "normalizedRowCount": 0,
+    "mergedRowCount": 21,
+    "fallbackRowCount": 0,
+    "failureReasons": [
+      "raw-file-missing"
+    ],
+    "skipReasons": [
+      "manual-download-required"
+    ],
+    "notes": [
+      "KISCON은 data.go.kr 파일데이터 상세 페이지가 기관 링크(kiscon map)로 연결되는 반자동 소스다.",
+      "앱 런타임이 아니라 사전 다운로드 후 raw ingest가 맞다."
+    ]
+  },
+  {
+    "sourceKey": "railway",
+    "sourceName": "국가철도공단 철도공단사업",
+    "sourceUrl": "https://www.data.go.kr/data/15088605/fileData.do",
+    "strategy": "A/B",
+    "endpointType": "datago-auto-converted-api-or-file",
+    "collectedAt": "2026-03-10T02:07:46.685Z",
+    "runtime": "script-prebuild",
+    "requiredEnv": {
+      "DATA_GO_KR_SERVICE_KEY": false,
+      "RAILWAY_API_URL": false
+    },
+    "rawFile": null,
+    "fetchAttempted": false,
+    "fetchSucceeded": false,
+    "rawRowCount": 0,
+    "normalizedRowCount": 0,
+    "mergedRowCount": 7,
+    "fallbackRowCount": 0,
+    "failureReasons": [
+      "endpoint-not-configured",
+      "service-key-missing"
+    ],
+    "skipReasons": [
+      "raw-file-missing"
+    ],
+    "notes": [
+      "철도공단사업은 raw CSV/XLS 다운로드 후 ingest가 가능하고, data.go.kr 자동변환 JSON/XML API도 가능하다.",
+      "현재 저장소에는 API URL이 고정되어 있지 않아 환경변수로 주입해야 한다."
+    ]
+  }
+]

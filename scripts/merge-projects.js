@@ -26,9 +26,6 @@ const sourceKeys = [
   "private-urban-plan",
   "eia",
   "capital-construction",
-  "capital-building-permits",
-  "capital-housing-approvals",
-  "capital-committee-results",
 ];
 const sourceItems = sourceKeys.flatMap((sourceKey) => readNormalizedSource(sourceKey));
 const mergedProjects = mergeCapitalProjects(dedupeProjects([...seedProjects, ...sourceItems]));

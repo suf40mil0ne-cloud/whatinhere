@@ -1,0 +1,27 @@
+{
+  "sourceKey": "committee-results",
+  "sourceName": "건축위원회·도시건축공동위원회 심의 결과",
+  "sourceUrl": "https://www.data.go.kr/",
+  "strategy": "B/C",
+  "endpointType": "municipal-file-or-portal",
+  "collectedAt": "2026-03-10T02:07:49.267Z",
+  "runtime": "script-prebuild",
+  "requiredEnv": {},
+  "rawFile": null,
+  "fetchAttempted": false,
+  "fetchSucceeded": false,
+  "rawRowCount": 8,
+  "normalizedRowCount": 8,
+  "mergedRowCount": 8,
+  "fallbackRowCount": 8,
+  "failureReasons": [
+    "not-official-ingest-seed-fallback"
+  ],
+  "skipReasons": [
+    "official-raw-missing-using-seed-fallback"
+  ],
+  "notes": [
+    "심의 결과는 시군구 게시판/파일형 공고 비중이 높아 앱 런타임 직접호출에 부적합하다.",
+    "현재 저장소에서는 공식 raw 파일이 없을 때 seed fallback이 사용된다."
+  ]
+}

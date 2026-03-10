@@ -1,0 +1,50 @@
+{
+  "sourceKey": "capital-construction",
+  "sourceName": "행정안전부 생활안전지도 건설공사현황",
+  "sourceUrl": "https://www.safemap.go.kr/openApiService/wms/getLayerData.do",
+  "strategy": "C",
+  "endpointType": "wms-link-api",
+  "collectedAt": "2026-03-10T02:07:49.711Z",
+  "runtime": "script-prebuild",
+  "requiredEnv": {
+    "SAFEMAP_API_KEY": false
+  },
+  "rawFile": null,
+  "fetchAttempted": false,
+  "fetchSucceeded": false,
+  "rawRowCount": 12,
+  "normalizedRowCount": 12,
+  "mergedRowCount": 12,
+  "fallbackRowCount": 12,
+  "failureReasons": [
+    "service-key-missing",
+    "link-api-not-row-rest",
+    "not-official-ingest-seed-fallback"
+  ],
+  "skipReasons": [
+    "official-raw-missing-using-seed-fallback"
+  ],
+  "notes": [
+    "생활안전지도 공개 예시는 WMS getLayerData.do + apikey 조합으로 제공된다.",
+    "브라우저 런타임 호출보다 사전 수집 또는 반자동 export ingest가 맞다.",
+    "현재 저장소에는 서비스키와 공식 raw export가 없어 seed fallback만 사용 중이다."
+  ],
+  "linkType": "WMS",
+  "requiresPagination": "unknown-until-row-endpoint-confirmed",
+  "corsAssessment": "browser-call-risk-high",
+  "coordinateFields": [
+    "X좌표",
+    "Y좌표",
+    "경도",
+    "위도"
+  ],
+  "sourceChecklist": {
+    "actualUrl": "https://www.safemap.go.kr/openApiService/wms/getLayerData.do",
+    "serviceKeyRequired": true,
+    "serviceKeyPresent": false,
+    "directRestEndpointConfirmed": false,
+    "totalCountFieldConfirmed": false,
+    "pageParamsConfirmed": false,
+    "capitalFilterParamConfirmed": false
+  }
+}
