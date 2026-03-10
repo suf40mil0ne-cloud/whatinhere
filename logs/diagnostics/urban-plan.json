@@ -4,7 +4,7 @@
   "sourceUrl": "https://www.data.go.kr/data/15047837/fileData.do",
   "strategy": "B",
   "endpointType": "monthly-csv-ingest",
-  "collectedAt": "2026-03-10T05:05:51.237Z",
+  "collectedAt": "2026-03-10T05:53:27.509Z",
   "runtime": "script-prebuild",
   "requiredEnv": {},
   "rawFile": null,

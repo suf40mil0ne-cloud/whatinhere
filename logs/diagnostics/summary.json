@@ -1,11 +1,97 @@
 [
   {
+    "sourceKey": "building-hub",
+    "sourceName": "국토교통부 건축HUB 건축인허가정보",
+    "sourceUrl": "https://www.data.go.kr/",
+    "strategy": "A/B",
+    "endpointType": "openapi-or-public-snapshot",
+    "collectedAt": "2026-03-10T05:53:25.236Z",
+    "runtime": "script-prebuild",
+    "requiredEnv": {
+      "DATA_GO_KR_SERVICE_KEY": false
+    },
+    "rawFile": null,
+    "fetchAttempted": false,
+    "fetchSucceeded": false,
+    "rawRowCount": 7,
+    "normalizedRowCount": 7,
+    "mergedRowCount": 7,
+    "fallbackRowCount": 7,
+    "failureReasons": [
+      "service-key-missing",
+      "using-public-snapshot-fallback"
+    ],
+    "skipReasons": [
+      "official-raw-missing-using-public-snapshot-fallback"
+    ],
+    "notes": [
+      "건축HUB API가 가능하면 paged OpenAPI를 사용한다.",
+      "API나 raw 파일이 없으면 저장소 내 공공데이터 기반 snapshot을 fallback으로 사용한다."
+    ],
+    "regionScope": "nationwide",
+    "filterBeforeCount": 7,
+    "filterAfterCount": 7,
+    "coordinateValidCount": 7,
+    "joinSuccessCount": 0,
+    "dedupeRemovedCount": 0,
+    "skipCounts": {
+      "outsideScope": 0,
+      "addressMissing": 0,
+      "coordinateMissing": 0,
+      "nameMissing": 0,
+      "duplicatePermitKey": 0
+    }
+  },
+  {
+    "sourceKey": "building-overview",
+    "sourceName": "국토교통부 건축인허가 기본개요",
+    "sourceUrl": "https://www.data.go.kr/",
+    "strategy": "A/B",
+    "endpointType": "filedata-or-openapi",
+    "collectedAt": "2026-03-10T05:53:25.752Z",
+    "runtime": "script-prebuild",
+    "requiredEnv": {
+      "DATA_GO_KR_SERVICE_KEY": false
+    },
+    "rawFile": null,
+    "fetchAttempted": false,
+    "fetchSucceeded": false,
+    "rawRowCount": 0,
+    "normalizedRowCount": 0,
+    "mergedRowCount": 0,
+    "fallbackRowCount": 0,
+    "failureReasons": [
+      "service-key-missing",
+      "raw-file-missing"
+    ],
+    "skipReasons": [
+      "openapi-not-configured"
+    ],
+    "notes": [
+      "기본개요 파일데이터 ingest를 우선 지원한다.",
+      "raw 파일이 없을 때는 공공데이터포털 기본정보 OpenAPI를 보조 경로로 시도한다."
+    ],
+    "regionScope": "nationwide",
+    "filterBeforeCount": 0,
+    "filterAfterCount": 0,
+    "coordinateValidCount": 0,
+    "joinSuccessCount": 0,
+    "dedupeRemovedCount": 0,
+    "skipCounts": {
+      "outsideScope": 0,
+      "addressMissing": 0,
+      "coordinateMissing": 0,
+      "nameMissing": 0,
+      "duplicatePermitKey": 0
+    }
+  },
+  {
     "sourceKey": "building-permits",
     "sourceName": "지자체 세움터 기반 건축허가·착공 자료",
     "sourceUrl": "https://www.data.go.kr/",
     "strategy": "B/C",
     "endpointType": "municipal-file-or-openapi",
-    "collectedAt": "2026-03-10T05:05:50.090Z",
+    "collectedAt": "2026-03-10T05:53:26.294Z",
     "runtime": "script-prebuild",
     "requiredEnv": {},
     "rawFile": null,
@@ -27,12 +113,39 @@
     ]
   },
   {
+    "sourceKey": "building-plot",
+    "sourceName": "국토교통부 건축인허가 대지위치",
+    "sourceUrl": "https://www.data.go.kr/",
+    "strategy": "B",
+    "endpointType": "large-file-download-ingest",
+    "collectedAt": "2026-03-10T05:53:24.704Z",
+    "runtime": "script-prebuild",
+    "requiredEnv": {},
+    "rawFile": null,
+    "fetchAttempted": false,
+    "fetchSucceeded": false,
+    "rawRowCount": 0,
+    "normalizedRowCount": 0,
+    "mergedRowCount": 0,
+    "fallbackRowCount": 0,
+    "failureReasons": [
+      "raw-file-missing"
+    ],
+    "skipReasons": [],
+    "notes": [
+      "기관 다운로드형 대용량 데이터로 앱 런타임 직접 로딩이 아니라 사전 ingest가 맞다.",
+      "현재 스크립트는 raw json/csv ingest를 우선 지원한다. xlsx 원본은 csv/json으로 변환 후 넣는 것을 권장한다.",
+      "좌표가 없는 경우 기존 포인트 레이어의 동일 주소를 재사용할 때만 지도 반영한다."
+    ],
+    "regionScope": "capital"
+  },
+  {
     "sourceKey": "capital-construction-debug",
     "sourceName": "행정안전부 생활안전지도 건설공사현황 디버그",
     "sourceUrl": "https://www.safemap.go.kr/openApiService/wms/getLayerData.do",
     "strategy": "C",
     "endpointType": "wms-debug",
-    "collectedAt": "2026-03-10T05:05:48.061Z",
+    "collectedAt": "2026-03-10T05:53:21.665Z",
     "runtime": "script-prebuild",
     "requiredEnv": {
       "SAFEMAP_API_KEY": false
@@ -86,7 +199,7 @@
     "sourceUrl": "https://www.safemap.go.kr/openApiService/wms/getLayerData.do",
     "strategy": "C",
     "endpointType": "wms-or-export-ingest",
-    "collectedAt": "2026-03-10T05:05:49.088Z",
+    "collectedAt": "2026-03-10T05:53:23.623Z",
     "runtime": "script-prebuild",
     "requiredEnv": {
       "SAFEMAP_API_KEY": false
@@ -171,7 +284,7 @@
     "sourceUrl": "https://www.data.go.kr/",
     "strategy": "B/C",
     "endpointType": "municipal-file-or-openapi",
-    "collectedAt": "2026-03-10T05:05:50.603Z",
+    "collectedAt": "2026-03-10T05:53:26.803Z",
     "runtime": "script-prebuild",
     "requiredEnv": {},
     "rawFile": null,
@@ -198,7 +311,7 @@
     "sourceUrl": "https://www.data.go.kr/data/15149148/fileData.do",
     "strategy": "B",
     "endpointType": "filedata-download-ingest",
-    "collectedAt": "2026-03-10T05:05:51.168Z",
+    "collectedAt": "2026-03-10T05:53:27.442Z",
     "runtime": "script-prebuild",
     "requiredEnv": {},
     "rawFile": null,
@@ -239,7 +352,7 @@
     "sourceUrl": "https://www.data.go.kr/data/15094259/fileData.do",
     "strategy": "C",
     "endpointType": "portal-file-link",
-    "collectedAt": "2026-03-10T05:05:49.615Z",
+    "collectedAt": "2026-03-10T05:53:24.208Z",
     "runtime": "script-prebuild",
     "requiredEnv": {},
     "rawFile": null,
@@ -266,7 +379,7 @@
     "sourceUrl": "https://www.data.go.kr/",
     "strategy": "A/B",
     "endpointType": "composite-ingest",
-    "collectedAt": "2026-03-10T05:05:51.047Z",
+    "collectedAt": "2026-03-10T05:53:27.316Z",
     "runtime": "script-prebuild",
     "requiredEnv": {},
     "rawFile": null,
@@ -291,7 +404,7 @@
     "sourceUrl": "https://www.data.go.kr/data/15088605/fileData.do",
     "strategy": "A/B",
     "endpointType": "datago-auto-converted-api-or-file",
-    "collectedAt": "2026-03-10T05:05:51.093Z",
+    "collectedAt": "2026-03-10T05:53:27.366Z",
     "runtime": "script-prebuild",
     "requiredEnv": {
       "DATA_GO_KR_SERVICE_KEY": false,
@@ -338,7 +451,7 @@
     "sourceUrl": "https://www.data.go.kr/data/15047837/fileData.do",
     "strategy": "B",
     "endpointType": "monthly-csv-ingest",
-    "collectedAt": "2026-03-10T05:05:51.237Z",
+    "collectedAt": "2026-03-10T05:53:27.509Z",
     "runtime": "script-prebuild",
     "requiredEnv": {},
     "rawFile": null,

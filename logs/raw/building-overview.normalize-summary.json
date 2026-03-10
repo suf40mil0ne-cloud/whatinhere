@@ -1,0 +1,16 @@
+{
+  "rawRowCount": 0,
+  "filterBeforeCount": 0,
+  "filterAfterCount": 0,
+  "coordinateValidCount": 0,
+  "joinSuccessCount": 0,
+  "normalizedSuccessCount": 0,
+  "dedupeRemovedCount": 0,
+  "skipCounts": {
+    "outsideScope": 0,
+    "addressMissing": 0,
+    "coordinateMissing": 0,
+    "nameMissing": 0,
+    "duplicatePermitKey": 0
+  }
+}

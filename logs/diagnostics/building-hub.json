@@ -1,0 +1,43 @@
+{
+  "sourceKey": "building-hub",
+  "sourceName": "국토교통부 건축HUB 건축인허가정보",
+  "sourceUrl": "https://www.data.go.kr/",
+  "strategy": "A/B",
+  "endpointType": "openapi-or-public-snapshot",
+  "collectedAt": "2026-03-10T05:53:25.236Z",
+  "runtime": "script-prebuild",
+  "requiredEnv": {
+    "DATA_GO_KR_SERVICE_KEY": false
+  },
+  "rawFile": null,
+  "fetchAttempted": false,
+  "fetchSucceeded": false,
+  "rawRowCount": 7,
+  "normalizedRowCount": 7,
+  "mergedRowCount": 7,
+  "fallbackRowCount": 7,
+  "failureReasons": [
+    "service-key-missing",
+    "using-public-snapshot-fallback"
+  ],
+  "skipReasons": [
+    "official-raw-missing-using-public-snapshot-fallback"
+  ],
+  "notes": [
+    "건축HUB API가 가능하면 paged OpenAPI를 사용한다.",
+    "API나 raw 파일이 없으면 저장소 내 공공데이터 기반 snapshot을 fallback으로 사용한다."
+  ],
+  "regionScope": "nationwide",
+  "filterBeforeCount": 7,
+  "filterAfterCount": 7,
+  "coordinateValidCount": 7,
+  "joinSuccessCount": 0,
+  "dedupeRemovedCount": 0,
+  "skipCounts": {
+    "outsideScope": 0,
+    "addressMissing": 0,
+    "coordinateMissing": 0,
+    "nameMissing": 0,
+    "duplicatePermitKey": 0
+  }
+}

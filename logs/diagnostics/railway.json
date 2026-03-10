@@ -4,7 +4,7 @@
   "sourceUrl": "https://www.data.go.kr/data/15088605/fileData.do",
   "strategy": "A/B",
   "endpointType": "datago-auto-converted-api-or-file",
-  "collectedAt": "2026-03-10T05:05:51.093Z",
+  "collectedAt": "2026-03-10T05:53:27.366Z",
   "runtime": "script-prebuild",
   "requiredEnv": {
     "DATA_GO_KR_SERVICE_KEY": false,
