@@ -3,8 +3,8 @@
   "sourceName": "행정안전부 생활안전지도 건설공사현황",
   "sourceUrl": "https://www.safemap.go.kr/openApiService/wms/getLayerData.do",
   "strategy": "C",
-  "endpointType": "wms-link-api",
-  "collectedAt": "2026-03-10T02:07:49.711Z",
+  "endpointType": "wms-or-export-ingest",
+  "collectedAt": "2026-03-10T02:29:32.335Z",
   "runtime": "script-prebuild",
   "requiredEnv": {
     "SAFEMAP_API_KEY": false
@@ -12,39 +12,47 @@
   "rawFile": null,
   "fetchAttempted": false,
   "fetchSucceeded": false,
-  "rawRowCount": 12,
-  "normalizedRowCount": 12,
-  "mergedRowCount": 12,
-  "fallbackRowCount": 12,
+  "rawRowCount": 0,
+  "normalizedRowCount": 0,
+  "mergedRowCount": 0,
+  "fallbackRowCount": 0,
   "failureReasons": [
     "service-key-missing",
-    "link-api-not-row-rest",
-    "not-official-ingest-seed-fallback"
+    "html-error-response",
+    "no-json-row-response-confirmed"
   ],
   "skipReasons": [
-    "official-raw-missing-using-seed-fallback"
+    "official-raw-missing"
   ],
   "notes": [
-    "생활안전지도 공개 예시는 WMS getLayerData.do + apikey 조합으로 제공된다.",
-    "브라우저 런타임 호출보다 사전 수집 또는 반자동 export ingest가 맞다.",
-    "현재 저장소에는 서비스키와 공식 raw export가 없어 seed fallback만 사용 중이다."
+    "우선순위는 공식 raw export(data-sources/raw/capital-construction.json|csv)다.",
+    "raw export가 없으면 debug script가 남긴 실제 응답을 읽어 row API 여부만 판정한다.",
+    "공식 row 응답이 확인되지 않으면 seed fallback을 쓰지 않고 0건으로 남긴다."
   ],
-  "linkType": "WMS",
-  "requiresPagination": "unknown-until-row-endpoint-confirmed",
-  "corsAssessment": "browser-call-risk-high",
-  "coordinateFields": [
-    "X좌표",
-    "Y좌표",
-    "경도",
-    "위도"
+  "debugActualCallUrl": "https://www.safemap.go.kr/openApiService/wms/getLayerData.do?serviceKey=&layer=VIEW_CNTWRKSTTUS&style=A2SM_CntwrkSttus&pageNo=1&numOfRows=10&dataType=JSON",
+  "responseStatusCodes": [
+    "sm-apis:200",
+    "getLayerData:200"
   ],
-  "sourceChecklist": {
-    "actualUrl": "https://www.safemap.go.kr/openApiService/wms/getLayerData.do",
-    "serviceKeyRequired": true,
-    "serviceKeyPresent": false,
-    "directRestEndpointConfirmed": false,
-    "totalCountFieldConfirmed": false,
-    "pageParamsConfirmed": false,
-    "capitalFilterParamConfirmed": false
+  "rawResponseStructures": [
+    "sm-apis:html",
+    "getLayerData:html:에러 : 생활안전지도"
+  ],
+  "capitalFilterBeforeCount": 0,
+  "capitalFilterAfterCount": 0,
+  "coordinateValidCount": 0,
+  "normalizeAttemptCount": 0,
+  "normalizeSuccessCount": 0,
+  "projectItemCount": 0,
+  "skipCounts": {
+    "nameMissing": 0,
+    "coordinateMissing": 0,
+    "coordinateParseFailed": 0,
+    "coordinateOutOfRange": 0,
+    "coordinateSystemMismatch": 0,
+    "outsideCapital": 0,
+    "statusCalculationFailed": 0,
+    "requiredFieldMissing": 0,
+    "deduped": 0
   }
 }

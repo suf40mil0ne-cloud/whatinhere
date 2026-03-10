@@ -1,0 +1,7 @@
+{
+  "status": 200,
+  "contentType": "text/html;charset=UTF-8",
+  "maskedUrl": "https://www.safemap.go.kr/sm/apis.do?apikey=&layers=VIEW_CNTWRKSTTUS&styles=A2SM_CntwrkSttus&format=image/png&exceptions=text/xml&transparent=true",
+  "bodyKind": "html",
+  "structure": "html"
+}

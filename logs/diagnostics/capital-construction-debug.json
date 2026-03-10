@@ -1,0 +1,54 @@
+{
+  "sourceKey": "capital-construction-debug",
+  "sourceName": "행정안전부 생활안전지도 건설공사현황 디버그",
+  "sourceUrl": "https://www.safemap.go.kr/openApiService/wms/getLayerData.do",
+  "strategy": "C",
+  "endpointType": "wms-debug",
+  "collectedAt": "2026-03-10T02:29:31.237Z",
+  "runtime": "script-prebuild",
+  "requiredEnv": {
+    "SAFEMAP_API_KEY": false
+  },
+  "rawFile": null,
+  "fetchAttempted": true,
+  "fetchSucceeded": true,
+  "rawRowCount": 0,
+  "normalizedRowCount": 0,
+  "mergedRowCount": 0,
+  "fallbackRowCount": 0,
+  "failureReasons": [
+    "service-key-missing",
+    "html-error-response",
+    "no-json-row-response-confirmed"
+  ],
+  "skipReasons": [],
+  "notes": [
+    "실제 row API 여부를 확인하기 위해 현재 프로젝트가 가정하는 두 개의 candidate endpoint를 직접 호출한다.",
+    "키가 없으면 빈 키로 호출해 raw 에러 문서를 저장한다."
+  ],
+  "calledUrls": [
+    "https://www.safemap.go.kr/sm/apis.do?apikey=&layers=VIEW_CNTWRKSTTUS&styles=A2SM_CntwrkSttus&format=image/png&exceptions=text/xml&transparent=true",
+    "https://www.safemap.go.kr/openApiService/wms/getLayerData.do?serviceKey=&layer=VIEW_CNTWRKSTTUS&style=A2SM_CntwrkSttus&pageNo=1&numOfRows=10&dataType=JSON"
+  ],
+  "responses": [
+    {
+      "endpoint": "sm-apis",
+      "status": 200,
+      "contentType": "text/html;charset=UTF-8",
+      "bodyKind": "html",
+      "structure": "html"
+    },
+    {
+      "endpoint": "getLayerData",
+      "status": 200,
+      "contentType": "text/html; charset=utf-8",
+      "bodyKind": "html",
+      "structure": "html:에러 : 생활안전지도"
+    }
+  ],
+  "actualCallUrl": "https://www.safemap.go.kr/openApiService/wms/getLayerData.do?serviceKey=&layer=VIEW_CNTWRKSTTUS&style=A2SM_CntwrkSttus&pageNo=1&numOfRows=10&dataType=JSON",
+  "responseStatusCodes": [
+    "sm-apis:200",
+    "getLayerData:200"
+  ]
+}

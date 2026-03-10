@@ -1,0 +1,42 @@
+
+
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>에러 : 생활안전지도</title>
+<meta name="author" content="Kim kwangsung, Lim seonju">
+<meta name="viewport" content="width=device-width,user-scalable=no,initial-scale=1.0,maximum-scale=1.0,minimum-scale=1.0,target-densitydpi=medium-dpi">
+<meta name="keywords" content="생활안전지도,안전지도">
+<meta name="description" content="생활안전지도포털 사이트에 오신것을 환영합니다.본 페이지는 WCAG2.0,KWCAG2.0 및 미래창조과학부의 정보시스템의 구축 운영 기술 지침을 준수하여 제작하였습니다.">
+<meta http-equiv="X-UA-Compatible" content="IE=10">
+<link rel="stylesheet" type="text/css" href="/css_new/common_v2.css">
+<link rel="stylesheet" type="text/css" href="/css_new/contents.css">
+<script src="/js/jquery-3.7.1.min.js"></script>
+<script src="/js/sub.js"></script>
+<!--[if IE 9]>
+<link rel="stylesheet" type="text/css" href="/css_new/iefont.css">
+<![endif]-->
+<!--[if lt IE 9]>
+<script src="/js/respond.min.js"></script>
+<![endif]-->
+</head>
+<body>
+<div class="group_error">
+	<div class="box_error">
+		<div class="error_top">
+			<span class="poi_error"></span>
+			<h1 class="tit_error">500 error</h1>
+		</div>
+		<div class="error_mid">죄송합니다. <br>페이지를 표시할 수 없습니다.</div>
+		<p class="tx_error">
+			방문하시려는 페이지의 주소가 잘못 입력되었거나, <br>
+			페이지의 주소가 변경 혹은 삭제되어 요청하신 페이지를 찾을 수 없습니다. <br>
+			혹은 페이지를 확인 할 수 있는 권한이 변경되었을 수 있으니, <br>
+			입력하신 주소가 정확한지 한번 더 확인해주시기바랍니다.
+		</p>
+	</div>
+</div>
+</body>
+</html>
+

@@ -1,0 +1,7 @@
+{
+  "status": 200,
+  "contentType": "text/html; charset=utf-8",
+  "maskedUrl": "https://www.safemap.go.kr/openApiService/wms/getLayerData.do?serviceKey=&layer=VIEW_CNTWRKSTTUS&style=A2SM_CntwrkSttus&pageNo=1&numOfRows=10&dataType=JSON",
+  "bodyKind": "html",
+  "structure": "html:에러 : 생활안전지도"
+}
