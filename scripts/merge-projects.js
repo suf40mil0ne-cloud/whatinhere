@@ -1,4 +1,5 @@
 import path from "node:path";
+import { mergeCapitalProjects } from "../lib/capital-normalizers.js";
 import {
   dedupeProjects,
   ensurePipelineDirs,
@@ -24,9 +25,13 @@ const sourceKeys = [
   "committee-results",
   "private-urban-plan",
   "eia",
+  "capital-construction",
+  "capital-building-permits",
+  "capital-housing-approvals",
+  "capital-committee-results",
 ];
 const sourceItems = sourceKeys.flatMap((sourceKey) => readNormalizedSource(sourceKey));
-const mergedProjects = dedupeProjects([...seedProjects, ...sourceItems]);
+const mergedProjects = mergeCapitalProjects(dedupeProjects([...seedProjects, ...sourceItems]));
 
 writeJsonFile(path.resolve("public/data/projects.generated.json"), mergedProjects);
 
