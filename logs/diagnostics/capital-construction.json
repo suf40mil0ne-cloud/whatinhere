@@ -4,7 +4,7 @@
   "sourceUrl": "https://www.safemap.go.kr/openApiService/wms/getLayerData.do",
   "strategy": "C",
   "endpointType": "wms-or-export-ingest",
-  "collectedAt": "2026-03-10T02:29:32.335Z",
+  "collectedAt": "2026-03-10T05:05:49.088Z",
   "runtime": "script-prebuild",
   "requiredEnv": {
     "SAFEMAP_API_KEY": false

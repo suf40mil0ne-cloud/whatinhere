@@ -1,4 +1,5 @@
-import { normalizePointProject, writeNormalizedSource } from "./project-normalizers.js";
+import { normalizeRailwayRows } from "../lib/normalize-public-projects.js";
+import { writeJsonFile, writeNormalizedSource } from "./project-normalizers.js";
 import {
   createDiagnosticContext,
   extractRows,
@@ -56,22 +57,19 @@ if (rows.length > 0) {
 }
 
 const items = rows
-  .map((record, index) =>
-    normalizePointProject({
-      sourceKey: "railway",
-      category: "railway",
-      sourceName: "국가철도공단 철도공단사업",
-      sourceUrl: "https://www.data.go.kr/data/15088605/fileData.do",
-      agency: "국가철도공단",
-      record,
-      index,
-    })
-  )
-  .filter(Boolean);
+  ? normalizeRailwayRows(rows)
+  : { items: [], stats: { normalizeAttemptCount: 0, normalizeSuccessCount: 0, capitalFilterBeforeCount: 0, capitalFilterAfterCount: 0, coordinateValidCount: 0, skipCounts: {} } };
 
-writeNormalizedSource("railway", items);
-report.normalizedRowCount = items.length;
-if (rows.length > 0 && items.length === 0) {
+writeNormalizedSource("railway", items.items);
+report.normalizedRowCount = items.items.length;
+report.normalizeAttemptCount = items.stats.normalizeAttemptCount;
+report.normalizeSuccessCount = items.stats.normalizeSuccessCount;
+report.capitalFilterBeforeCount = items.stats.capitalFilterBeforeCount;
+report.capitalFilterAfterCount = items.stats.capitalFilterAfterCount;
+report.coordinateValidCount = items.stats.coordinateValidCount;
+report.skipCounts = { ...items.stats.skipCounts, deduped: 0 };
+writeJsonFile("logs/raw/railway.normalize-summary.json", items.stats);
+if (rows.length > 0 && items.items.length === 0) {
   recordFailure(report, "normalize-filtered-all-rows");
 }
 finalizeDiagnostic(report);

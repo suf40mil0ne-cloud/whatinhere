@@ -4,7 +4,7 @@
   "sourceUrl": "https://www.data.go.kr/",
   "strategy": "B/C",
   "endpointType": "municipal-file-or-openapi",
-  "collectedAt": "2026-03-10T02:07:48.854Z",
+  "collectedAt": "2026-03-10T05:05:50.603Z",
   "runtime": "script-prebuild",
   "requiredEnv": {},
   "rawFile": null,

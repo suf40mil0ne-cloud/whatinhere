@@ -4,7 +4,7 @@
   "sourceUrl": "https://www.data.go.kr/data/15094259/fileData.do",
   "strategy": "C",
   "endpointType": "portal-file-link",
-  "collectedAt": "2026-03-10T02:07:46.256Z",
+  "collectedAt": "2026-03-10T05:05:49.615Z",
   "runtime": "script-prebuild",
   "requiredEnv": {},
   "rawFile": null,

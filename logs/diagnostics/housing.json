@@ -1,15 +1,12 @@
 {
-  "sourceKey": "railway",
-  "sourceName": "국가철도공단 철도공단사업",
-  "sourceUrl": "https://www.data.go.kr/data/15088605/fileData.do",
-  "strategy": "A/B",
-  "endpointType": "datago-auto-converted-api-or-file",
-  "collectedAt": "2026-03-10T05:05:51.093Z",
+  "sourceKey": "housing",
+  "sourceName": "국토교통부 택지정보 단계별사업정보",
+  "sourceUrl": "https://www.data.go.kr/data/15149148/fileData.do",
+  "strategy": "B",
+  "endpointType": "filedata-download-ingest",
+  "collectedAt": "2026-03-10T05:05:51.168Z",
   "runtime": "script-prebuild",
-  "requiredEnv": {
-    "DATA_GO_KR_SERVICE_KEY": false,
-    "RAILWAY_API_URL": false
-  },
+  "requiredEnv": {},
   "rawFile": null,
   "fetchAttempted": false,
   "fetchSucceeded": false,
@@ -17,16 +14,13 @@
   "normalizedRowCount": 0,
   "mergedRowCount": 7,
   "fallbackRowCount": 0,
-  "failureReasons": [
-    "endpoint-not-configured",
-    "service-key-missing"
-  ],
+  "failureReasons": [],
   "skipReasons": [
     "raw-file-missing"
   ],
   "notes": [
-    "철도공단사업은 raw CSV/XLS 다운로드 후 ingest가 가능하고, data.go.kr 자동변환 JSON/XML API도 가능하다.",
-    "현재 저장소에는 API URL이 고정되어 있지 않아 환경변수로 주입해야 한다."
+    "택지정보 단계별사업정보는 파일데이터 다운로드 후 ingest가 맞다.",
+    "대표좌표 또는 위도/경도 컬럼이 없으면 지도용 point로 변환되지 않아 skip된다."
   ],
   "normalizeAttemptCount": 0,
   "normalizeSuccessCount": 0,

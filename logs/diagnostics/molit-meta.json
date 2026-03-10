@@ -1,0 +1,25 @@
+{
+  "sourceKey": "molit-meta",
+  "sourceName": "국토교통부 보강 메타데이터 레이어",
+  "sourceUrl": "https://www.data.go.kr/",
+  "strategy": "A/B",
+  "endpointType": "composite-ingest",
+  "collectedAt": "2026-03-10T05:05:51.047Z",
+  "runtime": "script-prebuild",
+  "requiredEnv": {},
+  "rawFile": null,
+  "fetchAttempted": true,
+  "fetchSucceeded": true,
+  "rawRowCount": 0,
+  "normalizedRowCount": 0,
+  "mergedRowCount": 0,
+  "fallbackRowCount": 0,
+  "failureReasons": [
+    "molit-construction-list-not-configured"
+  ],
+  "skipReasons": [],
+  "notes": [
+    "국토부 보강 메타데이터 레이어는 철도공단사업, 택지정보, 실시계획인가정보를 순차 실행한다.",
+    "국토부 공사정보 목록 API는 현재 저장소에 endpoint 및 인증 구성이 없어 진단 로그만 남긴다."
+  ]
+}

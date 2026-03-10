@@ -1,0 +1,19 @@
+{
+  "rawRowCount": 0,
+  "normalizeAttemptCount": 0,
+  "normalizeSuccessCount": 0,
+  "capitalFilterBeforeCount": 0,
+  "capitalFilterAfterCount": 0,
+  "coordinateValidCount": 0,
+  "projectItemCount": 0,
+  "skipCounts": {
+    "nameMissing": 0,
+    "coordinateMissing": 0,
+    "coordinateParseFailed": 0,
+    "coordinateOutOfRange": 0,
+    "coordinateSystemMismatch": 0,
+    "outsideCapital": 0,
+    "statusCalculationFailed": 0,
+    "requiredFieldMissing": 0
+  }
+}

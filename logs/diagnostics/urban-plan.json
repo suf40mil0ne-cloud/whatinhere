@@ -1,0 +1,41 @@
+{
+  "sourceKey": "urban-plan",
+  "sourceName": "국토교통부 (도시계획) 실시계획인가정보(월간)",
+  "sourceUrl": "https://www.data.go.kr/data/15047837/fileData.do",
+  "strategy": "B",
+  "endpointType": "monthly-csv-ingest",
+  "collectedAt": "2026-03-10T05:05:51.237Z",
+  "runtime": "script-prebuild",
+  "requiredEnv": {},
+  "rawFile": null,
+  "fetchAttempted": false,
+  "fetchSucceeded": false,
+  "rawRowCount": 0,
+  "normalizedRowCount": 0,
+  "mergedRowCount": 3,
+  "fallbackRowCount": 0,
+  "failureReasons": [],
+  "skipReasons": [
+    "raw-file-missing"
+  ],
+  "notes": [
+    "실시계획인가정보는 월간 CSV ingest가 맞다.",
+    "좌표 컬럼이 없는 월에는 지도 포인트로 만들 수 없어 skip된다."
+  ],
+  "normalizeAttemptCount": 0,
+  "normalizeSuccessCount": 0,
+  "capitalFilterBeforeCount": 0,
+  "capitalFilterAfterCount": 0,
+  "coordinateValidCount": 0,
+  "skipCounts": {
+    "nameMissing": 0,
+    "coordinateMissing": 0,
+    "coordinateParseFailed": 0,
+    "coordinateOutOfRange": 0,
+    "coordinateSystemMismatch": 0,
+    "outsideCapital": 0,
+    "statusCalculationFailed": 0,
+    "requiredFieldMissing": 0,
+    "deduped": 0
+  }
+}
