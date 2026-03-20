@@ -222,10 +222,18 @@ export function App() {
     return (
       <main className="app-shell">
         <header className="site-header">
-          <a href="/" className="brand-link">
-            여기 뭐 생겨요?
-          </a>
-          <p className="header-copy">내 주변의 대형 공사·개발사업을 지도에서 확인</p>
+          <div className="brand-block">
+            <a href="/" className="brand-link">
+              <span className="brand-mark">◎</span>
+              <span>여기 뭐 생겨요?</span>
+            </a>
+            <p className="header-copy">내 주변의 대형 공사·개발사업을 지도에서 확인</p>
+          </div>
+          <nav className="top-nav" aria-label="상단 탐색">
+            <a href="/">Explore</a>
+            <a href="/about">About</a>
+            <a href="/contact">Contact</a>
+          </nav>
         </header>
         <section className="content-page">{renderContentPage(pathname)}</section>
         <Footer />
@@ -236,57 +244,105 @@ export function App() {
   return (
     <main className="app-shell">
       <header className="site-header">
-        <a href="/" className="brand-link">
-          여기 뭐 생겨요?
-        </a>
-        <p className="header-copy">내 주변의 대형 공사·개발사업을 지도에서 확인</p>
+        <div className="brand-block">
+          <a href="/" className="brand-link">
+            <span className="brand-mark">◎</span>
+            <span>여기 뭐 생겨요?</span>
+          </a>
+          <p className="header-copy">내 주변 대형 공사·개발사업 지도</p>
+        </div>
+        <nav className="top-nav" aria-label="상단 탐색">
+          <a href="/" className="top-nav-active">
+            Explore
+          </a>
+          <a href="/about">About</a>
+          <a href="/contact">Contact</a>
+        </nav>
       </header>
 
-      <section className="hero">
-        <p className="hero-kicker">여기 뭐 생겨요?</p>
-        <h1>내 주변의 대형 공사·개발사업을 지도에서 확인</h1>
-        <p className="hero-copy">
-          공공데이터를 바탕으로 주요 공사·개발 정보를 시각화합니다. 실제 현장 상황과 시점 차이가 있을 수 있습니다.
-        </p>
+      <section className="home-layout">
+        <section className="map-stage">
+          <section className="hero hero-overlay">
+            <div>
+              <p className="hero-kicker">Live Updates</p>
+              <h1>내 주변에서 지금 진행 중인 공사와 개발사업</h1>
+              <p className="hero-copy">
+                공공데이터를 바탕으로 주요 공사·개발 정보를 시각화합니다. 실제 현장 상황과 시점 차이가 있을 수 있습니다.
+              </p>
+            </div>
+            <div className="hero-stats">
+              <span className="hero-stat-label">현재 범위</span>
+              <strong>{nearbyProjects.length}건</strong>
+            </div>
+          </section>
+
+          <div className="map-actions">
+            <button type="button" className="icon-button primary-icon-button" onClick={() => void handleUseCurrentLocation()} disabled={isLocating}>
+              <span className="button-symbol">◎</span>
+              <span>{isLocating ? "위치 확인 중..." : "내 위치 사용"}</span>
+            </button>
+            <button
+              type="button"
+              className="icon-button"
+              onClick={handleSearchThisArea}
+              disabled={!viewport || !hasPendingAreaChange}
+            >
+              <span className="button-symbol">↺</span>
+              <span>이 지역 다시 검색</span>
+            </button>
+          </div>
+
+          <MapView
+            projects={nearbyProjects}
+            selectedProjectId={selectedProjectId}
+            currentLocation={currentLocation}
+            currentLocationRequest={locationRequestId}
+            onSelectProject={(project) => setSelectedProjectId(project.id)}
+            onViewportChange={handleViewportChange}
+          />
+        </section>
+
+        <aside className="sidebar-shell">
+          <section className="sidebar-head">
+            <div>
+              <p className="panel-kicker">여기 뭐 생겨요?</p>
+              <h2>공사·개발사업 레저</h2>
+            </div>
+            <span className="status-pill">Live Updates</span>
+          </section>
+
+          <section className="control-bar">
+            <CategoryFilter activeCategories={activeCategories} onChange={setActiveCategories} />
+          </section>
+
+          {locationError ? <p className="notice warning">위치 권한이 없어 수도권 기본 위치로 시작합니다. {locationError}</p> : null}
+          <p className="notice">{dataNotice}</p>
+
+          <ProjectPanel project={selectedProject} visibleCount={nearbyProjects.length} />
+
+          {nearbyProjects.length === 0 ? (
+            <p className="notice empty">이 범위에는 표시할 대형 공사·개발사업이 없습니다. 지도를 이동한 뒤 다시 검색해 보세요.</p>
+          ) : (
+            <p className="notice">현재 범위에서 {nearbyProjects.length}개 사업을 표시합니다.</p>
+          )}
+        </aside>
       </section>
-
-      <section className="control-bar">
-        <button type="button" className="primary-button" onClick={() => void handleUseCurrentLocation()} disabled={isLocating}>
-          {isLocating ? "위치 확인 중..." : "내 위치 사용"}
-        </button>
-        <CategoryFilter activeCategories={activeCategories} onChange={setActiveCategories} />
-        <button
-          type="button"
-          className="secondary-button"
-          onClick={handleSearchThisArea}
-          disabled={!viewport || !hasPendingAreaChange}
-        >
-          이 지역 다시 검색
-        </button>
-      </section>
-
-      {locationError ? <p className="notice warning">위치 권한이 없어 수도권 기본 위치로 시작합니다. {locationError}</p> : null}
-      <p className="notice">{dataNotice}</p>
-
-      <section className="content-grid">
-        <MapView
-          projects={nearbyProjects}
-          selectedProjectId={selectedProjectId}
-          currentLocation={currentLocation}
-          currentLocationRequest={locationRequestId}
-          onSelectProject={(project) => setSelectedProjectId(project.id)}
-          onViewportChange={handleViewportChange}
-        />
-        <ProjectPanel project={selectedProject} visibleCount={nearbyProjects.length} />
-      </section>
-
-      {nearbyProjects.length === 0 ? (
-        <p className="notice empty">이 범위에는 표시할 대형 공사·개발사업이 없습니다. 지도를 이동한 뒤 다시 검색해 보세요.</p>
-      ) : (
-        <p className="notice">현재 범위에서 {nearbyProjects.length}개 사업을 표시합니다.</p>
-      )}
 
       <Footer />
+      <nav className="bottom-nav" aria-label="하단 탐색">
+        <a href="/" className="bottom-nav-item bottom-nav-item-active">
+          <span>지도</span>
+        </a>
+        <a href="/about" className="bottom-nav-item">
+          <span>소개</span>
+        </a>
+        <a href="/contact" className="bottom-nav-item">
+          <span>문의</span>
+        </a>
+        <a href="/privacy" className="bottom-nav-item">
+          <span>정책</span>
+        </a>
+      </nav>
     </main>
   );
 }

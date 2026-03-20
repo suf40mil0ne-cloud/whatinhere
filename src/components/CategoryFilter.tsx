@@ -26,6 +26,7 @@ export function CategoryFilter({ activeCategories, onChange }: Props) {
             className={isActive ? "chip chip-active" : "chip"}
             onClick={() => toggleCategory(option.value)}
           >
+            <span className="chip-dot" aria-hidden="true" />
             {option.label}
           </button>
         );

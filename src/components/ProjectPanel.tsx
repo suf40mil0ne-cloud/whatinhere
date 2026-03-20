@@ -12,15 +12,20 @@ export function ProjectPanel({ project, visibleCount }: Props) {
       <aside className="panel-card">
         <p className="panel-kicker">선택된 사업 없음</p>
         <h2>마커를 누르면 상세 정보가 나옵니다.</h2>
-        <p>현재 범위에서 확인된 사업 {visibleCount}건</p>
+        <p className="panel-description">현재 범위에서 확인된 사업 {visibleCount}건</p>
       </aside>
     );
   }
 
   return (
     <aside className="panel-card">
-      <p className="panel-kicker">{getCategoryLabel(project.category)}</p>
-      <h2>{project.name}</h2>
+      <div className="panel-header">
+        <div>
+          <p className="panel-kicker">{getCategoryLabel(project.category)}</p>
+          <h2>{project.name}</h2>
+        </div>
+        <span className={`project-status project-status-${project.status}`}>{getStatusLabel(project.status)}</span>
+      </div>
       <dl className="detail-list">
         <div>
           <dt>유형</dt>
@@ -40,12 +45,14 @@ export function ProjectPanel({ project, visibleCount }: Props) {
         </div>
       </dl>
       {project.description ? <p className="panel-description">{project.description}</p> : null}
-      <p className="panel-source">{project.sourceName}</p>
-      {project.sourceUrl ? (
-        <a href={project.sourceUrl} target="_blank" rel="noreferrer" className="source-link">
-          출처 링크
-        </a>
-      ) : null}
+      <div className="panel-footer">
+        <p className="panel-source">{project.sourceName}</p>
+        {project.sourceUrl ? (
+          <a href={project.sourceUrl} target="_blank" rel="noreferrer" className="source-link">
+            출처 링크
+          </a>
+        ) : null}
+      </div>
     </aside>
   );
 }
