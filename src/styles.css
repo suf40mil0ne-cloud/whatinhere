@@ -206,7 +206,6 @@ button {
   right: 18px;
   z-index: 5;
   display: flex;
-  justify-content: space-between;
   gap: 18px;
   padding: 18px 20px;
   background: linear-gradient(180deg, rgba(251, 250, 242, 0.94), rgba(251, 250, 242, 0.82));
@@ -222,34 +221,9 @@ button {
   max-width: 42rem;
 }
 
-.hero-stats {
-  min-width: 104px;
-  border-radius: 18px;
-  background: var(--dark);
-  color: #fff;
-  padding: 14px 16px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: flex-start;
-}
-
-.hero-stat-label {
-  font-size: 0.72rem;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  opacity: 0.7;
-}
-
-.hero-stats strong {
-  font-family: "Manrope", sans-serif;
-  font-size: 1.8rem;
-  letter-spacing: -0.05em;
-}
-
 .map-actions {
   position: absolute;
-  top: 214px;
+  top: 178px;
   left: 18px;
   z-index: 5;
   display: flex;
@@ -303,6 +277,13 @@ button {
   padding: 10px 4px 0;
 }
 
+.sidebar-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-end;
+}
+
 .sidebar-head h2 {
   margin: 0;
   font-family: "Manrope", sans-serif;
@@ -320,6 +301,16 @@ button {
   font-weight: 800;
   letter-spacing: 0.14em;
   text-transform: uppercase;
+}
+
+.count-pill {
+  border-radius: 999px;
+  padding: 7px 12px;
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
 }
 
 .control-bar {
@@ -594,10 +585,6 @@ button {
     font-size: 2.2rem;
   }
 
-  .hero-stats {
-    align-self: flex-start;
-  }
-
   .map-actions {
     top: auto;
     bottom: 18px;
@@ -616,5 +603,9 @@ button {
 
   .sidebar-head h2 {
     font-size: 1.7rem;
+  }
+
+  .sidebar-meta {
+    align-items: flex-start;
   }
 }

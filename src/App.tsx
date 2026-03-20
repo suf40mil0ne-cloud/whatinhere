@@ -264,15 +264,11 @@ export function App() {
         <section className="map-stage">
           <section className="hero hero-overlay">
             <div>
-              <p className="hero-kicker">Live Updates</p>
+              <p className="hero-kicker">지도 보기</p>
               <h1>내 주변에서 지금 진행 중인 공사와 개발사업</h1>
               <p className="hero-copy">
                 공공데이터를 바탕으로 주요 공사·개발 정보를 시각화합니다. 실제 현장 상황과 시점 차이가 있을 수 있습니다.
               </p>
-            </div>
-            <div className="hero-stats">
-              <span className="hero-stat-label">현재 범위</span>
-              <strong>{nearbyProjects.length}건</strong>
             </div>
           </section>
 
@@ -308,7 +304,10 @@ export function App() {
               <p className="panel-kicker">여기 뭐 생겨요?</p>
               <h2>공사·개발사업 레저</h2>
             </div>
-            <span className="status-pill">Live Updates</span>
+            <div className="sidebar-meta">
+              <span className="status-pill">Live Updates</span>
+              <span className="count-pill">{nearbyProjects.length}건</span>
+            </div>
           </section>
 
           <section className="control-bar">
