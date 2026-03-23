@@ -265,10 +265,8 @@ export function App() {
           <section className="hero hero-overlay">
             <div>
               <p className="hero-kicker">지도 보기</p>
-              <h1>내 주변에서 지금 진행 중인 공사와 개발사업</h1>
-              <p className="hero-copy">
-                공공데이터를 바탕으로 주요 공사·개발 정보를 시각화합니다. 실제 현장 상황과 시점 차이가 있을 수 있습니다.
-              </p>
+              <h1>내 주변 공사·개발사업을 한눈에 확인</h1>
+              <p className="hero-copy">공공데이터 기반 주요 사업만 지도에서 빠르게 확인할 수 있습니다.</p>
             </div>
           </section>
 
@@ -305,7 +303,7 @@ export function App() {
               <h2>공사·개발사업 레이더</h2>
             </div>
             <div className="sidebar-meta">
-              <span className="status-pill">실시간 반영</span>
+              <span className="status-pill">공공데이터 기준</span>
               <span className="count-pill">{nearbyProjects.length}건</span>
             </div>
           </section>
@@ -314,16 +312,16 @@ export function App() {
             <CategoryFilter activeCategories={activeCategories} onChange={setActiveCategories} />
           </section>
 
-          {locationError ? <p className="notice warning">위치 권한이 없어 수도권 기본 위치로 시작합니다. {locationError}</p> : null}
-          <p className="notice">{dataNotice}</p>
+          <section className="sidebar-summary">
+            <p className="notice">{dataNotice}</p>
+            {locationError ? <p className="notice warning">위치 권한이 없어 수도권 기본 위치로 시작합니다. {locationError}</p> : null}
+          </section>
 
           <ProjectPanel project={selectedProject} visibleCount={nearbyProjects.length} />
 
           {nearbyProjects.length === 0 ? (
             <p className="notice empty">이 범위에는 표시할 대형 공사·개발사업이 없습니다. 지도를 이동한 뒤 다시 검색해 보세요.</p>
-          ) : (
-            <p className="notice">현재 범위에서 {nearbyProjects.length}개 사업을 표시합니다.</p>
-          )}
+          ) : null}
         </aside>
       </section>
 

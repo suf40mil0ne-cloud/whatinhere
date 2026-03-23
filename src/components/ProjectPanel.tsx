@@ -7,9 +7,9 @@ interface Props {
 }
 
 export function ProjectPanel({ project, visibleCount }: Props) {
-  if (!project) {
+  if (project === null) {
     return (
-      <aside className="panel-card">
+      <aside className="panel-card panel-card-empty">
         <p className="panel-kicker">선택된 사업 없음</p>
         <h2>지도의 사업 마커를 선택하면 상세 정보가 표시됩니다.</h2>
         <p className="panel-description">현재 범위에서 확인된 사업 {visibleCount}건</p>
@@ -24,7 +24,7 @@ export function ProjectPanel({ project, visibleCount }: Props) {
           <p className="panel-kicker">{getCategoryLabel(project.category)}</p>
           <h2>{project.name}</h2>
         </div>
-        <span className={`project-status project-status-${project.status}`}>{getStatusLabel(project.status)}</span>
+        <span className={"project-status project-status-" + project.status}>{getStatusLabel(project.status)}</span>
       </div>
       <dl className="detail-list">
         <div>
