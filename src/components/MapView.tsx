@@ -76,6 +76,36 @@ export function MapView({
 
   useEffect(() => {
     const map = mapRef.current;
+    const element = mapElementRef.current;
+    if (!map || !element || !window.kakao?.maps) return;
+
+    let frameId = 0;
+    const relayout = () => {
+      cancelAnimationFrame(frameId);
+      frameId = window.requestAnimationFrame(() => {
+        const center = map.getCenter();
+        map.relayout();
+        map.setCenter(center);
+      });
+    };
+
+    relayout();
+
+    const resizeObserver = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(() => relayout());
+    resizeObserver?.observe(element);
+    window.addEventListener("resize", relayout);
+    window.addEventListener("orientationchange", relayout);
+
+    return () => {
+      cancelAnimationFrame(frameId);
+      resizeObserver?.disconnect();
+      window.removeEventListener("resize", relayout);
+      window.removeEventListener("orientationchange", relayout);
+    };
+  }, [mapError]);
+
+  useEffect(() => {
+    const map = mapRef.current;
     if (!map || !window.kakao?.maps) return;
 
     markerRefs.current.forEach((marker) => marker.setMap(null));
