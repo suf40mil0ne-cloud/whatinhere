@@ -248,7 +248,8 @@ button {
   z-index: 15;
   display: flex;
   gap: 12px;
-  width: min(640px, calc(100% - 36px));
+  width: fit-content;
+  max-width: min(640px, calc(100% - 36px));
   padding: 15px 16px 14px;
   border-radius: var(--radius);
   background: rgba(255, 252, 248, 0.84);
