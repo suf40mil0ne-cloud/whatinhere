@@ -243,14 +243,7 @@ export function App() {
 
   return (
     <main className="app-shell">
-      <header className="site-header">
-        <div className="brand-block">
-          <a href="/" className="brand-link">
-            <span className="brand-mark">◎</span>
-            <span>여기 뭐 생겨요?</span>
-          </a>
-          <p className="header-copy">내 주변 대형 공사·개발사업 지도</p>
-        </div>
+      <header className="site-header site-header-navonly">
         <nav className="top-nav" aria-label="상단 탐색">
           <a href="/" className="top-nav-active">
             Explore
@@ -263,8 +256,11 @@ export function App() {
       <section className="home-layout">
         <section className="map-stage">
           <section className="hero hero-overlay">
-            <div>
-              <p className="hero-kicker">지도 보기</p>
+            <div className="hero-intro">
+              <a href="/" className="brand-link hero-brand-link">
+                <span className="brand-mark">◎</span>
+                <span>여기 뭐 생겨요?</span>
+              </a>
               <h1>내 주변 공사·개발사업을 한눈에 확인</h1>
               <p className="hero-copy">공공데이터 기반 주요 사업만 지도에서 빠르게 확인할 수 있습니다.</p>
             </div>
