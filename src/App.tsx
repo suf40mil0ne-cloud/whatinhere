@@ -302,10 +302,10 @@ export function App() {
           <section className="sidebar-head">
             <div>
               <p className="panel-kicker">여기 뭐 생겨요?</p>
-              <h2>공사·개발사업 레저</h2>
+              <h2>공사·개발사업 레이더</h2>
             </div>
             <div className="sidebar-meta">
-              <span className="status-pill">Live Updates</span>
+              <span className="status-pill">실시간 반영</span>
               <span className="count-pill">{nearbyProjects.length}건</span>
             </div>
           </section>

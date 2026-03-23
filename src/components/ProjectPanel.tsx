@@ -11,7 +11,7 @@ export function ProjectPanel({ project, visibleCount }: Props) {
     return (
       <aside className="panel-card">
         <p className="panel-kicker">선택된 사업 없음</p>
-        <h2>마커를 누르면 상세 정보가 나옵니다.</h2>
+        <h2>지도의 사업 마커를 선택하면 상세 정보가 표시됩니다.</h2>
         <p className="panel-description">현재 범위에서 확인된 사업 {visibleCount}건</p>
       </aside>
     );
