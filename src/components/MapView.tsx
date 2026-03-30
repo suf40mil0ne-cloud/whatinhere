@@ -14,6 +14,25 @@ interface Props {
   onViewportChange: (viewport: MapViewport) => void;
 }
 
+// Beige/brown cluster styles — 3 tiers: ≤9, ≤99, 100+
+const CLUSTER_STYLES: kakao.maps.ClustererStyle[] = [
+  {
+    width: "44px", height: "44px",
+    background: "#8B7355", borderRadius: "50%",
+    color: "#fff", fontWeight: "700", lineHeight: "44px", textAlign: "center", fontSize: "13px",
+  },
+  {
+    width: "52px", height: "52px",
+    background: "#6B5A3E", borderRadius: "50%",
+    color: "#fff", fontWeight: "700", lineHeight: "52px", textAlign: "center", fontSize: "14px",
+  },
+  {
+    width: "60px", height: "60px",
+    background: "#4A3F2F", borderRadius: "50%",
+    color: "#fff", fontWeight: "700", lineHeight: "60px", textAlign: "center", fontSize: "15px",
+  },
+];
+
 function getMapErrorMessage(error: unknown): string {
   if (error instanceof KakaoSdkLoadError && error.code === "MISSING_API_KEY") {
     return "카카오맵 키가 없어 목록 모드로 표시합니다.";
@@ -33,6 +52,7 @@ export function MapView({
   const mapElementRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<kakao.maps.Map | null>(null);
   const markerRefs = useRef<kakao.maps.Marker[]>([]);
+  const clusterRef = useRef<kakao.maps.MarkerClusterer | null>(null);
   const currentLocationMarkerRef = useRef<kakao.maps.Marker | null>(null);
   const lastPannedProjectIdRef = useRef<string | null>(null);
   const [mapError, setMapError] = useState<string | null>(null);
@@ -108,19 +128,41 @@ export function MapView({
     const map = mapRef.current;
     if (!map || !window.kakao?.maps) return;
 
-    markerRefs.current.forEach((marker) => marker.setMap(null));
+    // Lazily create clusterer on first render if the library was loaded
+    if (!clusterRef.current && window.kakao.maps.MarkerClusterer) {
+      clusterRef.current = new window.kakao.maps.MarkerClusterer({
+        map,
+        averageCenter: true,
+        minLevel: 5,
+        disableClickZoom: false,
+        styles: CLUSTER_STYLES,
+      });
+    }
+
+    // Clear previous markers
+    if (clusterRef.current) {
+      clusterRef.current.clear();
+    } else {
+      markerRefs.current.forEach((marker) => marker.setMap(null));
+    }
     markerRefs.current = [];
 
-    projects.forEach((project) => {
-      const marker = new window.kakao.maps.Marker({
-        map,
-        position: new window.kakao.maps.LatLng(project.latitude, project.longitude),
-        title: project.name,
-      });
+    const newMarkers = projects.map((project) => {
+      const position = new window.kakao.maps.LatLng(project.latitude, project.longitude);
+      const opts: Record<string, unknown> = { position, title: project.name };
+      // When clusterer is active it manages map placement; otherwise set map directly
+      if (!clusterRef.current) opts.map = map;
 
+      const marker = new window.kakao.maps.Marker(opts);
       window.kakao.maps.event.addListener(marker, "click", () => onSelectProject(project));
-      markerRefs.current.push(marker);
+      return marker;
     });
+
+    markerRefs.current = newMarkers;
+
+    if (clusterRef.current) {
+      clusterRef.current.addMarkers(newMarkers);
+    }
   }, [onSelectProject, projects]);
 
   useEffect(() => {

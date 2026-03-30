@@ -75,7 +75,7 @@ export function loadKakaoMapsSdk(apiKey: string | null): Promise<typeof window.k
     const script = document.createElement("script");
     script.id = SDK_SCRIPT_ID;
     script.async = true;
-    script.src = `https://dapi.kakao.com/v2/maps/sdk.js?autoload=false&appkey=${encodeURIComponent(apiKey)}`;
+    script.src = `https://dapi.kakao.com/v2/maps/sdk.js?autoload=false&appkey=${encodeURIComponent(apiKey)}&libraries=clusterer`;
     script.onload = () => resolveLoadedKakao(safeResolve, safeReject);
     script.onerror = () => {
       safeReject(new KakaoSdkLoadError("SCRIPT_LOAD_FAILED", "Failed to load Kakao Maps SDK script."));
