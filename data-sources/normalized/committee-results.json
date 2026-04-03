@@ -12,7 +12,7 @@
     "sourceUrl": "https://www.data.go.kr/",
     "startDate": "2025-11-27",
     "description": "도시건축공동위원회 심의 결과가 공개된 민간 복합개발 후보.",
-    "updatedAt": "2026-03-09",
+    "updatedAt": "2026-03-10",
     "projectOrigin": "private",
     "confidence": "low"
   },
@@ -29,7 +29,7 @@
     "sourceUrl": "https://www.data.go.kr/",
     "startDate": "2025-09-19",
     "description": "건축위원회 심의 이력이 확인된 민간 업무시설 개발 후보.",
-    "updatedAt": "2026-03-09",
+    "updatedAt": "2026-03-10",
     "projectOrigin": "private",
     "confidence": "low"
   },
@@ -46,7 +46,7 @@
     "sourceUrl": "https://www.data.go.kr/",
     "startDate": "2025-12-05",
     "description": "재정비 구역 내 민간 복합개발 심의 결과.",
-    "updatedAt": "2026-03-09",
+    "updatedAt": "2026-03-10",
     "projectOrigin": "private",
     "confidence": "low"
   },
@@ -63,7 +63,7 @@
     "sourceUrl": "https://www.data.go.kr/",
     "startDate": "2025-08-22",
     "description": "광교 중심지 내 민간 업무복합시설 심의 결과.",
-    "updatedAt": "2026-03-09",
+    "updatedAt": "2026-03-10",
     "projectOrigin": "private",
     "confidence": "low"
   },
@@ -80,7 +80,7 @@
     "sourceUrl": "https://www.data.go.kr/",
     "startDate": "2025-10-10",
     "description": "청라국제도시 내 민간 상업복합 개발 후보.",
-    "updatedAt": "2026-03-09",
+    "updatedAt": "2026-03-10",
     "projectOrigin": "private",
     "confidence": "low"
   },
@@ -97,7 +97,7 @@
     "sourceUrl": "https://www.data.go.kr/",
     "startDate": "2025-12-12",
     "description": "용산 전자상가 재편과 연계된 민간 복합개발 심의 결과.",
-    "updatedAt": "2026-03-09",
+    "updatedAt": "2026-03-10",
     "projectOrigin": "private",
     "confidence": "low"
   },
@@ -114,7 +114,7 @@
     "sourceUrl": "https://www.data.go.kr/",
     "startDate": "2025-08-30",
     "description": "잠실나루역 생활권 민간 업무복합 심의 결과.",
-    "updatedAt": "2026-03-09",
+    "updatedAt": "2026-03-10",
     "projectOrigin": "private",
     "confidence": "low"
   },
@@ -131,7 +131,7 @@
     "sourceUrl": "https://www.data.go.kr/",
     "startDate": "2025-11-08",
     "description": "북항 재개발 연계 민간 상업업무 개발 후보.",
-    "updatedAt": "2026-03-09",
+    "updatedAt": "2026-03-10",
     "projectOrigin": "private",
     "confidence": "low"
   }

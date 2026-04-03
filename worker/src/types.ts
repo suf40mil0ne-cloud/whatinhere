@@ -5,7 +5,14 @@ export interface Env {
   DATA_GO_KR_SERVICE_KEY: string;
   KAKAO_REST_API_KEY?: string;
   ADMIN_TOKEN?: string;
+  JWT_SECRET?: string;
 }
+
+// kept for project pipeline compatibility
+
+
+/** @deprecated use DistrictScoreRow */
+export type DistrictScoreRecord = DistrictScoreRow;
 
 export interface SourceRecord {
   sourceId: string;
@@ -114,4 +121,223 @@ export interface ApiProjectListResponse {
   summary?: {
     by_status: Record<string, number>;
   };
+}
+
+
+// ── District ──────────────────────────────────────────────────────────────────
+
+export interface DistrictScoreRow {
+  code: string;
+  sido: string;
+  sigungu: string;
+  dong: string;
+  center_lat: number | null;
+  center_lng: number | null;
+  households: number | null;
+  population: number | null;
+  s_transport: number | null;
+  s_walk: number | null;
+  s_value: number | null;
+  s_childcare: number | null;
+  s_safety: number | null;
+  s_overall: number | null;
+  raw_transport: string | null;
+  raw_walk: string | null;
+  raw_value: string | null;
+  raw_childcare: string | null;
+  raw_safety: string | null;
+  updated_at?: string | null;
+}
+
+export interface ApiDistrictRecord {
+  code: string;
+  sido: string;
+  sigungu: string;
+  dong: string;
+  center: { lat: number | null; lng: number | null };
+  households: number | null;
+  population: number | null;
+  scores: { transport: number; walk: number; value: number; childcare: number; safety: number; overall: number };
+  rawTransport: Record<string, unknown> | null;
+  rawWalk: Record<string, unknown> | null;
+  rawValue: Record<string, unknown> | null;
+  rawChildcare: Record<string, unknown> | null;
+  rawSafety: Record<string, unknown> | null;
+}
+
+export interface ApiDistrictListResponse {
+  total: number;
+  districts: ApiDistrictRecord[];
+}
+
+// ── Apartment ─────────────────────────────────────────────────────────────────
+
+export interface AptComplexRow {
+  id: string;
+  name: string;
+  address: string | null;
+  lat: number | null;
+  lng: number | null;
+  district_code: string | null;
+  built_year: number | null;
+  total_units: number | null;
+  avg_price_per_m2: number | null;
+  s_transport: number | null;
+  s_walk: number | null;
+  s_value: number | null;
+  s_childcare: number | null;
+  s_safety: number | null;
+  updated_at?: string | null;
+}
+
+export interface AptCommentRow {
+  id: string;
+  apt_id: string;
+  category: string | null;
+  comment: string;
+  user_score: number | null;
+  likes: number;
+  created_at: string;
+}
+
+export interface ApiAptRecord {
+  id: string;
+  name: string;
+  address: string | null;
+  lat: number | null;
+  lng: number | null;
+  districtCode: string | null;
+  builtYear: number | null;
+  totalUnits: number | null;
+  avgPricePerM2: number | null;
+  scores: { transport: number; walk: number; value: number; childcare: number; safety: number };
+  rawTransport: Record<string, unknown> | null;
+  rawWalk: Record<string, unknown> | null;
+  rawValue: Record<string, unknown> | null;
+  rawChildcare: Record<string, unknown> | null;
+  rawSafety: Record<string, unknown> | null;
+  comments?: ApiAptComment[];
+}
+
+export interface ApiAptComment {
+  id: string;
+  aptId: string;
+  category: string | null;
+  comment: string;
+  userScore: number | null;
+  likes: number;
+  createdAt: string;
+}
+
+export interface ApiAptListResponse {
+  total: number;
+  apts: ApiAptRecord[];
+}
+
+// ── Auth / User ───────────────────────────────────────────────────────────────
+export interface UserRow {
+  id: string;
+  nickname: string;
+  profile_img: string | null;
+  created_at: string;
+}
+
+export interface SessionRow {
+  token: string;
+  user_id: string;
+  expires_at: string;
+  created_at: string;
+}
+
+export interface ApiUser {
+  id: string;
+  nickname: string;
+  profileImg: string | null;
+}
+
+// ── Battle ────────────────────────────────────────────────────────────────────
+export interface BattleScores {
+  transport: number;
+  walk: number;
+  value: number;
+  childcare: number;
+  safety: number;
+}
+
+export interface BattleRow {
+  id: string;
+  apt_a_id: string;
+  apt_b_id: string;
+  apt_a_name: string;
+  apt_b_name: string;
+  winner: string | null;
+  score_a: string;
+  score_b: string;
+  view_count: number;
+  created_at: string;
+}
+
+export interface BattleCommentRow {
+  id: string;
+  battle_id: string;
+  user_id: string;
+  comment: string;
+  likes: number;
+  created_at: string;
+}
+
+export interface BattleDisputeRow {
+  id: string;
+  battle_id: string;
+  user_id: string | null;
+  category: string;
+  reason: string;
+  created_at: string;
+}
+
+export interface ApiBattleComment {
+  id: string;
+  battleId: string;
+  userId: string;
+  nickname: string;
+  profileImg: string | null;
+  comment: string;
+  likes: number;
+  likedByMe: boolean;
+  createdAt: string;
+}
+
+export interface ApiBattleDispute {
+  id: string;
+  category: string;
+  reason: string;
+  createdAt: string;
+}
+
+export interface ApiBattle {
+  id: string;
+  aptAId: string;
+  aptBId: string;
+  aptAName: string;
+  aptBName: string;
+  winner: string | null;
+  scoreA: BattleScores;
+  scoreB: BattleScores;
+  viewCount: number;
+  createdAt: string;
+  comments?: ApiBattleComment[];
+  disputes?: ApiBattleDispute[];
+}
+
+export interface AptRanking {
+  id: string;
+  name: string;
+  address: string | null;
+  sido: string | null;
+  sigungu: string | null;
+  wins: number;
+  losses: number;
+  draws: number;
+  total: number;
+  winRate: number;
 }

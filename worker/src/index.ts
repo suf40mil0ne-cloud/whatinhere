@@ -1,6 +1,10 @@
 import { listProjects, getProject, searchProject } from "./api/projects";
+import { listDistricts, getDistrict, voteDistrict } from "./api/districts";
+import { listApts, getApt, createComment, likeComment, searchApts } from "./api/apartments";
 import { syncAll, syncOne } from "./api/admin";
 import { json, serverError } from "./api/http";
+import { kakaoLoginRedirect, kakaoCallback, getMe, logout } from "./api/auth";
+import { createBattle, getBattle, addBattleComment, likeBattleComment, addDispute, getRanking, getHot } from "./api/battles";
 import type { Env } from "./types";
 
 function withCors(response: Response): Response {
@@ -18,30 +22,100 @@ export default {
     }
 
     try {
-      // Miniflare/프록시 환경에서 상대 경로가 들어오는 경우를 대비해 base URL을 함께 지정한다.
       const url = new URL(request.url, "http://localhost");
       const path = url.pathname;
 
+      // ── Projects (existing) ────────────────────────────────────────────────
       if (request.method === "GET" && path === "/api/projects") {
         return withCors(await listProjects(request, env));
       }
-
       if (request.method === "GET" && path.startsWith("/api/projects/")) {
         const projectId = decodeURIComponent(path.replace("/api/projects/", ""));
         return withCors(await getProject(request, env, projectId));
       }
-
       if (request.method === "GET" && path === "/api/search") {
         return withCors(await searchProject(request, env));
       }
-
       if (request.method === "POST" && path.startsWith("/api/admin/sync/source/")) {
         const sourceId = decodeURIComponent(path.replace("/api/admin/sync/source/", ""));
         return withCors(await syncOne(request, env, sourceId));
       }
-
       if (request.method === "POST" && path === "/api/admin/sync/all") {
         return withCors(await syncAll(request, env));
+      }
+
+      // ── Districts ──────────────────────────────────────────────────────────
+      if (request.method === "GET" && path === "/api/districts") {
+        return withCors(await listDistricts(request, env));
+      }
+      if (request.method === "GET" && path.startsWith("/api/districts/") && !path.endsWith("/vote")) {
+        const code = decodeURIComponent(path.replace("/api/districts/", ""));
+        return withCors(await getDistrict(request, env, code));
+      }
+      if (request.method === "POST" && path.startsWith("/api/districts/") && path.endsWith("/vote")) {
+        const code = decodeURIComponent(path.replace("/api/districts/", "").replace("/vote", ""));
+        return withCors(await voteDistrict(request, env, code));
+      }
+
+      // ── Auth ──────────────────────────────────────────────────────────────────
+      if (request.method === "GET" && path === "/api/auth/kakao") {
+        return withCors(kakaoLoginRedirect(request, env));
+      }
+      if (request.method === "GET" && path === "/api/auth/kakao/callback") {
+        return withCors(await kakaoCallback(request, env));
+      }
+      if (request.method === "GET" && path === "/api/auth/me") {
+        return withCors(await getMe(request, env));
+      }
+      if (request.method === "POST" && path === "/api/auth/logout") {
+        return withCors(await logout(request, env));
+      }
+
+      // ── Battles ───────────────────────────────────────────────────────────────
+      if (request.method === "POST" && path === "/api/battles") {
+        return withCors(await createBattle(request, env));
+      }
+      if (request.method === "GET" && path === "/api/battles/ranking") {
+        return withCors(await getRanking(request, env));
+      }
+      if (request.method === "GET" && path === "/api/battles/hot") {
+        return withCors(await getHot(request, env));
+      }
+      if (request.method === "GET" && path.startsWith("/api/battles/") && !path.includes("/comments")) {
+        const id = decodeURIComponent(path.replace("/api/battles/", ""));
+        return withCors(await getBattle(request, env, id));
+      }
+      if (request.method === "POST" && /^\/api\/battles\/[^/]+\/comments$/.test(path)) {
+        const battleId = decodeURIComponent(path.replace("/api/battles/", "").replace("/comments", ""));
+        return withCors(await addBattleComment(request, env, battleId));
+      }
+      if (request.method === "POST" && /^\/api\/battles\/[^/]+\/comments\/[^/]+\/like$/.test(path)) {
+        const commentId = decodeURIComponent(path.split("/").at(-2) ?? "");
+        return withCors(await likeBattleComment(request, env, commentId));
+      }
+      if (request.method === "POST" && /^\/api\/battles\/[^/]+\/disputes$/.test(path)) {
+        const battleId = decodeURIComponent(path.replace("/api/battles/", "").replace("/disputes", ""));
+        return withCors(await addDispute(request, env, battleId));
+      }
+
+      // ── Apartments ─────────────────────────────────────────────────────────
+      if (request.method === "GET" && path === "/api/apartments") {
+        return withCors(await listApts(request, env));
+      }
+      if (request.method === "GET" && path === "/api/apartments/search") {
+        return withCors(await searchApts(request, env));
+      }
+      if (request.method === "GET" && path.startsWith("/api/apartments/") && !path.includes("/comments")) {
+        const id = decodeURIComponent(path.replace("/api/apartments/", ""));
+        return withCors(await getApt(request, env, id));
+      }
+      if (request.method === "POST" && /^\/api\/apartments\/[^/]+\/comments$/.test(path)) {
+        const aptId = decodeURIComponent(path.replace("/api/apartments/", "").replace("/comments", ""));
+        return withCors(await createComment(request, env, aptId));
+      }
+      if (request.method === "POST" && /^\/api\/apartments\/[^/]+\/comments\/[^/]+\/like$/.test(path)) {
+        const commentId = decodeURIComponent(path.split("/").at(-2) ?? "");
+        return withCors(await likeComment(request, env, commentId));
       }
 
       return withCors(json({ error: "Not found" }, 404));

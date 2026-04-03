@@ -1,0 +1,11 @@
+{
+  "rawRowCount": 0,
+  "normalizeAttemptCount": 0,
+  "normalizeSuccessCount": 0,
+  "matchedReferenceCount": 0,
+  "unmatchedCount": 0,
+  "skipCounts": {
+    "nameMissing": 0,
+    "referenceNotFound": 0
+  }
+}

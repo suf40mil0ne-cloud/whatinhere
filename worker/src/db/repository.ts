@@ -1,4 +1,4 @@
-import type { NormalizedProject } from "../types";
+import type { AptCommentRow, AptComplexRow, ApiBattleComment, ApiBattleDispute, AptRanking, BattleDisputeRow, BattleCommentRow, BattleRow, DistrictScoreRow, NormalizedProject, UserRow } from "../types";
 
 export interface ProjectQuery {
   swLng: number;
@@ -8,6 +8,14 @@ export interface ProjectQuery {
   status?: string;
   use?: string;
   sort?: string;
+  limit?: number;
+}
+
+export interface DistrictQuery {
+  swLng: number;
+  swLat: number;
+  neLng: number;
+  neLat: number;
   limit?: number;
 }
 
@@ -249,6 +257,316 @@ export class Repository {
       .bind(keyword, keyword, keyword, keyword, limit)
       .all<NormalizedProject>();
 
+    return rows.results;
+  }
+
+  async listDistricts(query: DistrictQuery): Promise<DistrictScoreRow[]> {
+    const rows = await this.db
+      .prepare(
+        `SELECT *
+         FROM district_scores
+         WHERE center_lat IS NOT NULL
+           AND center_lng IS NOT NULL
+           AND center_lng BETWEEN ? AND ?
+           AND center_lat BETWEEN ? AND ?
+         ORDER BY s_overall DESC, code ASC
+         LIMIT ?`
+      )
+      .bind(query.swLng, query.neLng, query.swLat, query.neLat, query.limit ?? 3000)
+      .all<DistrictScoreRow>();
+
+    return rows.results;
+  }
+
+  async countDistrictsInBounds(query: DistrictQuery): Promise<number> {
+    const row = await this.db
+      .prepare(
+        `SELECT COUNT(*) AS cnt
+         FROM district_scores
+         WHERE center_lat IS NOT NULL
+           AND center_lng IS NOT NULL
+           AND center_lng BETWEEN ? AND ?
+           AND center_lat BETWEEN ? AND ?`
+      )
+      .bind(query.swLng, query.neLng, query.swLat, query.neLat)
+      .first<{ cnt: number }>();
+
+    return Number(row?.cnt ?? 0);
+  }
+
+  async getDistrictByCode(code: string): Promise<DistrictScoreRow | null> {
+    const row = await this.db
+      .prepare("SELECT * FROM district_scores WHERE code = ?")
+      .bind(code)
+      .first<DistrictScoreRow>();
+    return row ?? null;
+  }
+
+  async insertVote(payload: { id: string; districtCode: string; category: string; score: number }): Promise<void> {
+    await this.db
+      .prepare(`INSERT INTO user_votes (id, district_code, category, score) VALUES (?, ?, ?, ?)`)
+      .bind(payload.id, payload.districtCode, payload.category, payload.score)
+      .run();
+  }
+
+  // ── Apartments ───────────────────────────────────────────────────────────────
+
+  async listApts(query: DistrictQuery): Promise<AptComplexRow[]> {
+    const rows = await this.db
+      .prepare(
+        `SELECT a.*,
+                d.raw_transport, d.raw_walk, d.raw_value, d.raw_childcare, d.raw_safety
+         FROM apt_complexes a
+         LEFT JOIN district_scores d ON d.code = a.district_code
+         WHERE a.lat IS NOT NULL
+           AND a.lng IS NOT NULL
+           AND a.lng BETWEEN ? AND ?
+           AND a.lat BETWEEN ? AND ?
+         ORDER BY a.name ASC
+         LIMIT ?`
+      )
+      .bind(query.swLng, query.neLng, query.swLat, query.neLat, query.limit ?? 500)
+      .all<AptComplexRow & { raw_transport: string | null; raw_walk: string | null; raw_value: string | null; raw_childcare: string | null; raw_safety: string | null }>();
+
+    return rows.results;
+  }
+
+  async countAptsInBounds(query: DistrictQuery): Promise<number> {
+    const row = await this.db
+      .prepare(
+        `SELECT COUNT(*) AS cnt FROM apt_complexes
+         WHERE lat IS NOT NULL AND lng IS NOT NULL
+           AND lng BETWEEN ? AND ? AND lat BETWEEN ? AND ?`
+      )
+      .bind(query.swLng, query.neLng, query.swLat, query.neLat)
+      .first<{ cnt: number }>();
+    return Number(row?.cnt ?? 0);
+  }
+
+  async getAptById(id: string): Promise<(AptComplexRow & { raw_transport: string | null; raw_walk: string | null; raw_value: string | null; raw_childcare: string | null; raw_safety: string | null; comments: AptCommentRow[] }) | null> {
+    const row = await this.db
+      .prepare(
+        `SELECT a.*,
+                d.raw_transport, d.raw_walk, d.raw_value, d.raw_childcare, d.raw_safety
+         FROM apt_complexes a
+         LEFT JOIN district_scores d ON d.code = a.district_code
+         WHERE a.id = ?`
+      )
+      .bind(id)
+      .first<AptComplexRow & { raw_transport: string | null; raw_walk: string | null; raw_value: string | null; raw_childcare: string | null; raw_safety: string | null }>();
+    if (!row) return null;
+
+    const comments = await this.db
+      .prepare(`SELECT * FROM apt_comments WHERE apt_id = ? ORDER BY likes DESC, created_at DESC`)
+      .bind(id)
+      .all<AptCommentRow>();
+
+    return { ...row, comments: comments.results };
+  }
+
+  async insertComment(payload: { id: string; aptId: string; category: string | null; comment: string; userScore: number | null }): Promise<void> {
+    await this.db
+      .prepare(`INSERT INTO apt_comments (id, apt_id, category, comment, user_score) VALUES (?, ?, ?, ?, ?)`)
+      .bind(payload.id, payload.aptId, payload.category ?? null, payload.comment, payload.userScore ?? null)
+      .run();
+  }
+
+  async likeComment(commentId: string): Promise<void> {
+    await this.db
+      .prepare(`UPDATE apt_comments SET likes = likes + 1 WHERE id = ?`)
+      .bind(commentId)
+      .run();
+  }
+
+  // ── Users / Sessions ─────────────────────────────────────────────────────────
+
+  async upsertUser(user: { id: string; nickname: string; profileImg: string | null }): Promise<void> {
+    await this.db.prepare(
+      `INSERT INTO users (id, nickname, profile_img) VALUES (?, ?, ?)
+       ON CONFLICT(id) DO UPDATE SET nickname=excluded.nickname, profile_img=excluded.profile_img`
+    ).bind(user.id, user.nickname, user.profileImg ?? null).run();
+  }
+
+  async createSession(token: string, userId: string, expiresAt: string): Promise<void> {
+    await this.db.prepare(
+      `INSERT INTO sessions (token, user_id, expires_at) VALUES (?, ?, ?)`
+    ).bind(token, userId, expiresAt).run();
+  }
+
+  async getSessionUser(token: string): Promise<(UserRow & { expires_at: string }) | null> {
+    const row = await this.db.prepare(
+      `SELECT u.*, s.expires_at FROM users u
+       JOIN sessions s ON s.user_id = u.id
+       WHERE s.token = ?`
+    ).bind(token).first<UserRow & { expires_at: string }>();
+    return row ?? null;
+  }
+
+  async deleteSession(token: string): Promise<void> {
+    await this.db.prepare(`DELETE FROM sessions WHERE token = ?`).bind(token).run();
+  }
+
+  // ── Battles ──────────────────────────────────────────────────────────────────
+
+  async createBattle(battle: {
+    id: string; aptAId: string; aptBId: string;
+    aptAName: string; aptBName: string;
+    winner: string | null; scoreA: string; scoreB: string;
+  }): Promise<void> {
+    await this.db.prepare(
+      `INSERT INTO battles (id, apt_a_id, apt_b_id, apt_a_name, apt_b_name, winner, score_a, score_b)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+    ).bind(battle.id, battle.aptAId, battle.aptBId, battle.aptAName, battle.aptBName,
+      battle.winner, battle.scoreA, battle.scoreB).run();
+  }
+
+  async getBattle(id: string, currentUserId?: string): Promise<(BattleRow & { comments: ApiBattleComment[]; disputes: ApiBattleDispute[] }) | null> {
+    await this.db.prepare(`UPDATE battles SET view_count = view_count + 1 WHERE id = ?`).bind(id).run();
+    const row = await this.db.prepare(`SELECT * FROM battles WHERE id = ?`).bind(id).first<BattleRow>();
+    if (!row) return null;
+
+    const commentsRaw = await this.db.prepare(
+      `SELECT bc.*, u.nickname, u.profile_img FROM battle_comments bc
+       JOIN users u ON u.id = bc.user_id
+       WHERE bc.battle_id = ? ORDER BY bc.likes DESC, bc.created_at DESC`
+    ).bind(id).all<BattleCommentRow & { nickname: string; profile_img: string | null }>();
+
+    const likedSet = new Set<string>();
+    if (currentUserId) {
+      const liked = await this.db.prepare(
+        `SELECT comment_id FROM comment_likes WHERE user_id = ? AND comment_id IN (SELECT id FROM battle_comments WHERE battle_id = ?)`
+      ).bind(currentUserId, id).all<{ comment_id: string }>();
+      for (const l of liked.results) likedSet.add(l.comment_id);
+    }
+
+    const comments: ApiBattleComment[] = commentsRaw.results.map((c) => ({
+      id: c.id, battleId: c.battle_id, userId: c.user_id,
+      nickname: c.nickname, profileImg: c.profile_img,
+      comment: c.comment, likes: c.likes,
+      likedByMe: likedSet.has(c.id),
+      createdAt: c.created_at,
+    }));
+
+    const disputesRaw = await this.db.prepare(
+      `SELECT * FROM battle_disputes WHERE battle_id = ? ORDER BY created_at DESC`
+    ).bind(id).all<BattleDisputeRow>();
+
+    const disputes: ApiBattleDispute[] = disputesRaw.results.map((d) => ({
+      id: d.id, category: d.category, reason: d.reason, createdAt: d.created_at,
+    }));
+
+    return { ...row, comments, disputes };
+  }
+
+  async addBattleComment(payload: { id: string; battleId: string; userId: string; comment: string }): Promise<void> {
+    await this.db.prepare(
+      `INSERT INTO battle_comments (id, battle_id, user_id, comment) VALUES (?, ?, ?, ?)`
+    ).bind(payload.id, payload.battleId, payload.userId, payload.comment).run();
+  }
+
+  async likeBattleComment(userId: string, commentId: string): Promise<void> {
+    const inserted = await this.db.prepare(
+      `INSERT OR IGNORE INTO comment_likes (user_id, comment_id) VALUES (?, ?)`
+    ).bind(userId, commentId).run();
+    if (inserted.meta.changes > 0) {
+      await this.db.prepare(`UPDATE battle_comments SET likes = likes + 1 WHERE id = ?`).bind(commentId).run();
+    }
+  }
+
+  async addDispute(payload: { id: string; battleId: string; userId: string | null; category: string; reason: string }): Promise<void> {
+    await this.db.prepare(
+      `INSERT INTO battle_disputes (id, battle_id, user_id, category, reason) VALUES (?, ?, ?, ?, ?)`
+    ).bind(payload.id, payload.battleId, payload.userId ?? null, payload.category, payload.reason).run();
+  }
+
+  async getRanking(filters: { sido?: string; sigungu?: string }): Promise<AptRanking[]> {
+    // Build ranking from battles table
+    const rows = await this.db.prepare(`
+      SELECT a.id, a.name, a.address,
+             d.sido, d.sigungu,
+             SUM(CASE WHEN (b.apt_a_id = a.id AND b.winner = 'a') OR (b.apt_b_id = a.id AND b.winner = 'b') THEN 1 ELSE 0 END) as wins,
+             SUM(CASE WHEN (b.apt_a_id = a.id AND b.winner = 'b') OR (b.apt_b_id = a.id AND b.winner = 'a') THEN 1 ELSE 0 END) as losses,
+             SUM(CASE WHEN b.winner = 'draw' THEN 1 ELSE 0 END) as draws,
+             COUNT(b.id) as total
+      FROM apt_complexes a
+      LEFT JOIN district_scores d ON d.code = a.district_code
+      LEFT JOIN battles b ON b.apt_a_id = a.id OR b.apt_b_id = a.id
+      ${filters.sido ? `WHERE d.sido = '${filters.sido.replace(/'/g, "''")}'` : ""}
+      ${filters.sido && filters.sigungu ? `AND d.sigungu = '${filters.sigungu.replace(/'/g, "''")}'` : ""}
+      ${!filters.sido && filters.sigungu ? `WHERE d.sigungu = '${filters.sigungu.replace(/'/g, "''")}'` : ""}
+      GROUP BY a.id
+      HAVING total > 0
+      ORDER BY (wins * 1.0 / total) DESC, wins DESC
+      LIMIT 50
+    `).all<AptRanking & { wins: number; losses: number; draws: number; total: number }>();
+
+    return rows.results.map((r) => ({
+      ...r,
+      winRate: r.total > 0 ? Math.round((r.wins / r.total) * 100) : 0,
+    }));
+  }
+
+  async getHotBattles(): Promise<{ byDisputes: BattleRow[]; byViews: BattleRow[] }> {
+    const byDisputes = await this.db.prepare(`
+      SELECT b.*, COUNT(bd.id) as dispute_count
+      FROM battles b LEFT JOIN battle_disputes bd ON bd.battle_id = b.id
+      GROUP BY b.id ORDER BY dispute_count DESC LIMIT 20
+    `).all<BattleRow>();
+
+    const byViews = await this.db.prepare(
+      `SELECT * FROM battles ORDER BY view_count DESC LIMIT 20`
+    ).all<BattleRow>();
+
+    return { byDisputes: byDisputes.results, byViews: byViews.results };
+  }
+
+  async getAptById2(id: string): Promise<AptComplexRow | null> {
+    return this.db.prepare(`SELECT * FROM apt_complexes WHERE id = ?`).bind(id).first<AptComplexRow>() as Promise<AptComplexRow | null>;
+  }
+
+  async searchAptSidos(): Promise<string[]> {
+    const rows = await this.db.prepare(
+      `SELECT DISTINCT d.sido FROM apt_complexes a
+       JOIN district_scores d ON d.code = a.district_code
+       WHERE d.sido IS NOT NULL ORDER BY d.sido`
+    ).all<{ sido: string }>();
+    return rows.results.map((r) => r.sido);
+  }
+
+  async searchAptSigungus(sido: string): Promise<string[]> {
+    const rows = await this.db.prepare(
+      `SELECT DISTINCT d.sigungu FROM apt_complexes a
+       JOIN district_scores d ON d.code = a.district_code
+       WHERE d.sido = ? AND d.sigungu IS NOT NULL ORDER BY d.sigungu`
+    ).bind(sido).all<{ sigungu: string }>();
+    return rows.results.map((r) => r.sigungu);
+  }
+
+  async searchAptDongs(sido: string, sigungu: string): Promise<string[]> {
+    const rows = await this.db.prepare(
+      `SELECT DISTINCT d.dong FROM apt_complexes a
+       JOIN district_scores d ON d.code = a.district_code
+       WHERE d.sido = ? AND d.sigungu = ? AND d.dong IS NOT NULL ORDER BY d.dong`
+    ).bind(sido, sigungu).all<{ dong: string }>();
+    return rows.results.map((r) => r.dong);
+  }
+
+  async searchAptsByDong(sido: string, sigungu: string, dong: string, name?: string): Promise<AptComplexRow[]> {
+    if (name) {
+      const rows = await this.db.prepare(
+        `SELECT a.* FROM apt_complexes a
+         JOIN district_scores d ON d.code = a.district_code
+         WHERE d.sido = ? AND d.sigungu = ? AND d.dong = ? AND a.name LIKE ?
+         ORDER BY a.name LIMIT 50`
+      ).bind(sido, sigungu, dong, `%${name}%`).all<AptComplexRow>();
+      return rows.results;
+    }
+    const rows = await this.db.prepare(
+      `SELECT a.* FROM apt_complexes a
+       JOIN district_scores d ON d.code = a.district_code
+       WHERE d.sido = ? AND d.sigungu = ? AND d.dong = ?
+       ORDER BY a.name LIMIT 100`
+    ).bind(sido, sigungu, dong).all<AptComplexRow>();
     return rows.results;
   }
 }
