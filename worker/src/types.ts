@@ -6,6 +6,8 @@ export interface Env {
   KAKAO_REST_API_KEY?: string;
   ADMIN_TOKEN?: string;
   JWT_SECRET?: string;
+  TAGO_API_KEY?: string;
+  CCTV_API_KEY?: string;
 }
 
 // kept for project pipeline compatibility

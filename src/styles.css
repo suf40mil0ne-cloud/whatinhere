@@ -1854,6 +1854,10 @@ button {
 .admin-section__title { font-size: 16px; font-weight: 700; margin: 0 0 12px; }
 .admin-section__subtitle { font-size: 14px; font-weight: 600; margin: 16px 0 8px; }
 .admin-section__loading { color: var(--muted); font-size: 14px; }
+.admin-section__desc { font-size: 13px; color: var(--muted); margin: 0 0 12px; }
+.admin-collect { display: flex; flex-direction: column; gap: 10px; }
+.admin-collect__item { display: flex; align-items: center; gap: 12px; }
+.admin-collect__result { font-size: 13px; color: var(--muted); }
 
 .admin-stats { display: flex; gap: 16px; margin-bottom: 8px; }
 .admin-stat {

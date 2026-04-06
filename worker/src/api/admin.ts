@@ -1,6 +1,9 @@
 import { syncAllSources, syncSource } from "../services/syncService";
 import type { Env } from "../types";
 import { json, unauthorized } from "./http";
+import { collectTransport } from "../cron/collectTransport";
+import { collectWalk } from "../cron/collectWalk";
+import { collectSafety } from "../cron/collectSafety";
 
 const BATTLE_ADMIN_PASSWORD = "danjijeon2024";
 
@@ -34,6 +37,24 @@ export async function resetBattles(request: Request, env: Env): Promise<Response
   await env.DB.prepare("DELETE FROM comment_likes").run();
   await env.DB.prepare("DELETE FROM battles").run();
   return json({ ok: true });
+}
+
+export async function runCollectTransport(request: Request, env: Env): Promise<Response> {
+  if (!isBattleAdmin(request)) return unauthorized();
+  const updated = await collectTransport(env.DB, env.DATA_GO_KR_SERVICE_KEY, env.TAGO_API_KEY);
+  return json({ ok: true, updated });
+}
+
+export async function runCollectWalk(request: Request, env: Env): Promise<Response> {
+  if (!isBattleAdmin(request)) return unauthorized();
+  const updated = await collectWalk(env.DB, env.DATA_GO_KR_SERVICE_KEY);
+  return json({ ok: true, updated });
+}
+
+export async function runCollectSafety(request: Request, env: Env): Promise<Response> {
+  if (!isBattleAdmin(request)) return unauthorized();
+  const updated = await collectSafety(env.DB, env.DATA_GO_KR_SERVICE_KEY, env.CCTV_API_KEY);
+  return json({ ok: true, updated });
 }
 
 export async function getAdminStats(request: Request, env: Env): Promise<Response> {

@@ -6,3 +6,6 @@ compatibility_date = "2025-03-01"
 binding = "DB"
 database_name = "whatinhere-db"
 database_id = "91d5aca5-84c5-46e3-9290-341952348b9b"
+
+[triggers]
+crons = ["0 3 * * *"]

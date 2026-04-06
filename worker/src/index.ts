@@ -1,7 +1,10 @@
 import { listProjects, getProject, searchProject } from "./api/projects";
 import { listDistricts, getDistrict, voteDistrict } from "./api/districts";
 import { listApts, getApt, createComment, likeComment, searchApts } from "./api/apartments";
-import { syncAll, syncOne, resetBattles, getAdminStats } from "./api/admin";
+import { syncAll, syncOne, resetBattles, getAdminStats, runCollectTransport, runCollectWalk, runCollectSafety } from "./api/admin";
+import { collectTransport } from "./cron/collectTransport";
+import { collectWalk } from "./cron/collectWalk";
+import { collectSafety } from "./cron/collectSafety";
 import { json, serverError } from "./api/http";
 import { kakaoLoginRedirect, kakaoCallback, getMe, logout } from "./api/auth";
 import { createBattle, getBattle, addBattleComment, likeBattleComment, addDispute, getRanking, getHot } from "./api/battles";
@@ -16,6 +19,16 @@ function withCors(response: Response): Response {
 }
 
 export default {
+  async scheduled(_event: ScheduledEvent, env: Env, ctx: ExecutionContext): Promise<void> {
+    ctx.waitUntil(
+      Promise.allSettled([
+        collectTransport(env.DB, env.DATA_GO_KR_SERVICE_KEY, env.TAGO_API_KEY),
+        collectWalk(env.DB, env.DATA_GO_KR_SERVICE_KEY),
+        collectSafety(env.DB, env.DATA_GO_KR_SERVICE_KEY, env.CCTV_API_KEY),
+      ])
+    );
+  },
+
   async fetch(request: Request, env: Env): Promise<Response> {
     if (request.method === "OPTIONS") {
       return withCors(new Response(null, { status: 204 }));
@@ -48,6 +61,15 @@ export default {
       }
       if (request.method === "GET" && path === "/api/admin/stats") {
         return withCors(await getAdminStats(request, env));
+      }
+      if (request.method === "POST" && path === "/api/admin/collect-transport") {
+        return withCors(await runCollectTransport(request, env));
+      }
+      if (request.method === "POST" && path === "/api/admin/collect-walk") {
+        return withCors(await runCollectWalk(request, env));
+      }
+      if (request.method === "POST" && path === "/api/admin/collect-safety") {
+        return withCors(await runCollectSafety(request, env));
       }
 
       // ── Districts ──────────────────────────────────────────────────────────

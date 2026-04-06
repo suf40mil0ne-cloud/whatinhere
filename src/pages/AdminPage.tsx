@@ -8,6 +8,13 @@ interface Stats {
   top5: { name: string; battle_count: number }[];
 }
 
+type CollectKey = "transport" | "walk" | "safety";
+const COLLECT_LABELS: Record<CollectKey, string> = {
+  transport: "교통",
+  walk: "산책",
+  safety: "안심",
+};
+
 function Toast({ message, onDone }: { message: string; onDone: () => void }) {
   useEffect(() => {
     const t = setTimeout(onDone, 2500);
@@ -27,6 +34,9 @@ export function AdminPage() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [resetLoading, setResetLoading] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+
+  const [collectLoading, setCollectLoading] = useState<CollectKey | null>(null);
+  const [collectResult, setCollectResult] = useState<Partial<Record<CollectKey, string>>>({});
 
   function login() {
     if (pw === ADMIN_PASSWORD) {
@@ -64,6 +74,24 @@ export function AdminPage() {
       setToast("초기화 실패");
     } finally {
       setResetLoading(false);
+    }
+  }
+
+  async function runCollect(key: CollectKey) {
+    setCollectLoading(key);
+    setCollectResult((prev) => ({ ...prev, [key]: undefined }));
+    try {
+      const res = await fetch(`/api/admin/collect-${key}`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${ADMIN_PASSWORD}` },
+      });
+      const data = await res.json() as { ok?: boolean; updated?: number; error?: string };
+      if (!res.ok) throw new Error(data.error ?? "실패");
+      setCollectResult((prev) => ({ ...prev, [key]: `완료 (${data.updated ?? 0}개 업데이트)` }));
+    } catch (e) {
+      setCollectResult((prev) => ({ ...prev, [key]: `오류: ${e instanceof Error ? e.message : "실패"}` }));
+    } finally {
+      setCollectLoading(null);
     }
   }
 
@@ -131,6 +159,28 @@ export function AdminPage() {
         ) : (
           <p className="admin-section__loading">통계를 불러올 수 없습니다</p>
         )}
+      </section>
+
+      {/* 데이터 수집 */}
+      <section className="admin-section">
+        <h2 className="admin-section__title">데이터 수집</h2>
+        <p className="admin-section__desc">매일 오전 3시 자동 수집됩니다. 수동으로 즉시 실행할 수 있습니다.</p>
+        <div className="admin-collect">
+          {(["transport", "walk", "safety"] as CollectKey[]).map((key) => (
+            <div key={key} className="admin-collect__item">
+              <button
+                className="btn btn--primary"
+                disabled={collectLoading !== null}
+                onClick={() => runCollect(key)}
+              >
+                {collectLoading === key ? "수집 중..." : `${COLLECT_LABELS[key]} 수집`}
+              </button>
+              {collectResult[key] && (
+                <span className="admin-collect__result">{collectResult[key]}</span>
+              )}
+            </div>
+          ))}
+        </div>
       </section>
 
       {/* 초기화 */}
