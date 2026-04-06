@@ -60,28 +60,32 @@ async function fetchBusStops(): Promise<BusStop[]> {
 
 async function fetchSubwayStations(): Promise<SubwayStation[]> {
   const stations: SubwayStation[] = [];
-  for (let pageNo = 1; pageNo <= 50; pageNo += 1) {
-    const url = paramsToUrl("https://apis.data.go.kr/1613000/SubwayInfo/getKwrdFndSubwaySttnList", {
-      serviceKey: SUBWAY_SERVICE_KEY,
-      pageNo,
-      numOfRows: 1000,
-    });
-    const xml = await fetch(url).then((response) => {
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      return response.text();
-    });
-    const items = xmlItems(xml);
-    if (!items.length) break;
-    for (const item of items) {
-      const lat = numeric(xmlTag(item, "sttnLa"));
-      const lng = numeric(xmlTag(item, "sttnLo"));
-      if (lat == null || lng == null) {
-        warn("02-fetch-transport: skipped subway station with missing coordinates");
-        continue;
+  try {
+    for (let pageNo = 1; pageNo <= 50; pageNo += 1) {
+      const url = paramsToUrl("https://apis.data.go.kr/1613000/SubwayInfo/getKwrdFndSubwaySttnList", {
+        serviceKey: SUBWAY_SERVICE_KEY,
+        pageNo,
+        numOfRows: 1000,
+      });
+      const xml = await fetch(url).then((response) => {
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return response.text();
+      });
+      const items = xmlItems(xml);
+      if (!items.length) break;
+      for (const item of items) {
+        const lat = numeric(xmlTag(item, "sttnLa"));
+        const lng = numeric(xmlTag(item, "sttnLo"));
+        if (lat == null || lng == null) {
+          warn("02-fetch-transport: skipped subway station with missing coordinates");
+          continue;
+        }
+        stations.push({ lat, lng, transfer: (xmlTag(item, "trnsfYn") ?? "N") === "Y" });
       }
-      stations.push({ lat, lng, transfer: (xmlTag(item, "trnsfYn") ?? "N") === "Y" });
+      if (items.length < 1000) break;
     }
-    if (items.length < 1000) break;
+  } catch (error) {
+    warn(`02-fetch-transport: subway API failed (${error instanceof Error ? error.message : String(error)}), using 0 stations`);
   }
   return stations;
 }

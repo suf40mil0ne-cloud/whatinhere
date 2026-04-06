@@ -1,12 +1,13 @@
+import fs from "node:fs/promises";
+import path from "node:path";
 import {
   buildInsertIgnoreSql,
   CAPITAL_SIDO_CODES,
   createEmptyDistrict,
-  fetchJson,
   geometryCenter,
   info,
   lastRegionToken,
-  paramsToUrl,
+  ROOT_DIR,
   saveState,
   warn,
   writeSqlFile,
@@ -23,22 +24,17 @@ interface VworldFeature {
   geometry?: unknown;
 }
 
-const VWORLD_API_KEY = process.env.VWORLD_API_KEY ?? "C196275E-2166-35AE-A234-DD55A7459140";
-
 async function main() {
-  const url = paramsToUrl("https://api.vworld.kr/req/data", {
-    service: "data",
-    request: "GetFeature",
-    data: "LT_C_ADEMD_INFO",
-    key: VWORLD_API_KEY,
-    domain: "localhost",
-    format: "json",
-    size: 5000,
-    attrFilter: "sig_cd:like:11 OR sig_cd:like:41 OR sig_cd:like:28",
-  });
-
-  const payload = await fetchJson(url) as { response?: { result?: { featureCollection?: { features?: VworldFeature[] } } } };
-  const features = payload?.response?.result?.featureCollection?.features ?? [];
+  // VWorld API unavailable — read bundled local GeoJSON files
+  const districtFiles = ["seoul-emd.json", "gyeonggi-emd.json", "incheon-emd.json"];
+  const features: VworldFeature[] = [];
+  for (const filename of districtFiles) {
+    const filePath = path.join(ROOT_DIR, "src", "data", "districts", filename);
+    const raw = await fs.readFile(filePath, "utf8");
+    const geojson = JSON.parse(raw) as { features?: VworldFeature[] };
+    features.push(...(geojson.features ?? []));
+  }
+  info(`00-fetch-districts: loaded ${features.length} features from local GeoJSON`);
   const districts = [];
 
   for (const feature of features) {

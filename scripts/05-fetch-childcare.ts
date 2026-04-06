@@ -60,70 +60,94 @@ async function fetchChildcareCenters(districts: DistrictState[]): Promise<Childc
     bySido.get(district.sido)!.add(district.sigungu);
   }
 
-  for (const [sidoNm, sigunguSet] of bySido.entries()) {
-    for (const sigunguNm of sigunguSet) {
-      for (let pageNo = 1; pageNo <= 30; pageNo += 1) {
-        const url = paramsToUrl("http://api.childcare.go.kr/mediate/rest/cpmsapi030/cpmsapi030/request", {
-          serviceKey: CHILDCARE_API_KEY,
-          sidoNm,
-          sigunguNm,
-          pageNo,
-          numOfRows: 1000,
-        });
-        const xml = await fetch(url).then((response) => {
-          if (!response.ok) throw new Error(`HTTP ${response.status}`);
-          return response.text();
-        });
-        const items = xmlItems(xml);
-        if (!items.length) break;
-        for (const item of items) {
-          if ((xmlTag(item, "crrcl") ?? "") !== "정상") continue;
-          const lat = numeric(xmlTag(item, "lat"));
-          const lng = numeric(xmlTag(item, "lon"));
-          if (lat == null || lng == null) {
-            warn("05-fetch-childcare: skipped childcare center with missing coordinates");
-            continue;
+  try {
+    for (const [sidoNm, sigunguSet] of bySido.entries()) {
+      for (const sigunguNm of sigunguSet) {
+        for (let pageNo = 1; pageNo <= 30; pageNo += 1) {
+          const url = paramsToUrl("http://api.childcare.go.kr/mediate/rest/cpmsapi030/cpmsapi030/request", {
+            serviceKey: CHILDCARE_API_KEY,
+            sidoNm,
+            sigunguNm,
+            pageNo,
+            numOfRows: 1000,
+          });
+          const xml = await fetch(url).then((response) => {
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            return response.text();
+          });
+          const items = xmlItems(xml);
+          if (!items.length) break;
+          for (const item of items) {
+            if ((xmlTag(item, "crrcl") ?? "") !== "정상") continue;
+            const lat = numeric(xmlTag(item, "lat"));
+            const lng = numeric(xmlTag(item, "lon"));
+            if (lat == null || lng == null) {
+              warn("05-fetch-childcare: skipped childcare center with missing coordinates");
+              continue;
+            }
+            const capa = numeric(xmlTag(item, "crpCapa")) ?? 0;
+            const current = numeric(xmlTag(item, "crpCrnt")) ?? 0;
+            rows.push({ lat, lng, spare: Math.max(capa - current, 0), vehicle: (xmlTag(item, "vhcl") ?? "N") === "Y", sigungu: sigunguNm });
           }
-          const capa = numeric(xmlTag(item, "crpCapa")) ?? 0;
-          const current = numeric(xmlTag(item, "crpCrnt")) ?? 0;
-          rows.push({ lat, lng, spare: Math.max(capa - current, 0), vehicle: (xmlTag(item, "vhcl") ?? "N") === "Y", sigungu: sigunguNm });
+          if (items.length < 1000) break;
         }
-        if (items.length < 1000) break;
       }
     }
+  } catch (error) {
+    warn(`05-fetch-childcare: childcare API failed (${error instanceof Error ? error.message : String(error)}), using ${rows.length} partial results`);
   }
   return rows;
 }
 
-async function fetchElementarySchools(): Promise<ElementarySchool[]> {
+async function fetchElementarySchools(districts: DistrictState[]): Promise<ElementarySchool[]> {
+  // NEIS schoolInfo does not include coordinate fields.
+  // Extract dong name from ORG_RDNDA (e.g. "(반포동)") and resolve to district center coords.
+  const dongLookup = new Map<string, { lat: number; lng: number; sido: string }>();
+  for (const d of districts) {
+    if (d.center_lat == null || d.center_lng == null) continue;
+    dongLookup.set(`${d.sigungu}:${d.dong}`, { lat: d.center_lat, lng: d.center_lng, sido: d.sido });
+  }
+
   const schools: ElementarySchool[] = [];
-  for (const sido of CAPITAL_SIDO_NAMES) {
-    for (let pIndex = 1; pIndex <= 20; pIndex += 1) {
-      const url = paramsToUrl("https://open.neis.go.kr/hub/schoolInfo", {
-        KEY: NEIS_API_KEY,
-        Type: "json",
-        SCHUL_KND_SC_NM: "초등학교",
-        LCTN_SC_NM: sido,
-        pIndex,
-        pSize: 1000,
-      });
-      const payload = await fetch(url).then((response) => {
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        return response.json();
-      });
-      const items = parseJsonItems(payload);
-      if (!items.length) break;
-      for (const item of items) {
-        const lat = numeric(item.LATIT_VALUE);
-        const lng = numeric(item.LONGI_VALUE);
-        if (lat == null || lng == null) {
+  try {
+    for (const sido of CAPITAL_SIDO_NAMES) {
+      for (let pIndex = 1; pIndex <= 20; pIndex += 1) {
+        const url = paramsToUrl("https://open.neis.go.kr/hub/schoolInfo", {
+          KEY: NEIS_API_KEY,
+          Type: "json",
+          SCHUL_KND_SC_NM: "초등학교",
+          LCTN_SC_NM: sido,
+          pIndex,
+          pSize: 1000,
+        });
+        const payload = await fetch(url, { signal: AbortSignal.timeout(10000) }).then((response) => {
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          return response.json();
+        });
+        const items: any[] = (payload as any)?.schoolInfo?.[1]?.row ?? [];
+        if (!items.length) break;
+        for (const item of items) {
+          // ORG_RDNDA contains dong name in parentheses: "(반포동)" or "(장위동/ ..."
+          const detail: string = item.ORG_RDNDA ?? "";
+          const dongMatch = detail.match(/[（(]([가-힣]+동)/);
+          const dong = dongMatch?.[1];
+          // ORG_RDNMA: "서울특별시 강남구 개포로82길 7" → parts[1] = sigungu
+          const rdnma: string = item.ORG_RDNMA ?? "";
+          const sigungu = rdnma.trim().split(/\s+/)[1];
+          if (dong && sigungu) {
+            const coord = dongLookup.get(`${sigungu}:${dong}`);
+            if (coord) {
+              schools.push({ lat: coord.lat, lng: coord.lng, sido: coord.sido });
+              continue;
+            }
+          }
           warn("05-fetch-childcare: skipped elementary school with missing coordinates");
-          continue;
         }
-        schools.push({ lat, lng, sido });
+        if (items.length < 1000) break;
       }
-      if (items.length < 1000) break;
     }
+  } catch (error) {
+    warn(`05-fetch-childcare: school API failed (${error instanceof Error ? error.message : String(error)}), using ${schools.length} partial results`);
   }
   return schools;
 }
@@ -137,33 +161,37 @@ async function fetchAcademies(): Promise<Academy[]> {
   const academies: Academy[] = [];
   const atptCodes = ["B10", "J10", "E10"];
 
-  for (const atptCode of atptCodes) {
-    for (let pageIndex = 1; pageIndex <= 200; pageIndex += 1) {
-      const url = paramsToUrl("https://open.neis.go.kr/hub/acaInsTiInfo", {
-        KEY: NEIS_ACADEMY_API_KEY,
-        Type: "json",
-        ATPT_OFCDC_SC_CODE: atptCode,
-        pIndex: pageIndex,
-        pSize: 1000,
-      });
-      const payload = await fetch(url).then((response) => {
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        return response.json();
-      });
-      const items = parseJsonItems(payload);
-      if (!items.length) break;
-      for (const item of items) {
-        const lat = numeric(item.LA);
-        const lng = numeric(item.LO);
-        if (lat == null || lng == null) {
-          warn("05-fetch-childcare: skipped academy with missing coordinates");
-          continue;
+  try {
+    for (const atptCode of atptCodes) {
+      for (let pageIndex = 1; pageIndex <= 200; pageIndex += 1) {
+        const url = paramsToUrl("https://open.neis.go.kr/hub/acaInsTiInfo", {
+          KEY: NEIS_ACADEMY_API_KEY,
+          Type: "json",
+          ATPT_OFCDC_SC_CODE: atptCode,
+          pIndex: pageIndex,
+          pSize: 1000,
+        });
+        const payload = await fetch(url, { signal: AbortSignal.timeout(10000) }).then((response) => {
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          return response.json();
+        });
+        const items: any[] = (payload as any)?.acaInsTiInfo?.[1]?.row ?? [];
+        if (!items.length) break;
+        for (const item of items) {
+          const lat = numeric(item.LA);
+          const lng = numeric(item.LO);
+          if (lat == null || lng == null) {
+            warn("05-fetch-childcare: skipped academy with missing coordinates");
+            continue;
+          }
+          const realm = text(item.REALM_SC_NM) ?? "기타";
+          academies.push({ lat, lng, realm });
         }
-        const realm = text(item.REALM_SC_NM) ?? "기타";
-        academies.push({ lat, lng, realm });
+        if (items.length < 1000) break;
       }
-      if (items.length < 1000) break;
     }
+  } catch (error) {
+    warn(`05-fetch-childcare: academy API failed (${error instanceof Error ? error.message : String(error)}), using ${academies.length} partial results`);
   }
   return academies;
 }
@@ -270,7 +298,7 @@ async function main() {
   if (!districts.length) throw new Error("Run 00-fetch-districts.ts first");
   const [centers, schools, academies] = await Promise.all([
     fetchChildcareCenters(districts),
-    fetchElementarySchools(),
+    fetchElementarySchools(districts),
     fetchAcademies(),
   ]);
   applyChildcareScores(districts, centers, schools, academies);

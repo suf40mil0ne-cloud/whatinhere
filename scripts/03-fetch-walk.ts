@@ -36,32 +36,36 @@ function inCapitalArea(address: string | null): boolean {
 
 async function fetchParks(): Promise<Park[]> {
   const parks: Park[] = [];
-  for (let pageNo = 1; pageNo <= 200; pageNo += 1) {
-    const url = paramsToUrl("https://api.data.go.kr/openapi/tn_pubr_public_cty_park_info_api", {
-      serviceKey: SERVICE_KEY,
-      pageNo,
-      numOfRows: 1000,
-      type: "json",
-    });
-    const payload = await fetch(url).then((response) => {
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      return response.json();
-    });
-    const items = parseJsonItems(payload);
-    if (!items.length) break;
-    for (const item of items) {
-      const lat = numeric(item.latitude);
-      const lng = numeric(item.longitude);
-      if (lat == null || lng == null) {
-        warn("03-fetch-walk: skipped park with missing coordinates");
-        continue;
+  try {
+    for (let pageNo = 1; pageNo <= 200; pageNo += 1) {
+      const url = paramsToUrl("https://api.data.go.kr/openapi/tn_pubr_public_cty_park_info_api", {
+        serviceKey: SERVICE_KEY,
+        pageNo,
+        numOfRows: 1000,
+        type: "json",
+      });
+      const payload = await fetch(url, { signal: AbortSignal.timeout(10000) }).then((response) => {
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return response.json();
+      });
+      const items = parseJsonItems(payload);
+      if (!items.length) break;
+      for (const item of items) {
+        const lat = numeric(item.latitude);
+        const lng = numeric(item.longitude);
+        if (lat == null || lng == null) {
+          warn("03-fetch-walk: skipped park with missing coordinates");
+          continue;
+        }
+        const address = text(item.rdnmadr) ?? text(item.lnmadr);
+        if (!inCapitalArea(address)) continue;
+        const facilityScore = ((numeric(item.amuseFcltysCo) ?? 0) > 0 ? 1 : 0) + ((numeric(item.exercFcltysCo) ?? 0) > 0 ? 1 : 0) + ((numeric(item.cnvnFcltysCo) ?? 0) > 0 ? 1 : 0);
+        parks.push({ lat, lng, area: numeric(item.parkAr) ?? 0, facilityScore, address });
       }
-      const address = text(item.rdnmadr) ?? text(item.lnmadr);
-      if (!inCapitalArea(address)) continue;
-      const facilityScore = ((numeric(item.amuseFcltysCo) ?? 0) > 0 ? 1 : 0) + ((numeric(item.exercFcltysCo) ?? 0) > 0 ? 1 : 0) + ((numeric(item.cnvnFcltysCo) ?? 0) > 0 ? 1 : 0);
-      parks.push({ lat, lng, area: numeric(item.parkAr) ?? 0, facilityScore, address });
+      if (items.length < 1000) break;
     }
-    if (items.length < 1000) break;
+  } catch (error) {
+    warn(`03-fetch-walk: park API failed (${error instanceof Error ? error.message : String(error)}), using 0 parks`);
   }
   return parks;
 }
