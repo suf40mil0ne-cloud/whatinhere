@@ -31,6 +31,7 @@ async function fetchSubwayStations(serviceKey: string): Promise<SubwayStation[]>
         return r.text();
       });
       const items = xmlItems(xml);
+      console.log(`[collectTransport] subway page=${pageNo} items=${items.length}`);
       if (!items.length) break;
       for (const item of items) {
         const lat = numeric(xmlTag(item, "sttnLa"));
@@ -40,9 +41,10 @@ async function fetchSubwayStations(serviceKey: string): Promise<SubwayStation[]>
       }
       if (items.length < 1000) break;
     }
-  } catch {
-    // degrade gracefully — subway metrics zeroed
+  } catch (e) {
+    console.warn(`[collectTransport] subway fetch failed: ${e instanceof Error ? e.message : String(e)}`);
   }
+  console.log(`[collectTransport] subway total=${stations.length}`);
   return stations;
 }
 
@@ -60,6 +62,7 @@ async function fetchBusStops(tagoKey: string): Promise<PointRecord[]> {
         return r.text();
       });
       const items = xmlItems(xml);
+      console.log(`[collectTransport] bus page=${pageNo} items=${items.length}`);
       if (!items.length) break;
       for (const item of items) {
         const lat = numeric(xmlTag(item, "gpslati"));
@@ -69,9 +72,10 @@ async function fetchBusStops(tagoKey: string): Promise<PointRecord[]> {
       }
       if (items.length < 1000) break;
     }
-  } catch {
-    // degrade gracefully — bus metrics zeroed
+  } catch (e) {
+    console.warn(`[collectTransport] bus fetch failed: ${e instanceof Error ? e.message : String(e)}`);
   }
+  console.log(`[collectTransport] bus total=${stops.length}`);
   return stops;
 }
 
@@ -85,6 +89,11 @@ export async function collectTransport(db: D1Database, serviceKey: string, tagoK
     fetchSubwayStations(serviceKey),
     tagoKey ? fetchBusStops(tagoKey) : Promise.resolve<PointRecord[]>([]),
   ]);
+
+  if (subways.length === 0 && buses.length === 0) {
+    console.warn("[collectTransport] no data from any API — skipping UPDATE");
+    return 0;
+  }
 
   // Map each subway station to the nearest district's sigungu
   const subwayBySigungu = new Map<string, SubwayStation[]>();
@@ -149,6 +158,7 @@ export async function collectTransport(db: D1Database, serviceKey: string, tagoK
     entries.push({ code: d.code, score, raw });
   }
 
+  console.log(`[collectTransport] updating ${entries.length} districts (subway=${subways.length}, bus=${buses.length})`);
   await batchD1Update(db, entries, "s_transport", "raw_transport");
   await refreshOverall(db);
   return entries.length;

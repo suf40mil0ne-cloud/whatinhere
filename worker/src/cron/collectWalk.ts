@@ -39,6 +39,7 @@ async function fetchParks(serviceKey: string): Promise<Park[]> {
         return r.json();
       });
       const items = parseJsonItems(payload);
+      console.log(`[collectWalk] park page=${pageNo} items=${items.length}`);
       if (!items.length) break;
       for (const item of items) {
         const lat = numeric(item.latitude);
@@ -54,9 +55,10 @@ async function fetchParks(serviceKey: string): Promise<Park[]> {
       }
       if (items.length < 1000) break;
     }
-  } catch {
-    // degrade gracefully — walk metrics zeroed
+  } catch (e) {
+    console.warn(`[collectWalk] park fetch failed: ${e instanceof Error ? e.message : String(e)}`);
   }
+  console.log(`[collectWalk] park total=${parks.length}`);
   return parks;
 }
 
@@ -67,6 +69,11 @@ export async function collectWalk(db: D1Database, serviceKey: string): Promise<n
   const districts = results;
 
   const parks = await fetchParks(serviceKey);
+
+  if (parks.length === 0) {
+    console.warn("[collectWalk] no park data from API — skipping UPDATE");
+    return 0;
+  }
 
   type RawW = {
     parkCount1km: number;
@@ -79,10 +86,10 @@ export async function collectWalk(db: D1Database, serviceKey: string): Promise<n
     if (d.center_lat == null || d.center_lng == null) continue;
     const p = { lat: d.center_lat, lng: d.center_lng };
     rawMap.set(d, {
-      parkCount1km: parks.length ? countWithin(p, parks, 1000) : 0,
-      parkArea1km: parks.length ? sumWithin(p, parks, 1000, (pk) => (pk as Park).area) : 0,
-      parkDistanceM: parks.length ? nearestDistance(p, parks) : null,
-      parkFacilityCount: parks.length ? countWithin(p, parks.filter((pk) => (pk as Park).facilityScore > 0), 1000) : 0,
+      parkCount1km: countWithin(p, parks, 1000),
+      parkArea1km: sumWithin(p, parks, 1000, (pk) => (pk as Park).area),
+      parkDistanceM: nearestDistance(p, parks),
+      parkFacilityCount: countWithin(p, parks.filter((pk) => (pk as Park).facilityScore > 0), 1000),
     });
   }
 
@@ -111,6 +118,7 @@ export async function collectWalk(db: D1Database, serviceKey: string): Promise<n
     entries.push({ code: d.code, score, raw: rawMap.get(d) ?? null });
   }
 
+  console.log(`[collectWalk] updating ${entries.length} districts (parks=${parks.length})`);
   await batchD1Update(db, entries, "s_walk", "raw_walk");
   await refreshOverall(db);
   return entries.length;

@@ -34,6 +34,7 @@ async function fetchCctv(cctvKey: string): Promise<CctvPoint[]> {
         return r.text();
       });
       const items = xmlItems(xml);
+      console.log(`[collectSafety] cctv page=${pageNo} items=${items.length}`);
       if (!items.length) break;
       for (const item of items) {
         if ((xmlTag(item, "instlPurpose") ?? "") !== "범죄예방") continue;
@@ -44,9 +45,10 @@ async function fetchCctv(cctvKey: string): Promise<CctvPoint[]> {
       }
       if (items.length < 1000) break;
     }
-  } catch {
-    // degrade gracefully
+  } catch (e) {
+    console.warn(`[collectSafety] cctv fetch failed: ${e instanceof Error ? e.message : String(e)}`);
   }
+  console.log(`[collectSafety] cctv total=${rows.length}`);
   return rows;
 }
 
@@ -65,6 +67,7 @@ async function fetchChildZones(serviceKey: string): Promise<PointRecord[]> {
         return r.json();
       });
       const items = parseJsonItems(payload);
+      console.log(`[collectSafety] childZone page=${pageNo} items=${items.length}`);
       if (!items.length) break;
       for (const item of items) {
         const lat = numeric(item.la);
@@ -76,9 +79,10 @@ async function fetchChildZones(serviceKey: string): Promise<PointRecord[]> {
       }
       if (items.length < 1000) break;
     }
-  } catch {
-    // degrade gracefully
+  } catch (e) {
+    console.warn(`[collectSafety] childZone fetch failed: ${e instanceof Error ? e.message : String(e)}`);
   }
+  console.log(`[collectSafety] childZone total=${rows.length}`);
   return rows;
 }
 
@@ -92,6 +96,11 @@ export async function collectSafety(db: D1Database, serviceKey: string, cctvKey?
     cctvKey ? fetchCctv(cctvKey) : Promise.resolve<CctvPoint[]>([]),
     fetchChildZones(serviceKey),
   ]);
+
+  if (cctvs.length === 0 && childZones.length === 0) {
+    console.warn("[collectSafety] no data from any API — skipping UPDATE");
+    return 0;
+  }
 
   type RawS = {
     cctvCount500m: number;
@@ -107,7 +116,7 @@ export async function collectSafety(db: D1Database, serviceKey: string, cctvKey?
       cctvCount500m: cctvs.length ? countWithin(p, cctvs, 500, (c) => (c as CctvPoint).cameras) : 0,
       cctvDistanceM: cctvs.length ? nearestDistance(p, cctvs) : null,
       childZoneCount1km: childZones.length ? countWithin(p, childZones, 1000) : 0,
-      safetyIndexScore: 0, // safety index API disabled
+      safetyIndexScore: 0,
     });
   }
 
@@ -135,6 +144,7 @@ export async function collectSafety(db: D1Database, serviceKey: string, cctvKey?
     entries.push({ code: d.code, score, raw: rawMap.get(d) ?? null });
   }
 
+  console.log(`[collectSafety] updating ${entries.length} districts (cctv=${cctvs.length}, childZones=${childZones.length})`);
   await batchD1Update(db, entries, "s_safety", "raw_safety");
   await refreshOverall(db);
   return entries.length;
