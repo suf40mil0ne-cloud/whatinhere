@@ -6,13 +6,24 @@ import { BattleResultPage } from "./pages/BattleResultPage";
 import { RankingPage } from "./pages/RankingPage";
 import { HotPage } from "./pages/HotPage";
 import { AuthCallbackPage } from "./pages/AuthCallbackPage";
+import { AdminPage } from "./pages/AdminPage";
 
 export function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* 홈 - 지도 페이지는 레이아웃 없이 */}
-        <Route path="/" element={<HomePage />} />
+        {/* 메인 - 대결 페이지 */}
+        <Route
+          path="/"
+          element={
+            <SiteLayout>
+              <BattlePage />
+            </SiteLayout>
+          }
+        />
+
+        {/* 지도 */}
+        <Route path="/map" element={<HomePage />} />
 
         {/* 카카오 OAuth 콜백 */}
         <Route path="/auth/kakao/callback" element={<AuthCallbackPage />} />
@@ -50,6 +61,9 @@ export function App() {
             </SiteLayout>
           }
         />
+
+        {/* 관리자 (숨김) */}
+        <Route path="/admin" element={<AdminPage />} />
       </Routes>
     </BrowserRouter>
   );

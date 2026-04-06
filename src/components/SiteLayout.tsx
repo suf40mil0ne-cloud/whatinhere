@@ -29,11 +29,11 @@ export function SiteLayout({ children }: { children: React.ReactNode }) {
           </Link>
 
           <nav className="top-nav" aria-label="상단 탐색">
-            <Link to="/" className={`top-nav__link ${location.pathname === "/" ? "top-nav__link--active" : ""}`}>
-              지도
-            </Link>
-            <Link to="/battle" className={`top-nav__link ${isActive("/battle") ? "top-nav__link--active" : ""}`}>
+            <Link to="/" className={`top-nav__link ${location.pathname === "/" || isActive("/battle") ? "top-nav__link--active" : ""}`}>
               대결 ⚔️
+            </Link>
+            <Link to="/map" className={`top-nav__link ${isActive("/map") ? "top-nav__link--active" : ""}`}>
+              지도
             </Link>
             <Link to="/ranking" className={`top-nav__link ${isActive("/ranking") ? "top-nav__link--active" : ""}`}>
               랭킹

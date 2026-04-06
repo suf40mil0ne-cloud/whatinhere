@@ -1,7 +1,7 @@
 import { listProjects, getProject, searchProject } from "./api/projects";
 import { listDistricts, getDistrict, voteDistrict } from "./api/districts";
 import { listApts, getApt, createComment, likeComment, searchApts } from "./api/apartments";
-import { syncAll, syncOne } from "./api/admin";
+import { syncAll, syncOne, resetBattles, getAdminStats } from "./api/admin";
 import { json, serverError } from "./api/http";
 import { kakaoLoginRedirect, kakaoCallback, getMe, logout } from "./api/auth";
 import { createBattle, getBattle, addBattleComment, likeBattleComment, addDispute, getRanking, getHot } from "./api/battles";
@@ -42,6 +42,12 @@ export default {
       }
       if (request.method === "POST" && path === "/api/admin/sync/all") {
         return withCors(await syncAll(request, env));
+      }
+      if (request.method === "POST" && path === "/api/admin/reset-battles") {
+        return withCors(await resetBattles(request, env));
+      }
+      if (request.method === "GET" && path === "/api/admin/stats") {
+        return withCors(await getAdminStats(request, env));
       }
 
       // ── Districts ──────────────────────────────────────────────────────────
