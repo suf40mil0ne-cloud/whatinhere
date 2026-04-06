@@ -822,6 +822,29 @@ button {
   backdrop-filter: blur(16px);
 }
 
+.district-topbar-nav {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+  justify-content: center;
+}
+
+.district-topbar-nav__link {
+  padding: 5px 10px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #5a3e2b;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background 0.15s;
+}
+
+.district-topbar-nav__link:hover {
+  background: rgba(90, 62, 43, 0.1);
+}
+
 .district-topbar-kicker,
 .district-panel-kicker {
   margin: 0 0 4px;
