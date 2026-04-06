@@ -3,6 +3,7 @@ import { Link, useLocation } from "react-router-dom";
 import { fetchMe, logout, startKakaoLogin } from "../lib/auth";
 import type { AuthUser } from "../lib/auth";
 
+// 단지戰: 대결⚔️ · 랭킹 · HOT🔥 네비게이션 포함
 export function SiteLayout({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const [user, setUser] = useState<AuthUser | null>(null);
