@@ -1,3 +1,4 @@
+import { readAptScores } from "../lib/apt-scores";
 import { Repository } from "../db/repository";
 import type { ApiAptRecord, AptComplexRow, Env } from "../types";
 import { badRequest, json } from "./http";
@@ -32,13 +33,7 @@ function toApiRecord(row: AptRowWithRaw): ApiAptRecord {
     builtYear: row.built_year,
     totalUnits: row.total_units,
     avgPricePerM2: row.avg_price_per_m2,
-    scores: {
-      transport: row.s_transport ?? 0,
-      walk: row.s_walk ?? 0,
-      value: row.s_value ?? 0,
-      childcare: row.s_childcare ?? 0,
-      safety: row.s_safety ?? 0,
-    },
+    scores: readAptScores(row),
     rawTransport: parseJsonSafe(row.raw_transport),
     rawWalk: parseJsonSafe(row.raw_walk),
     rawValue: parseJsonSafe(row.raw_value),

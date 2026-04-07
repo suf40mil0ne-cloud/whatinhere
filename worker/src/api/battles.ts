@@ -1,4 +1,5 @@
 import { Repository } from "../db/repository";
+import { readAptScores } from "../lib/apt-scores";
 import type { BattleScores, Env } from "../types";
 import { badRequest, json, serverError } from "./http";
 import { requireAuth } from "./auth";
@@ -30,20 +31,8 @@ export async function createBattle(request: Request, env: Env): Promise<Response
   const [aptA, aptB] = await Promise.all([repo.getAptById2(apt_a_id), repo.getAptById2(apt_b_id)]);
   if (!aptA || !aptB) return json({ error: "One or both apartments not found" }, 404);
 
-  const scoreA: BattleScores = {
-    transport: aptA.s_transport ?? 0,
-    walk: aptA.s_walk ?? 0,
-    value: aptA.s_value ?? 0,
-    childcare: aptA.s_childcare ?? 0,
-    safety: aptA.s_safety ?? 0,
-  };
-  const scoreB: BattleScores = {
-    transport: aptB.s_transport ?? 0,
-    walk: aptB.s_walk ?? 0,
-    value: aptB.s_value ?? 0,
-    childcare: aptB.s_childcare ?? 0,
-    safety: aptB.s_safety ?? 0,
-  };
+  const scoreA: BattleScores = readAptScores(aptA);
+  const scoreB: BattleScores = readAptScores(aptB);
   const winner = determineBattleWinner(scoreA, scoreB);
 
   const id = crypto.randomUUID();
@@ -69,11 +58,25 @@ export async function getBattle(request: Request, env: Env, id: string): Promise
   const battle = await repo.getBattle(id, currentUserId);
   if (!battle) return json({ error: "Not found" }, 404);
 
-  let scoreA: BattleScores, scoreB: BattleScores;
-  try {
-    scoreA = JSON.parse(battle.score_a) as BattleScores;
-    scoreB = JSON.parse(battle.score_b) as BattleScores;
-  } catch { return serverError("Invalid battle data"); }
+  const [aptA, aptB] = await Promise.all([
+    repo.getAptById2(battle.apt_a_id),
+    repo.getAptById2(battle.apt_b_id),
+  ]);
+
+  let scoreA: BattleScores;
+  let scoreB: BattleScores;
+  let winner = battle.winner;
+
+  if (aptA && aptB) {
+    scoreA = readAptScores(aptA);
+    scoreB = readAptScores(aptB);
+    winner = determineBattleWinner(scoreA, scoreB);
+  } else {
+    try {
+      scoreA = JSON.parse(battle.score_a) as BattleScores;
+      scoreB = JSON.parse(battle.score_b) as BattleScores;
+    } catch { return serverError("Invalid battle data"); }
+  }
 
   return json({
     id: battle.id,
@@ -81,7 +84,7 @@ export async function getBattle(request: Request, env: Env, id: string): Promise
     aptBId: battle.apt_b_id,
     aptAName: battle.apt_a_name,
     aptBName: battle.apt_b_name,
-    winner: battle.winner,
+    winner,
     scoreA, scoreB,
     viewCount: battle.view_count,
     createdAt: battle.created_at,

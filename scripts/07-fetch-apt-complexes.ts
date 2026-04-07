@@ -25,6 +25,8 @@ interface AptComplex {
   builtYear: number | null;
   totalUnits: number | null;
   avgPricePerM2: number | null;
+  // Legacy cache columns kept for backward compatibility. Read paths should
+  // resolve fresh scores from district_scores via district_code first.
   sTransport: number;
   sWalk: number;
   sValue: number;
@@ -159,7 +161,8 @@ async function main() {
     }
   }
 
-  // Build SQL
+  // Build SQL. The copied s_* values are retained only as a fallback cache for
+  // rows whose district_code no longer resolves; API reads should join district_scores.
   const lines = ["BEGIN TRANSACTION;"];
   for (const apt of allApts) {
     lines.push(

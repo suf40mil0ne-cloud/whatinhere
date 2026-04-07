@@ -19,6 +19,33 @@ export interface DistrictQuery {
   limit?: number;
 }
 
+const APT_RESOLVED_COLUMNS = `
+  a.id,
+  a.name,
+  a.address,
+  a.lat,
+  a.lng,
+  a.district_code,
+  a.built_year,
+  a.total_units,
+  a.avg_price_per_m2,
+  COALESCE(d.s_transport, a.s_transport) AS s_transport,
+  COALESCE(d.s_walk, a.s_walk) AS s_walk,
+  COALESCE(d.s_value, a.s_value) AS s_value,
+  COALESCE(d.s_childcare, a.s_childcare) AS s_childcare,
+  COALESCE(d.s_safety, a.s_safety) AS s_safety,
+  a.updated_at
+`;
+
+const APT_RESOLVED_COLUMNS_WITH_RAW = `
+  ${APT_RESOLVED_COLUMNS},
+  d.raw_transport,
+  d.raw_walk,
+  d.raw_value,
+  d.raw_childcare,
+  d.raw_safety
+`;
+
 export class Repository {
   constructor(private readonly db: D1Database) {}
 
@@ -314,8 +341,7 @@ export class Repository {
   async listApts(query: DistrictQuery): Promise<AptComplexRow[]> {
     const rows = await this.db
       .prepare(
-        `SELECT a.*,
-                d.raw_transport, d.raw_walk, d.raw_value, d.raw_childcare, d.raw_safety
+        `SELECT ${APT_RESOLVED_COLUMNS_WITH_RAW}
          FROM apt_complexes a
          LEFT JOIN district_scores d ON d.code = a.district_code
          WHERE a.lat IS NOT NULL
@@ -346,8 +372,7 @@ export class Repository {
   async getAptById(id: string): Promise<(AptComplexRow & { raw_transport: string | null; raw_walk: string | null; raw_value: string | null; raw_childcare: string | null; raw_safety: string | null; comments: AptCommentRow[] }) | null> {
     const row = await this.db
       .prepare(
-        `SELECT a.*,
-                d.raw_transport, d.raw_walk, d.raw_value, d.raw_childcare, d.raw_safety
+        `SELECT ${APT_RESOLVED_COLUMNS_WITH_RAW}
          FROM apt_complexes a
          LEFT JOIN district_scores d ON d.code = a.district_code
          WHERE a.id = ?`
@@ -521,7 +546,15 @@ export class Repository {
   }
 
   async getAptById2(id: string): Promise<AptComplexRow | null> {
-    return this.db.prepare(`SELECT * FROM apt_complexes WHERE id = ?`).bind(id).first<AptComplexRow>() as Promise<AptComplexRow | null>;
+    return this.db
+      .prepare(
+        `SELECT ${APT_RESOLVED_COLUMNS}
+         FROM apt_complexes a
+         LEFT JOIN district_scores d ON d.code = a.district_code
+         WHERE a.id = ?`
+      )
+      .bind(id)
+      .first<AptComplexRow>() as Promise<AptComplexRow | null>;
   }
 
   async searchAptSidos(): Promise<string[]> {
@@ -554,7 +587,7 @@ export class Repository {
   async searchAptsByDong(sido: string, sigungu: string, dong: string, name?: string): Promise<AptComplexRow[]> {
     if (name) {
       const rows = await this.db.prepare(
-        `SELECT a.* FROM apt_complexes a
+        `SELECT ${APT_RESOLVED_COLUMNS} FROM apt_complexes a
          JOIN district_scores d ON d.code = a.district_code
          WHERE d.sido = ? AND d.sigungu = ? AND d.dong = ? AND a.name LIKE ?
          ORDER BY a.name LIMIT 50`
@@ -562,7 +595,7 @@ export class Repository {
       return rows.results;
     }
     const rows = await this.db.prepare(
-      `SELECT a.* FROM apt_complexes a
+      `SELECT ${APT_RESOLVED_COLUMNS} FROM apt_complexes a
        JOIN district_scores d ON d.code = a.district_code
        WHERE d.sido = ? AND d.sigungu = ? AND d.dong = ?
        ORDER BY a.name LIMIT 100`
