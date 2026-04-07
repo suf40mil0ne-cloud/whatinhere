@@ -94,6 +94,42 @@ export async function runCollectTransport(request: Request, env: Env): Promise<R
   return json({ ok: true, updated });
 }
 
+export async function runTestWalk(request: Request, env: Env): Promise<Response> {
+  if (!isBattleAdmin(request)) return unauthorized();
+
+  const url = new URL("https://api.data.go.kr/openapi/tn_pubr_public_cty_park_info_api");
+  url.searchParams.set("serviceKey", env.DATA_GO_KR_SERVICE_KEY);
+  url.searchParams.set("pageNo", "1");
+  url.searchParams.set("numOfRows", "10");
+  url.searchParams.set("type", "json");
+
+  let status: number;
+  let bodyPreview: unknown;
+  let itemCount: number | null = null;
+  let totalCount: unknown = null;
+
+  try {
+    const res = await fetch(url.toString(), { signal: AbortSignal.timeout(15000) });
+    status = res.status;
+    const raw = await res.text();
+    console.log(`[test-walk] park API status=${status} body_preview=${raw.slice(0, 300)}`);
+    try {
+      const data = JSON.parse(raw) as Record<string, unknown>;
+      const body = (data?.response as Record<string, unknown>)?.body as Record<string, unknown> | undefined;
+      totalCount = body?.totalCount ?? null;
+      const items = (body?.items as Record<string, unknown>)?.item;
+      itemCount = Array.isArray(items) ? items.length : null;
+      bodyPreview = { totalCount, itemCount, firstItem: Array.isArray(items) ? items[0] : null };
+    } catch {
+      bodyPreview = raw.slice(0, 500);
+    }
+  } catch (e) {
+    return json({ ok: false, error: e instanceof Error ? e.message : String(e) });
+  }
+
+  return json({ ok: true, status, totalCount, itemCount, bodyPreview });
+}
+
 export async function runCollectWalk(request: Request, env: Env): Promise<Response> {
   if (!isBattleAdmin(request)) return unauthorized();
   const updated = await collectWalk(env.DB, env.DATA_GO_KR_SERVICE_KEY);
