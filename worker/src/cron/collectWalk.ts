@@ -28,7 +28,7 @@ async function fetchParks(serviceKey: string): Promise<Park[]> {
   const parks: Park[] = [];
   try {
     for (let pageNo = 1; pageNo <= 200; pageNo++) {
-      const url = paramsToUrl("https://apis.data.go.kr/B554158/publicParkService/getParkList", {
+      const url = paramsToUrl("http://api.data.go.kr/openapi/tn_pubr_public_cty_park_info_api", {
         serviceKey,
         pageNo,
         numOfRows: 1000,

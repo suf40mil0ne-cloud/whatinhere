@@ -12,8 +12,6 @@ import {
   refreshOverall,
   round,
   text,
-  xmlItems,
-  xmlTag,
 } from "./utils";
 
 interface CctvPoint extends PointRecord {
@@ -23,25 +21,27 @@ interface CctvPoint extends PointRecord {
 async function fetchCctv(cctvKey: string): Promise<CctvPoint[]> {
   const rows: CctvPoint[] = [];
   try {
-    for (let pageNo = 1; pageNo <= 100; pageNo++) {
-      const url = paramsToUrl("https://apis.data.go.kr/1741000/cctv_info", {
+    for (let pageIndex = 1; pageIndex <= 100; pageIndex++) {
+      const url = paramsToUrl("https://www.safetydata.go.kr/V2/api/DSSP-IF-20011", {
         serviceKey: cctvKey,
-        pageNo,
-        numOfRows: 1000,
+        pageIndex,
+        pageSize: 1000,
       });
-      const xml = await fetch(url).then((r) => {
+      const payload = await fetch(url, { signal: AbortSignal.timeout(15000) }).then((r) => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        return r.text();
+        return r.json();
       });
-      const items = xmlItems(xml);
-      console.log(`[collectSafety] cctv page=${pageNo} items=${items.length}`);
+      const items = parseJsonItems(payload);
+      console.log(`[collectSafety] cctv page=${pageIndex} items=${items.length}`);
       if (!items.length) break;
       for (const item of items) {
-        if ((xmlTag(item, "instlPurpose") ?? "") !== "범죄예방") continue;
-        const lat = numeric(xmlTag(item, "latitude"));
-        const lng = numeric(xmlTag(item, "longitude"));
+        const cameraType = text(item.cameraType) ?? "";
+        const instlPurpose = text(item.instlPurpose) ?? "";
+        if (cameraType !== "방범용" && instlPurpose !== "범죄예방") continue;
+        const lat = numeric(item.latitude);
+        const lng = numeric(item.longitude);
         if (lat == null || lng == null) continue;
-        rows.push({ lat, lng, cameras: numeric(xmlTag(item, "cameraCo")) ?? 1 });
+        rows.push({ lat, lng, cameras: numeric(item.cameraCount) ?? 1 });
       }
       if (items.length < 1000) break;
     }
@@ -86,15 +86,53 @@ async function fetchChildZones(serviceKey: string): Promise<PointRecord[]> {
   return rows;
 }
 
-export async function collectSafety(db: D1Database, serviceKey: string, cctvKey?: string): Promise<number> {
+// Grade mapping: 1(최우수)=100, 2=80, 3=60, 4=40, 5(최하)=20
+const GRADE_SCORE: Record<number, number> = { 1: 100, 2: 80, 3: 60, 4: 40, 5: 20 };
+
+async function fetchSafetyIndex(safetyIndexKey: string): Promise<Map<string, number>> {
+  const result = new Map<string, number>();
+  try {
+    const url = paramsToUrl("https://www.safetydata.go.kr/V2/api/DSSP-IF-00421", {
+      serviceKey: safetyIndexKey,
+    });
+    const payload = await fetch(url, { signal: AbortSignal.timeout(15000) }).then((r) => {
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      return r.json();
+    });
+    const items = parseJsonItems(payload);
+    console.log(`[collectSafety] safetyIndex items=${items.length}`);
+    for (const item of items) {
+      const sggNm =
+        text(item.sggNm) ?? text(item.sigunguNm) ?? text(item.locgovNm) ?? text(item.areaNm);
+      const gradeRaw =
+        numeric(item.safetyGrade) ?? numeric(item.grade) ?? numeric(item.indexGrade) ?? numeric(item.crimeGrade);
+      if (!sggNm || gradeRaw == null) continue;
+      const score = GRADE_SCORE[Math.round(gradeRaw)] ?? 0;
+      // Keep best (lowest grade = highest score) if duplicate sigungu
+      if (!result.has(sggNm) || score > (result.get(sggNm) ?? 0)) result.set(sggNm, score);
+    }
+  } catch (e) {
+    console.warn(`[collectSafety] safetyIndex fetch failed: ${e instanceof Error ? e.message : String(e)}`);
+  }
+  console.log(`[collectSafety] safetyIndex mapped=${result.size} districts`);
+  return result;
+}
+
+export async function collectSafety(
+  db: D1Database,
+  serviceKey: string,
+  cctvKey?: string,
+  safetyIndexKey?: string
+): Promise<number> {
   const { results } = await db
     .prepare("SELECT code, sido, sigungu, dong, center_lat, center_lng, households FROM district_scores")
     .all<DistrictRow>();
   const districts = results;
 
-  const [cctvs, childZones] = await Promise.all([
+  const [cctvs, childZones, safetyIndex] = await Promise.all([
     cctvKey ? fetchCctv(cctvKey) : Promise.resolve<CctvPoint[]>([]),
     fetchChildZones(serviceKey),
+    safetyIndexKey ? fetchSafetyIndex(safetyIndexKey) : Promise.resolve(new Map<string, number>()),
   ]);
 
   if (cctvs.length === 0 && childZones.length === 0) {
@@ -116,7 +154,7 @@ export async function collectSafety(db: D1Database, serviceKey: string, cctvKey?
       cctvCount500m: cctvs.length ? countWithin(p, cctvs, 500, (c) => (c as CctvPoint).cameras) : 0,
       cctvDistanceM: cctvs.length ? nearestDistance(p, cctvs) : null,
       childZoneCount1km: childZones.length ? countWithin(p, childZones, 1000) : 0,
-      safetyIndexScore: 0,
+      safetyIndexScore: safetyIndex.get(d.sigungu) ?? 0,
     });
   }
 
@@ -125,26 +163,38 @@ export async function collectSafety(db: D1Database, serviceKey: string, cctvKey?
   const childZoneNorm = normalizeWithinSgg(districts, (d) => d.sigungu, (d) => rawMap.get(d)?.childZoneCount1km ?? null, false);
 
   const hasCctv = cctvs.length > 0;
+  const hasSafetyIndex = safetyIndex.size > 0;
+
   const entries: Array<{ code: string; score: number; raw: unknown }> = [];
   for (const d of districts) {
+    const raw = rawMap.get(d);
+    const si = (raw?.safetyIndexScore ?? 0); // already 0-100
+
     let score: number;
-    if (!hasCctv) {
+    if (hasCctv && hasSafetyIndex) {
       score = round(
-        (childZoneNorm.get(d) ?? 0) * 0.50 + (cctvDistanceNorm.get(d) ?? 0) * 0.50,
+        (cctvCountNorm.get(d) ?? 0) * 0.35 +
+          (cctvDistanceNorm.get(d) ?? 0) * 0.20 +
+          (childZoneNorm.get(d) ?? 0) * 0.20 +
+          si * 0.25,
         2
       );
-    } else {
+    } else if (hasCctv) {
       score = round(
         (cctvCountNorm.get(d) ?? 0) * 0.47 +
           (cctvDistanceNorm.get(d) ?? 0) * 0.27 +
           (childZoneNorm.get(d) ?? 0) * 0.26,
         2
       );
+    } else if (hasSafetyIndex) {
+      score = round((childZoneNorm.get(d) ?? 0) * 0.30 + si * 0.70, 2);
+    } else {
+      score = round((childZoneNorm.get(d) ?? 0), 2);
     }
-    entries.push({ code: d.code, score, raw: rawMap.get(d) ?? null });
+    entries.push({ code: d.code, score, raw: raw ?? null });
   }
 
-  console.log(`[collectSafety] updating ${entries.length} districts (cctv=${cctvs.length}, childZones=${childZones.length})`);
+  console.log(`[collectSafety] updating ${entries.length} districts (cctv=${cctvs.length}, childZones=${childZones.length}, safetyIndex=${safetyIndex.size})`);
   await batchD1Update(db, entries, "s_safety", "raw_safety");
   await refreshOverall(db);
   return entries.length;

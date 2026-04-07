@@ -97,7 +97,7 @@ export async function runCollectTransport(request: Request, env: Env): Promise<R
 export async function runTestWalk(request: Request, env: Env): Promise<Response> {
   if (!isBattleAdmin(request)) return unauthorized();
 
-  const url = new URL("https://apis.data.go.kr/B554158/publicParkService/getParkList");
+  const url = new URL("http://api.data.go.kr/openapi/tn_pubr_public_cty_park_info_api");
   url.searchParams.set("serviceKey", env.DATA_GO_KR_SERVICE_KEY);
   url.searchParams.set("pageNo", "1");
   url.searchParams.set("numOfRows", "10");
@@ -136,9 +136,73 @@ export async function runCollectWalk(request: Request, env: Env): Promise<Respon
   return json({ ok: true, updated });
 }
 
+export async function runTestSafety(request: Request, env: Env): Promise<Response> {
+  if (!isBattleAdmin(request)) return unauthorized();
+
+  // Test CCTV API
+  let cctvStatus: string;
+  let cctvItemCount: number | null = null;
+  try {
+    const url = new URL("https://www.safetydata.go.kr/V2/api/DSSP-IF-20011");
+    url.searchParams.set("serviceKey", env.CCTV_API_KEY ?? "");
+    url.searchParams.set("pageIndex", "1");
+    url.searchParams.set("pageSize", "10");
+    const res = await fetch(url.toString(), { signal: AbortSignal.timeout(15000) });
+    const raw = await res.text();
+    cctvStatus = `${res.status}`;
+    console.log(`[test-safety] cctv status=${res.status} body_preview=${raw.slice(0, 300)}`);
+    try {
+      const data = JSON.parse(raw) as Record<string, unknown>;
+      const items = extractItems(data);
+      cctvItemCount = items.length;
+    } catch { cctvItemCount = null; }
+  } catch (e) {
+    cctvStatus = `exception: ${e instanceof Error ? e.message : String(e)}`;
+  }
+
+  // Test child zone API
+  let childStatus: string;
+  let childItemCount: number | null = null;
+  try {
+    const url = new URL("http://api.data.go.kr/openapi/tn_pubr_public_child_prtc_zn_api");
+    url.searchParams.set("serviceKey", env.DATA_GO_KR_SERVICE_KEY);
+    url.searchParams.set("pageNo", "1");
+    url.searchParams.set("numOfRows", "10");
+    url.searchParams.set("type", "json");
+    const res = await fetch(url.toString(), { signal: AbortSignal.timeout(15000) });
+    const raw = await res.text();
+    childStatus = `${res.status}`;
+    console.log(`[test-safety] child zone status=${res.status} body_preview=${raw.slice(0, 300)}`);
+    try {
+      const data = JSON.parse(raw) as Record<string, unknown>;
+      const items = extractItems(data);
+      childItemCount = items.length;
+    } catch { childItemCount = null; }
+  } catch (e) {
+    childStatus = `exception: ${e instanceof Error ? e.message : String(e)}`;
+  }
+
+  return json({
+    ok: true,
+    cctv: { status: cctvStatus, itemCount: cctvItemCount, keySet: !!env.CCTV_API_KEY },
+    childZone: { status: childStatus, itemCount: childItemCount },
+  });
+}
+
+function extractItems(data: Record<string, unknown>): unknown[] {
+  const response = (data?.response ?? data) as Record<string, unknown>;
+  const body = (response?.body ?? response) as Record<string, unknown>;
+  const items = body?.items ?? response?.items ?? data?.items ?? data?.data;
+  if (Array.isArray(items)) return items;
+  if (Array.isArray((items as Record<string, unknown>)?.item)) return (items as Record<string, unknown[]>).item as unknown[];
+  if (Array.isArray(body?.item)) return body.item as unknown[];
+  if (Array.isArray(data?.list)) return data.list as unknown[];
+  return [];
+}
+
 export async function runCollectSafety(request: Request, env: Env): Promise<Response> {
   if (!isBattleAdmin(request)) return unauthorized();
-  const updated = await collectSafety(env.DB, env.DATA_GO_KR_SERVICE_KEY, env.CCTV_API_KEY);
+  const updated = await collectSafety(env.DB, env.DATA_GO_KR_SERVICE_KEY, env.CCTV_API_KEY, env.SAFETY_INDEX_API_KEY);
   return json({ ok: true, updated });
 }
 

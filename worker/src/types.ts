@@ -8,6 +8,7 @@ export interface Env {
   JWT_SECRET?: string;
   TAGO_API_KEY?: string;
   CCTV_API_KEY?: string;
+  SAFETY_INDEX_API_KEY?: string;
 }
 
 // kept for project pipeline compatibility
