@@ -7,42 +7,92 @@ import {
   normalizeWithinSgg,
   numeric,
   paramsToUrl,
+  parseJsonItems,
   refreshOverall,
   round,
-  xmlItems,
-  xmlTag,
 } from "./utils";
 
 interface SubwayStation extends PointRecord {
   transfer: boolean;
 }
 
-async function fetchSubwayStations(serviceKey: string): Promise<SubwayStation[]> {
-  const stations: SubwayStation[] = [];
+async function geocodeStation(name: string, kakaoKey: string): Promise<{ lat: number; lng: number } | null> {
+  try {
+    const url = paramsToUrl("https://dapi.kakao.com/v2/local/search/keyword.json", {
+      query: `${name} 역`,
+      category_group_code: "SW8",
+    });
+    const res = await fetch(url, { headers: { Authorization: `KakaoAK ${kakaoKey}` } });
+    if (!res.ok) return null;
+    const data = await res.json() as { documents?: Array<{ x: string; y: string }> };
+    const doc = data.documents?.[0];
+    if (!doc) return null;
+    const lat = numeric(doc.y);
+    const lng = numeric(doc.x);
+    if (lat == null || lng == null) return null;
+    return { lat, lng };
+  } catch {
+    return null;
+  }
+}
+
+async function fetchSubwayStations(serviceKey: string, kakaoKey: string): Promise<SubwayStation[]> {
+  // Step 1: collect all raw items from the JSON API
+  type RawItem = { subwayStationId?: string; subwayStationName?: string; subwayRouteName?: string };
+  const rawItems: RawItem[] = [];
   try {
     for (let pageNo = 1; pageNo <= 50; pageNo++) {
-      const url = paramsToUrl("https://apis.data.go.kr/1613000/SubwayInfo/getKwrdFndSubwaySttnList", {
+      const url = paramsToUrl("https://apis.data.go.kr/1613000/SubwayInfo/GetKwrdFndSubwaySttnList", {
         serviceKey,
         pageNo,
         numOfRows: 1000,
+        type: "json",
       });
-      const xml = await fetch(url).then((r) => {
+      const data = await fetch(url).then((r) => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        return r.text();
+        return r.json();
       });
-      const items = xmlItems(xml);
+      const items = parseJsonItems(data) as RawItem[];
       console.log(`[collectTransport] subway page=${pageNo} items=${items.length}`);
       if (!items.length) break;
-      for (const item of items) {
-        const lat = numeric(xmlTag(item, "sttnLa"));
-        const lng = numeric(xmlTag(item, "sttnLo"));
-        if (lat == null || lng == null) continue;
-        stations.push({ lat, lng, transfer: (xmlTag(item, "trnsfYn") ?? "N") === "Y" });
-      }
+      rawItems.push(...items);
       if (items.length < 1000) break;
     }
   } catch (e) {
     console.warn(`[collectTransport] subway fetch failed: ${e instanceof Error ? e.message : String(e)}`);
+  }
+  console.log(`[collectTransport] subway raw items=${rawItems.length}`);
+
+  // Step 2: determine transfer stations (same name, multiple routes)
+  const nameToRoutes = new Map<string, Set<string>>();
+  for (const item of rawItems) {
+    const name = item.subwayStationName?.trim();
+    if (!name) continue;
+    if (!nameToRoutes.has(name)) nameToRoutes.set(name, new Set());
+    if (item.subwayRouteName) nameToRoutes.get(name)!.add(item.subwayRouteName);
+  }
+
+  // Step 3: geocode each unique station name via Kakao keyword search
+  const uniqueNames = [...nameToRoutes.keys()];
+  console.log(`[collectTransport] unique station names=${uniqueNames.length}, geocoding with Kakao...`);
+
+  const coordCache = new Map<string, { lat: number; lng: number } | null>();
+  for (let i = 0; i < uniqueNames.length; i++) {
+    const name = uniqueNames[i];
+    const coord = await geocodeStation(name, kakaoKey);
+    coordCache.set(name, coord);
+    if (i < uniqueNames.length - 1) await new Promise((r) => setTimeout(r, 100));
+  }
+
+  const geocoded = [...coordCache.values()].filter((c) => c != null).length;
+  console.log(`[collectTransport] geocoded=${geocoded}/${uniqueNames.length} stations`);
+
+  // Step 4: build station list (one entry per unique name with coordinates)
+  const stations: SubwayStation[] = [];
+  for (const [name, routes] of nameToRoutes) {
+    const coord = coordCache.get(name);
+    if (!coord) continue;
+    stations.push({ lat: coord.lat, lng: coord.lng, transfer: routes.size > 1 });
   }
   console.log(`[collectTransport] subway total=${stations.length}`);
   return stations;
@@ -79,14 +129,14 @@ async function fetchBusStops(tagoKey: string): Promise<PointRecord[]> {
   return stops;
 }
 
-export async function collectTransport(db: D1Database, serviceKey: string, tagoKey?: string): Promise<number> {
+export async function collectTransport(db: D1Database, serviceKey: string, tagoKey?: string, kakaoKey?: string): Promise<number> {
   const { results } = await db
     .prepare("SELECT code, sido, sigungu, dong, center_lat, center_lng, households FROM district_scores")
     .all<DistrictRow>();
   const districts = results;
 
   const [subways, buses] = await Promise.all([
-    fetchSubwayStations(serviceKey),
+    kakaoKey ? fetchSubwayStations(serviceKey, kakaoKey) : Promise.resolve<SubwayStation[]>([]),
     tagoKey ? fetchBusStops(tagoKey) : Promise.resolve<PointRecord[]>([]),
   ]);
 

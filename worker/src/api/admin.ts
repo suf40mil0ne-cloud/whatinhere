@@ -41,7 +41,9 @@ export async function resetBattles(request: Request, env: Env): Promise<Response
 
 export async function runCollectTransport(request: Request, env: Env): Promise<Response> {
   if (!isBattleAdmin(request)) return unauthorized();
-  const updated = await collectTransport(env.DB, env.DATA_GO_KR_SERVICE_KEY, env.TAGO_API_KEY);
+  console.log(`[admin] collect-transport start, kakaoKey=${env.KAKAO_REST_API_KEY ? "set" : "missing"}`);
+  const updated = await collectTransport(env.DB, env.DATA_GO_KR_SERVICE_KEY, env.TAGO_API_KEY, env.KAKAO_REST_API_KEY);
+  console.log(`[admin] collect-transport done, updated=${updated} districts`);
   return json({ ok: true, updated });
 }
 
