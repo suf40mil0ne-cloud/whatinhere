@@ -107,6 +107,9 @@ async function main() {
   const districts = await loadState();
   if (!districts.length) throw new Error("Run 00-fetch-districts.ts first");
   const parks = await fetchParks();
+  if (!parks.length) {
+    throw new Error("03-fetch-walk: park API returned no usable rows; refusing to overwrite existing scores");
+  }
   applyWalkScores(districts, parks);
   updateOverallScores(districts);
   await saveState(districts);

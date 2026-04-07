@@ -2,6 +2,7 @@ import {
   buildUpdateSql,
   DEFAULT_SERVICE_KEY,
   DistrictState,
+  fetchJsonWithRetry,
   fetchTextWithRetry,
   info,
   loadState,
@@ -14,6 +15,8 @@ import {
   updateOverallScores,
   warn,
   writeSqlFile,
+  parseJsonItems,
+  text,
   xmlItems,
   xmlTag,
   countWithin,
@@ -24,7 +27,41 @@ interface BusStop extends PointRecord {}
 interface SubwayStation extends PointRecord { transfer: boolean; }
 
 const TAGO_API_KEY = process.env.TAGO_API_KEY;
+const KAKAO_REST_API_KEY = process.env.KAKAO_REST_API_KEY;
 const SUBWAY_SERVICE_KEY = process.env.DATA_GO_KR_SERVICE_KEY ?? DEFAULT_SERVICE_KEY;
+
+function isAuthFailure(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return /^HTTP (401|403)\b/.test(message);
+}
+
+async function geocodeStation(name: string): Promise<{ lat: number; lng: number } | null> {
+  if (!KAKAO_REST_API_KEY) return null;
+  try {
+    const url = paramsToUrl("https://dapi.kakao.com/v2/local/search/keyword.json", {
+      query: `${name} 역`,
+      category_group_code: "SW8",
+    });
+    const payload = await fetchJsonWithRetry<{ documents?: Array<{ x?: string; y?: string }> }>(url, {
+      headers: {
+        Authorization: `KakaoAK ${KAKAO_REST_API_KEY}`,
+        KA: "sdk/1.0 os/node lang/ko origin/https://whatsinhere.pages.dev",
+      },
+      timeoutMs: 10000,
+    });
+    const doc = payload.documents?.[0];
+    const lat = numeric(doc?.y);
+    const lng = numeric(doc?.x);
+    if (lat == null || lng == null) return null;
+    return { lat, lng };
+  } catch (error) {
+    if (isAuthFailure(error)) {
+      throw new Error(`02-fetch-transport: KAKAO_REST_API_KEY rejected by Kakao local API (${error instanceof Error ? error.message : String(error)})`);
+    }
+    warn(`02-fetch-transport: Kakao geocode failed for ${name} (${error instanceof Error ? error.message : String(error)})`);
+    return null;
+  }
+}
 
 async function fetchBusStops(): Promise<BusStop[]> {
   if (!TAGO_API_KEY) {
@@ -54,7 +91,7 @@ async function fetchBusStops(): Promise<BusStop[]> {
 }
 
 async function fetchSubwayStations(): Promise<SubwayStation[]> {
-  const stations: SubwayStation[] = [];
+  const rawItems: Array<{ name: string; route: string | null }> = [];
   try {
     for (let pageNo = 1; pageNo <= 50; pageNo += 1) {
       const url = paramsToUrl("https://apis.data.go.kr/1613000/SubwayInfo/GetKwrdFndSubwaySttnList", {
@@ -62,19 +99,54 @@ async function fetchSubwayStations(): Promise<SubwayStation[]> {
         pageNo,
         numOfRows: 1000,
       });
-      const xml = await fetchTextWithRetry(url);
-      const items = xmlItems(xml);
+      const raw = await fetchTextWithRetry(url);
+      const trimmed = raw.trimStart();
+      if (trimmed.startsWith("{")) {
+        const payload = JSON.parse(raw) as unknown;
+        const items = parseJsonItems(payload);
+        if (!items.length) break;
+        for (const item of items) {
+          const name = text(item.subwayStationName) ?? text(item.subwaySttnNm) ?? text(item.sttnNm);
+          const route = text(item.subwayRouteName) ?? text(item.subwayRouteNm) ?? text(item.routeNm);
+          if (!name) continue;
+          rawItems.push({ name, route });
+        }
+        if (items.length < 1000) break;
+        continue;
+      }
+
+      const items = xmlItems(raw);
       if (!items.length) break;
       for (const item of items) {
-        const lat = numeric(xmlTag(item, "sttnLa"));
-        const lng = numeric(xmlTag(item, "sttnLo"));
-        if (lat == null || lng == null) continue;
-        stations.push({ lat, lng, transfer: (xmlTag(item, "trnsfYn") ?? "N") === "Y" });
+        const name = xmlTag(item, "subwayStationName") ?? xmlTag(item, "subwaySttnNm") ?? xmlTag(item, "sttnNm");
+        const route = xmlTag(item, "subwayRouteName") ?? xmlTag(item, "subwayRouteNm") ?? xmlTag(item, "routeNm");
+        if (!name) continue;
+        rawItems.push({ name, route });
       }
       if (items.length < 1000) break;
     }
   } catch (error) {
     warn(`02-fetch-transport: subway API failed (${error instanceof Error ? error.message : String(error)}), using 0 stations`);
+    return [];
+  }
+
+  if (!rawItems.length) return [];
+  if (!KAKAO_REST_API_KEY) {
+    warn("02-fetch-transport: KAKAO_REST_API_KEY missing, subway metrics will be zeroed");
+    return [];
+  }
+
+  const routeByName = new Map<string, Set<string>>();
+  for (const item of rawItems) {
+    if (!routeByName.has(item.name)) routeByName.set(item.name, new Set());
+    if (item.route) routeByName.get(item.name)?.add(item.route);
+  }
+
+  const stations: SubwayStation[] = [];
+  for (const [name, routes] of routeByName.entries()) {
+    const coord = await geocodeStation(name);
+    if (!coord) continue;
+    stations.push({ ...coord, transfer: routes.size > 1 });
   }
   return stations;
 }
@@ -144,6 +216,9 @@ async function main() {
   if (!districts.length) throw new Error("Run 00-fetch-districts.ts first");
 
   const [buses, subways] = await Promise.all([fetchBusStops(), fetchSubwayStations()]);
+  if (!buses.length && !subways.length) {
+    throw new Error("02-fetch-transport: no transport source data fetched; refusing to overwrite existing scores");
+  }
   assignMetrics(districts, buses, subways);
   updateOverallScores(districts);
 

@@ -36,15 +36,16 @@ jobs:
       - name: Validate configured environment names
         env:
           DATA_GO_KR_SERVICE_KEY: ${{ secrets.DATA_GO_KR_SERVICE_KEY }}
-          TAGO_API_KEY: ${{ secrets.DATA_GO_KR_SERVICE_KEY }}
+          TAGO_API_KEY: ${{ secrets.TAGO_API_KEY || secrets.DATA_GO_KR_SERVICE_KEY }}
           NEIS_API_KEY: ${{ secrets.NEIS_API_KEY }}
           NEIS_ACADEMY_API_KEY: ${{ secrets.NEIS_ACADEMY_API_KEY }}
           KAKAO_REST_API_KEY: ${{ secrets.KAKAO_REST_API_KEY }}
           CHILDCARE_API_KEY: ${{ secrets.CHILDCARE_API_KEY }}
           CCTV_API_KEY: ${{ secrets.CCTV_API_KEY }}
+          SAFETY_INDEX_API_KEY: ${{ secrets.SAFETY_INDEX_API_KEY }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: |
-          for name in DATA_GO_KR_SERVICE_KEY TAGO_API_KEY NEIS_API_KEY NEIS_ACADEMY_API_KEY KAKAO_REST_API_KEY CHILDCARE_API_KEY CCTV_API_KEY CLOUDFLARE_API_TOKEN; do
+          for name in DATA_GO_KR_SERVICE_KEY TAGO_API_KEY NEIS_API_KEY NEIS_ACADEMY_API_KEY KAKAO_REST_API_KEY CHILDCARE_API_KEY CCTV_API_KEY SAFETY_INDEX_API_KEY CLOUDFLARE_API_TOKEN; do
             if [ -n "${!name}" ]; then
               echo "env:$name=present"
             else
@@ -58,12 +59,13 @@ jobs:
       - name: Run collect pipeline
         env:
           DATA_GO_KR_SERVICE_KEY: ${{ secrets.DATA_GO_KR_SERVICE_KEY }}
-          TAGO_API_KEY: ${{ secrets.DATA_GO_KR_SERVICE_KEY }}
+          TAGO_API_KEY: ${{ secrets.TAGO_API_KEY || secrets.DATA_GO_KR_SERVICE_KEY }}
           NEIS_API_KEY: ${{ secrets.NEIS_API_KEY }}
           NEIS_ACADEMY_API_KEY: ${{ secrets.NEIS_ACADEMY_API_KEY }}
           KAKAO_REST_API_KEY: ${{ secrets.KAKAO_REST_API_KEY }}
           CHILDCARE_API_KEY: ${{ secrets.CHILDCARE_API_KEY }}
           CCTV_API_KEY: ${{ secrets.CCTV_API_KEY }}
+          SAFETY_INDEX_API_KEY: ${{ secrets.SAFETY_INDEX_API_KEY }}
         run: npm run collect
 
       - name: Verify generated artifacts

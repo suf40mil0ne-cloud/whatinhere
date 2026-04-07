@@ -25,7 +25,10 @@ interface CctvPoint { lat: number; lng: number; cameras: number; }
 interface ChildZonePoint { lat: number; lng: number; }
 
 const CCTV_API_KEY = process.env.CCTV_API_KEY;
+const SAFETY_INDEX_API_KEY = process.env.SAFETY_INDEX_API_KEY;
 const SERVICE_KEY = process.env.DATA_GO_KR_SERVICE_KEY ?? DEFAULT_SERVICE_KEY;
+
+const GRADE_SCORE: Record<number, number> = { 1: 100, 2: 80, 3: 60, 4: 40, 5: 20 };
 
 function isAuthFailure(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error);
@@ -108,9 +111,30 @@ async function fetchChildZones(): Promise<ChildZonePoint[]> {
   return rows;
 }
 
-function fetchSafetyIndex(): Map<string, number> {
-  warn("06-fetch-safety: safety index disabled, skipping");
-  return new Map<string, number>();
+async function fetchSafetyIndex(): Promise<Map<string, number>> {
+  if (!SAFETY_INDEX_API_KEY) {
+    warn("06-fetch-safety: SAFETY_INDEX_API_KEY missing, safety index will be zeroed");
+    return new Map<string, number>();
+  }
+
+  const result = new Map<string, number>();
+  try {
+    const url = paramsToUrl("https://www.safetydata.go.kr/V2/api/DSSP-IF-00421", {
+      serviceKey: SAFETY_INDEX_API_KEY,
+    });
+    const payload = await fetchJsonWithRetry(url, { timeoutMs: 15000 });
+    const items = parseJsonItems(payload);
+    for (const item of items) {
+      const sggNm = text(item.sggNm) ?? text(item.sigunguNm) ?? text(item.locgovNm) ?? text(item.areaNm);
+      const gradeRaw = numeric(item.safetyGrade) ?? numeric(item.grade) ?? numeric(item.indexGrade) ?? numeric(item.crimeGrade);
+      if (!sggNm || gradeRaw == null) continue;
+      const score = GRADE_SCORE[Math.round(gradeRaw)] ?? 0;
+      if (!result.has(sggNm) || score > (result.get(sggNm) ?? 0)) result.set(sggNm, score);
+    }
+  } catch (error) {
+    warn(`06-fetch-safety: safety index API failed (${error instanceof Error ? error.message : String(error)}), using 0 safety index rows`);
+  }
+  return result;
 }
 
 function applySafetyScores(districts: DistrictState[], cctvs: CctvPoint[], childZones: ChildZonePoint[], safetyIndex: Map<string, number>) {
@@ -128,34 +152,50 @@ function applySafetyScores(districts: DistrictState[], cctvs: CctvPoint[], child
   const cctvDistanceNorm = normalizeWithinSgg(districts, (row) => row.sigungu, (row) => row.raw_safety?.cctvDistanceM ?? null, true);
   const childZoneNorm = normalizeWithinSgg(districts, (row) => row.sigungu, (row) => row.raw_safety?.childZoneCount1km ?? null, false);
 
+  const hasCctv = cctvs.length > 0;
+  const hasSafetyIndex = safetyIndex.size > 0;
+
   for (const district of districts) {
-    if (!CCTV_API_KEY) {
+    const safetyIndexScore = safetyIndex.get(district.sigungu) ?? 0;
+    if (hasCctv && hasSafetyIndex) {
       district.s_safety = round(
-        (childZoneNorm.get(district) ?? 0) * 0.50 +
-          (cctvDistanceNorm.get(district) ?? 0) * 0.50,
+        (cctvCountNorm.get(district) ?? 0) * 0.35 +
+          (cctvDistanceNorm.get(district) ?? 0) * 0.20 +
+          (childZoneNorm.get(district) ?? 0) * 0.20 +
+          safetyIndexScore * 0.25,
         2
       );
-    } else {
+      continue;
+    }
+    if (hasCctv) {
       district.s_safety = round(
         (cctvCountNorm.get(district) ?? 0) * 0.47 +
           (cctvDistanceNorm.get(district) ?? 0) * 0.27 +
           (childZoneNorm.get(district) ?? 0) * 0.26,
         2
       );
+      continue;
     }
+    if (hasSafetyIndex) {
+      district.s_safety = round((childZoneNorm.get(district) ?? 0) * 0.30 + safetyIndexScore * 0.70, 2);
+      continue;
+    }
+    district.s_safety = round(childZoneNorm.get(district) ?? 0, 2);
   }
 }
 
 async function main() {
   const districts = await loadState();
   if (!districts.length) throw new Error("Run 00-fetch-districts.ts first");
-  const safetyIndex = fetchSafetyIndex();
-  const [cctvs, childZones] = await Promise.all([fetchCctv(), fetchChildZones()]);
+  const [safetyIndex, cctvs, childZones] = await Promise.all([fetchSafetyIndex(), fetchCctv(), fetchChildZones()]);
+  if (!cctvs.length && !childZones.length && safetyIndex.size === 0) {
+    throw new Error("06-fetch-safety: no safety source data fetched; refusing to overwrite existing scores");
+  }
   applySafetyScores(districts, cctvs, childZones, safetyIndex);
   updateOverallScores(districts);
   await saveState(districts);
   await writeSqlFile("06-safety.sql", buildUpdateSql(districts, ["s_safety", "raw_safety"]));
-  info(`06-fetch-safety: cctv=${cctvs.length}, childZones=${childZones.length}, safetyIndex=0 (disabled)`);
+  info(`06-fetch-safety: cctv=${cctvs.length}, childZones=${childZones.length}, safetyIndex=${safetyIndex.size}`);
 }
 
 main().catch((error) => {
