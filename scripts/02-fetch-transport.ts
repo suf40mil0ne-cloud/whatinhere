@@ -2,6 +2,7 @@ import {
   buildUpdateSql,
   DEFAULT_SERVICE_KEY,
   DistrictState,
+  fetchTextWithRetry,
   info,
   loadState,
   nearestDistance,
@@ -38,19 +39,13 @@ async function fetchBusStops(): Promise<BusStop[]> {
       pageNo,
       numOfRows: 1000,
     });
-    const xml = await fetch(url).then((response) => {
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      return response.text();
-    });
+    const xml = await fetchTextWithRetry(url);
     const items = xmlItems(xml);
     if (!items.length) break;
     for (const item of items) {
       const lat = numeric(xmlTag(item, "gpslati"));
       const lng = numeric(xmlTag(item, "gpslong"));
-      if (lat == null || lng == null) {
-        warn("02-fetch-transport: skipped bus stop with missing coordinates");
-        continue;
-      }
+      if (lat == null || lng == null) continue;
       stops.push({ lat, lng, name: xmlTag(item, "nodenm") ?? xmlTag(item, "nodeNm") });
     }
     if (items.length < 1000) break;
@@ -62,24 +57,18 @@ async function fetchSubwayStations(): Promise<SubwayStation[]> {
   const stations: SubwayStation[] = [];
   try {
     for (let pageNo = 1; pageNo <= 50; pageNo += 1) {
-      const url = paramsToUrl("https://apis.data.go.kr/1613000/SubwayInfo/getKwrdFndSubwaySttnList", {
+      const url = paramsToUrl("https://apis.data.go.kr/1613000/SubwayInfo/GetKwrdFndSubwaySttnList", {
         serviceKey: SUBWAY_SERVICE_KEY,
         pageNo,
         numOfRows: 1000,
       });
-      const xml = await fetch(url).then((response) => {
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        return response.text();
-      });
+      const xml = await fetchTextWithRetry(url);
       const items = xmlItems(xml);
       if (!items.length) break;
       for (const item of items) {
         const lat = numeric(xmlTag(item, "sttnLa"));
         const lng = numeric(xmlTag(item, "sttnLo"));
-        if (lat == null || lng == null) {
-          warn("02-fetch-transport: skipped subway station with missing coordinates");
-          continue;
-        }
+        if (lat == null || lng == null) continue;
         stations.push({ lat, lng, transfer: (xmlTag(item, "trnsfYn") ?? "N") === "Y" });
       }
       if (items.length < 1000) break;
@@ -91,7 +80,6 @@ async function fetchSubwayStations(): Promise<SubwayStation[]> {
 }
 
 function assignMetrics(districts: DistrictState[], buses: BusStop[], subways: SubwayStation[]) {
-  // Build a per-sigungu subway map by assigning each station to the nearest district's sigungu
   const subwayBySigungu = new Map<string, SubwayStation[]>();
   for (const district of districts) {
     if (!subwayBySigungu.has(district.sigungu)) subwayBySigungu.set(district.sigungu, []);
@@ -110,7 +98,6 @@ function assignMetrics(districts: DistrictState[], buses: BusStop[], subways: Su
     if (nearest) subwayBySigungu.get(nearest.sigungu)?.push(station);
   }
 
-  // Compute raw metrics for each district
   for (const district of districts) {
     if (district.center_lat == null || district.center_lng == null) continue;
     const point = { lat: district.center_lat, lng: district.center_lng };
@@ -135,7 +122,6 @@ function assignMetrics(districts: DistrictState[], buses: BusStop[], subways: Su
     const hasBus = Boolean(TAGO_API_KEY);
     const hasSubwayInSigungu = (subwayBySigungu.get(district.sigungu)?.length ?? 0) > 0;
     if (!hasBus) {
-      warn("02-fetch-transport: no TAGO key — using subway-only weights");
       district.s_transport = round((subwayDistanceNorm.get(district) ?? 0) * 0.75 + (transferNorm.get(district) ?? 0) * 0.25, 2);
       continue;
     }

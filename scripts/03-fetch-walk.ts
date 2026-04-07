@@ -1,7 +1,10 @@
 import {
   buildUpdateSql,
+  CAPITAL_SIDO_NAMES,
   DEFAULT_SERVICE_KEY,
   DistrictState,
+  fetchJsonWithRetry,
+  flushWarningSummary,
   info,
   loadState,
   nearestDistance,
@@ -17,7 +20,6 @@ import {
   countWithin,
   round,
   text,
-  CAPITAL_SIDO_NAMES,
 } from "./district-score-lib";
 
 interface Park {
@@ -36,6 +38,7 @@ function inCapitalArea(address: string | null): boolean {
 
 async function fetchParks(): Promise<Park[]> {
   const parks: Park[] = [];
+  let skippedMissingCoords = 0;
   try {
     for (let pageNo = 1; pageNo <= 200; pageNo += 1) {
       const url = paramsToUrl("https://api.data.go.kr/openapi/tn_pubr_public_cty_park_info_api", {
@@ -44,17 +47,14 @@ async function fetchParks(): Promise<Park[]> {
         numOfRows: 1000,
         type: "json",
       });
-      const payload = await fetch(url, { signal: AbortSignal.timeout(10000) }).then((response) => {
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        return response.json();
-      });
+      const payload = await fetchJsonWithRetry(url, { timeoutMs: 10000 });
       const items = parseJsonItems(payload);
       if (!items.length) break;
       for (const item of items) {
         const lat = numeric(item.latitude);
         const lng = numeric(item.longitude);
         if (lat == null || lng == null) {
-          warn("03-fetch-walk: skipped park with missing coordinates");
+          skippedMissingCoords += 1;
           continue;
         }
         const address = text(item.rdnmadr) ?? text(item.lnmadr);
@@ -67,6 +67,7 @@ async function fetchParks(): Promise<Park[]> {
   } catch (error) {
     warn(`03-fetch-walk: park API failed (${error instanceof Error ? error.message : String(error)}), using 0 parks`);
   }
+  flushWarningSummary("03-fetch-walk", "parks with missing coordinates", skippedMissingCoords);
   return parks;
 }
 

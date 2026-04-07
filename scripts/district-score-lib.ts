@@ -142,6 +142,10 @@ export function info(message: string): void {
   console.log(`[info] ${message}`);
 }
 
+export function flushWarningSummary(prefix: string, label: string, count: number): void {
+  if (count > 0) warn(`${prefix}: skipped ${count} ${label}`);
+}
+
 export function quote(value: string | null | undefined): string {
   if (value == null) return "NULL";
   return `'${String(value).replace(/'/g, "''")}'`;
@@ -305,16 +309,75 @@ export function paramsToUrl(baseUrl: string, params: Record<string, string | num
   return url.toString();
 }
 
+const RETRYABLE_STATUS_CODES = new Set([408, 425, 429, 500, 502, 503, 504]);
+const SENSITIVE_QUERY_KEYS = new Set(["serviceKey", "KEY", "apiKey", "key", "token"]);
+
+interface FetchRetryOptions {
+  headers?: HeadersInit;
+  parseAs?: "json" | "text";
+  retries?: number;
+  timeoutMs?: number;
+}
+
+function redactUrlForLogs(rawUrl: string): string {
+  const url = new URL(rawUrl);
+  for (const key of SENSITIVE_QUERY_KEYS) {
+    if (url.searchParams.has(key)) url.searchParams.set(key, "***");
+  }
+  return url.toString();
+}
+
+function previewBody(body: string): string {
+  return body.replace(/\s+/g, " ").trim().slice(0, 180);
+}
+
+async function fetchWithRetry(url: string, options: FetchRetryOptions = {}): Promise<unknown> {
+  const { headers, parseAs = "text", retries = 2, timeoutMs = 10000 } = options;
+  const safeUrl = redactUrlForLogs(url);
+  for (let attempt = 0; attempt <= retries; attempt += 1) {
+    try {
+      const response = await fetch(url, { headers, signal: AbortSignal.timeout(timeoutMs) });
+      const body = await response.text();
+      if (!response.ok) {
+        const message = `HTTP ${response.status} for ${safeUrl}${body ? ` body=${previewBody(body)}` : ""}`;
+        if (attempt < retries && RETRYABLE_STATUS_CODES.has(response.status)) {
+          await new Promise((resolve) => setTimeout(resolve, 400 * (attempt + 1)));
+          continue;
+        }
+        throw new Error(message);
+      }
+      if (parseAs === "json") {
+        try {
+          return body ? JSON.parse(body) : null;
+        } catch (error) {
+          throw new Error(`Invalid JSON for ${safeUrl}: ${error instanceof Error ? error.message : String(error)} body=${previewBody(body)}`);
+        }
+      }
+      return body;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      const retryable = attempt < retries && !/^HTTP (401|403|404)\b/.test(message);
+      if (!retryable) throw error;
+      await new Promise((resolve) => setTimeout(resolve, 400 * (attempt + 1)));
+    }
+  }
+  throw new Error(`Request failed for ${safeUrl}`);
+}
+
+export async function fetchTextWithRetry(url: string, options?: Omit<FetchRetryOptions, "parseAs">): Promise<string> {
+  return fetchWithRetry(url, { ...options, parseAs: "text" }) as Promise<string>;
+}
+
+export async function fetchJsonWithRetry<T = unknown>(url: string, options?: Omit<FetchRetryOptions, "parseAs">): Promise<T> {
+  return fetchWithRetry(url, { ...options, parseAs: "json" }) as Promise<T>;
+}
+
 export async function fetchText(url: string): Promise<string> {
-  const response = await fetch(url);
-  if (!response.ok) throw new Error(`HTTP ${response.status} for ${url}`);
-  return response.text();
+  return fetchTextWithRetry(url);
 }
 
 export async function fetchJson(url: string): Promise<unknown> {
-  const response = await fetch(url);
-  if (!response.ok) throw new Error(`HTTP ${response.status} for ${url}`);
-  return response.json();
+  return fetchJsonWithRetry(url);
 }
 
 export function xmlItems(xml: string): string[] {

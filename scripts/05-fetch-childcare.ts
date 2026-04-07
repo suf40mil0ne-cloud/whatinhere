@@ -3,13 +3,15 @@ import {
   CAPITAL_SIDO_NAMES,
   DEFAULT_SERVICE_KEY,
   DistrictState,
+  fetchJsonWithRetry,
+  fetchTextWithRetry,
+  flushWarningSummary,
   info,
   loadState,
   nearestDistance,
   normalizeWithinSgg,
   numeric,
   paramsToUrl,
-  parseJsonItems,
   saveState,
   toMeters,
   updateOverallScores,
@@ -54,6 +56,7 @@ async function fetchChildcareCenters(districts: DistrictState[]): Promise<Childc
   }
 
   const rows: ChildcareCenter[] = [];
+  let skippedMissingCoords = 0;
   const bySido = new Map<string, Set<string>>();
   for (const district of districts) {
     if (!bySido.has(district.sido)) bySido.set(district.sido, new Set());
@@ -71,10 +74,7 @@ async function fetchChildcareCenters(districts: DistrictState[]): Promise<Childc
             pageNo,
             numOfRows: 1000,
           });
-          const xml = await fetch(url).then((response) => {
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-            return response.text();
-          });
+          const xml = await fetchTextWithRetry(url);
           const items = xmlItems(xml);
           if (!items.length) break;
           for (const item of items) {
@@ -82,7 +82,7 @@ async function fetchChildcareCenters(districts: DistrictState[]): Promise<Childc
             const lat = numeric(xmlTag(item, "lat"));
             const lng = numeric(xmlTag(item, "lon"));
             if (lat == null || lng == null) {
-              warn("05-fetch-childcare: skipped childcare center with missing coordinates");
+              skippedMissingCoords += 1;
               continue;
             }
             const capa = numeric(xmlTag(item, "crpCapa")) ?? 0;
@@ -96,12 +96,11 @@ async function fetchChildcareCenters(districts: DistrictState[]): Promise<Childc
   } catch (error) {
     warn(`05-fetch-childcare: childcare API failed (${error instanceof Error ? error.message : String(error)}), using ${rows.length} partial results`);
   }
+  flushWarningSummary("05-fetch-childcare", "childcare centers with missing coordinates", skippedMissingCoords);
   return rows;
 }
 
 async function fetchElementarySchools(districts: DistrictState[]): Promise<ElementarySchool[]> {
-  // NEIS schoolInfo does not include coordinate fields.
-  // Extract dong name from ORG_RDNDA (e.g. "(반포동)") and resolve to district center coords.
   const dongLookup = new Map<string, { lat: number; lng: number; sido: string }>();
   for (const d of districts) {
     if (d.center_lat == null || d.center_lng == null) continue;
@@ -109,6 +108,7 @@ async function fetchElementarySchools(districts: DistrictState[]): Promise<Eleme
   }
 
   const schools: ElementarySchool[] = [];
+  let skippedMissingCoords = 0;
   try {
     for (const sido of CAPITAL_SIDO_NAMES) {
       for (let pIndex = 1; pIndex <= 20; pIndex += 1) {
@@ -120,18 +120,13 @@ async function fetchElementarySchools(districts: DistrictState[]): Promise<Eleme
           pIndex,
           pSize: 1000,
         });
-        const payload = await fetch(url, { signal: AbortSignal.timeout(10000) }).then((response) => {
-          if (!response.ok) throw new Error(`HTTP ${response.status}`);
-          return response.json();
-        });
+        const payload = await fetchJsonWithRetry(url, { timeoutMs: 10000 });
         const items: any[] = (payload as any)?.schoolInfo?.[1]?.row ?? [];
         if (!items.length) break;
         for (const item of items) {
-          // ORG_RDNDA contains dong name in parentheses: "(반포동)" or "(장위동/ ..."
           const detail: string = item.ORG_RDNDA ?? "";
           const dongMatch = detail.match(/[（(]([가-힣]+동)/);
           const dong = dongMatch?.[1];
-          // ORG_RDNMA: "서울특별시 강남구 개포로82길 7" → parts[1] = sigungu
           const rdnma: string = item.ORG_RDNMA ?? "";
           const sigungu = rdnma.trim().split(/\s+/)[1];
           if (dong && sigungu) {
@@ -141,7 +136,7 @@ async function fetchElementarySchools(districts: DistrictState[]): Promise<Eleme
               continue;
             }
           }
-          warn("05-fetch-childcare: skipped elementary school with missing coordinates");
+          skippedMissingCoords += 1;
         }
         if (items.length < 1000) break;
       }
@@ -149,6 +144,7 @@ async function fetchElementarySchools(districts: DistrictState[]): Promise<Eleme
   } catch (error) {
     warn(`05-fetch-childcare: school API failed (${error instanceof Error ? error.message : String(error)}), using ${schools.length} partial results`);
   }
+  flushWarningSummary("05-fetch-childcare", "elementary schools with unresolved coordinates", skippedMissingCoords);
   return schools;
 }
 
@@ -159,6 +155,7 @@ async function fetchAcademies(): Promise<Academy[]> {
   }
 
   const academies: Academy[] = [];
+  let skippedMissingCoords = 0;
   const atptCodes = ["B10", "J10", "E10"];
 
   try {
@@ -171,17 +168,14 @@ async function fetchAcademies(): Promise<Academy[]> {
           pIndex: pageIndex,
           pSize: 1000,
         });
-        const payload = await fetch(url, { signal: AbortSignal.timeout(10000) }).then((response) => {
-          if (!response.ok) throw new Error(`HTTP ${response.status}`);
-          return response.json();
-        });
+        const payload = await fetchJsonWithRetry(url, { timeoutMs: 10000 });
         const items: any[] = (payload as any)?.acaInsTiInfo?.[1]?.row ?? [];
         if (!items.length) break;
         for (const item of items) {
           const lat = numeric(item.LA);
           const lng = numeric(item.LO);
           if (lat == null || lng == null) {
-            warn("05-fetch-childcare: skipped academy with missing coordinates");
+            skippedMissingCoords += 1;
             continue;
           }
           const realm = text(item.REALM_SC_NM) ?? "기타";
@@ -193,6 +187,7 @@ async function fetchAcademies(): Promise<Academy[]> {
   } catch (error) {
     warn(`05-fetch-childcare: academy API failed (${error instanceof Error ? error.message : String(error)}), using ${academies.length} partial results`);
   }
+  flushWarningSummary("05-fetch-childcare", "academies with missing coordinates", skippedMissingCoords);
   return academies;
 }
 
@@ -213,10 +208,9 @@ function applyChildcareScores(
     const vehicleCount = sigunguCenters.filter((row) => row.vehicle).length;
     const vehicleRatio = sigunguCenters.length ? round(vehicleCount / sigunguCenters.length, 4) : 0;
 
-    // Academy metrics
     const nearbyAcademies = academies.filter((a) => {
       const d = Math.abs(a.lat - (district.center_lat ?? 0)) + Math.abs(a.lng - (district.center_lng ?? 0));
-      return d < 0.02; // coarse pre-filter ~2km
+      return d < 0.02;
     });
     const academyCount1km = academies.length ? countWithin(point, academies, 1000) : 0;
     const uniqueRealms = new Set(
@@ -258,38 +252,30 @@ function applyChildcareScores(
     districts, (row) => row.sigungu,
     (row) => row.raw_childcare?.academyDiversityScore ?? null
   );
-  const parkAreaNorm = normalizeWithinSgg(
-    districts, (row) => row.sigungu,
-    (row) => row.raw_walk != null ? round((row.raw_walk.parkArea1km ?? 0) / households(row), 4) : 0
-  );
   const vehicleRatioNorm = normalizeWithinSgg(
     districts, (row) => row.sigungu,
-    (row) => row.raw_childcare?.vehicleRatio ?? null, false
+    (row) => row.raw_childcare?.vehicleRatio ?? null
   );
 
   for (const district of districts) {
     if (!CHILDCARE_API_KEY) {
-      // No childcare centers: weight towards school distance, academies, park
       district.s_childcare = round(
-        (schoolDistanceNorm.get(district) ?? 0) * 0.35 +
-          (academyCountNorm.get(district) ?? 0) * 0.25 +
-          (academyDiversityNorm.get(district) ?? 0) * 0.20 +
-          (parkAreaNorm.get(district) ?? 0) * 0.15 +
-          (vehicleRatioNorm.get(district) ?? 0) * 0.05,
+        (schoolDistanceNorm.get(district) ?? 0) * 0.45 +
+          (academyCountNorm.get(district) ?? 0) * 0.35 +
+          (academyDiversityNorm.get(district) ?? 0) * 0.20,
         2
       );
-    } else {
-      district.s_childcare = round(
-        (centerPerHouseholdNorm.get(district) ?? 0) * 0.25 +
-          (sparePerHouseholdNorm.get(district) ?? 0) * 0.20 +
-          (schoolDistanceNorm.get(district) ?? 0) * 0.20 +
-          (academyCountNorm.get(district) ?? 0) * 0.15 +
-          (academyDiversityNorm.get(district) ?? 0) * 0.10 +
-          (parkAreaNorm.get(district) ?? 0) * 0.05 +
-          (vehicleRatioNorm.get(district) ?? 0) * 0.05,
-        2
-      );
+      continue;
     }
+    district.s_childcare = round(
+      (centerPerHouseholdNorm.get(district) ?? 0) * 0.25 +
+        (sparePerHouseholdNorm.get(district) ?? 0) * 0.20 +
+        (schoolDistanceNorm.get(district) ?? 0) * 0.20 +
+        (academyCountNorm.get(district) ?? 0) * 0.15 +
+        (academyDiversityNorm.get(district) ?? 0) * 0.10 +
+        (vehicleRatioNorm.get(district) ?? 0) * 0.10,
+      2
+    );
   }
 }
 
