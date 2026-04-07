@@ -45,45 +45,48 @@ export async function runTestFetch(request: Request, env: Env): Promise<Response
   const serviceKey = env.DATA_GO_KR_SERVICE_KEY;
   const kakaoKey = env.KAKAO_REST_API_KEY;
 
-  // Test subway API (page 1 only)
-  let subwayStatus: string;
-  let subwaySample: unknown[] = [];
+  // Test subway API (page 1, 3 rows)
+  let subwayResult: unknown;
   try {
     const url = new URL("https://apis.data.go.kr/1613000/SubwayInfo/GetKwrdFndSubwaySttnList");
     url.searchParams.set("serviceKey", serviceKey);
     url.searchParams.set("pageNo", "1");
-    url.searchParams.set("numOfRows", "5");
+    url.searchParams.set("numOfRows", "3");
     url.searchParams.set("type", "json");
-    const res = await fetch(url.toString());
-    const data = await res.json() as Record<string, unknown>;
-    subwayStatus = res.ok ? `ok (${res.status})` : `error (${res.status})`;
-    const body = (data?.response as Record<string, unknown>)?.body as Record<string, unknown> | undefined;
-    const items = (body?.items as Record<string, unknown>)?.item;
-    subwaySample = Array.isArray(items) ? items.slice(0, 3) : [];
+    const controller = new AbortController();
+    const t = setTimeout(() => controller.abort(), 10000);
+    const res = await fetch(url.toString(), { signal: controller.signal });
+    clearTimeout(t);
+    const contentType = res.headers.get("content-type") ?? "";
+    const raw = await res.text();
+    let parsed: unknown = null;
+    try { parsed = JSON.parse(raw); } catch { /* xml or other */ }
+    subwayResult = { status: res.status, contentType, rawPreview: raw.slice(0, 800), parsed };
   } catch (e) {
-    subwayStatus = `exception: ${e instanceof Error ? e.message : String(e)}`;
+    subwayResult = { error: e instanceof Error ? e.message : String(e) };
   }
 
-  // Test Kakao keyword search (one station)
-  let kakaoStatus: string;
-  let kakaoSample: unknown = null;
+  // Test Kakao keyword search
+  let kakaoResult: unknown;
   if (kakaoKey) {
     try {
       const url = new URL("https://dapi.kakao.com/v2/local/search/keyword.json");
       url.searchParams.set("query", "강남 역");
       url.searchParams.set("category_group_code", "SW8");
-      const res = await fetch(url.toString(), { headers: { Authorization: `KakaoAK ${kakaoKey}` } });
-      const data = await res.json() as { documents?: unknown[] };
-      kakaoStatus = res.ok ? `ok (${res.status})` : `error (${res.status})`;
-      kakaoSample = data.documents?.[0] ?? null;
+      const controller = new AbortController();
+      const t = setTimeout(() => controller.abort(), 10000);
+      const res = await fetch(url.toString(), { headers: { Authorization: `KakaoAK ${kakaoKey}` }, signal: controller.signal });
+      clearTimeout(t);
+      const data = await res.json() as { documents?: unknown[]; meta?: unknown };
+      kakaoResult = { status: res.status, meta: data.meta, firstDoc: data.documents?.[0] ?? null };
     } catch (e) {
-      kakaoStatus = `exception: ${e instanceof Error ? e.message : String(e)}`;
+      kakaoResult = { error: e instanceof Error ? e.message : String(e) };
     }
   } else {
-    kakaoStatus = "KAKAO_REST_API_KEY not set";
+    kakaoResult = { error: "KAKAO_REST_API_KEY not set" };
   }
 
-  return json({ ok: true, subway: { status: subwayStatus, sample: subwaySample }, kakao: { status: kakaoStatus, sample: kakaoSample } });
+  return json({ ok: true, subway: subwayResult, kakao: kakaoResult });
 }
 
 export async function runCollectTransport(request: Request, env: Env): Promise<Response> {
@@ -115,16 +118,17 @@ export async function runTestWalk(request: Request, env: Env): Promise<Response>
     clearTimeout(timeout);
     status = res.status;
     const raw = await res.text();
-    console.log(`[test-walk] park API status=${status} body_preview=${raw.slice(0, 300)}`);
+    const contentType = res.headers.get("content-type") ?? "";
+    console.log(`[test-walk] park API status=${status} content-type=${contentType} body_preview=${raw.slice(0, 300)}`);
     try {
       const data = JSON.parse(raw) as Record<string, unknown>;
       const body = (data?.response as Record<string, unknown>)?.body as Record<string, unknown> | undefined;
       totalCount = body?.totalCount ?? null;
       const items = (body?.items as Record<string, unknown>)?.item;
       itemCount = Array.isArray(items) ? items.length : null;
-      bodyPreview = { totalCount, itemCount, firstItem: Array.isArray(items) ? items[0] : null };
+      bodyPreview = { contentType, totalCount, itemCount, firstItem: Array.isArray(items) ? items[0] : null, rawPreview: raw.slice(0, 500) };
     } catch {
-      bodyPreview = raw.slice(0, 500);
+      bodyPreview = { contentType, rawPreview: raw.slice(0, 800) };
     }
   } catch (e) {
     return json({ ok: false, error: e instanceof Error ? e.message : String(e) });
@@ -143,59 +147,58 @@ export async function runTestSafety(request: Request, env: Env): Promise<Respons
   if (!isBattleAdmin(request)) return unauthorized();
 
   // Test CCTV API
-  let cctvStatus: string;
-  let cctvItemCount: number | null = null;
+  let cctvResult: unknown;
   try {
     const url = new URL("https://www.safetydata.go.kr/V2/api/DSSP-IF-20011");
     url.searchParams.set("serviceKey", env.CCTV_API_KEY ?? "");
     url.searchParams.set("pageIndex", "1");
-    url.searchParams.set("pageSize", "10");
+    url.searchParams.set("pageSize", "3");
     const cctvController = new AbortController();
     const cctvTimeout = setTimeout(() => cctvController.abort(), 10000);
     const res = await fetch(url.toString(), { signal: cctvController.signal });
     clearTimeout(cctvTimeout);
+    const contentType = res.headers.get("content-type") ?? "";
     const raw = await res.text();
-    cctvStatus = `${res.status}`;
-    console.log(`[test-safety] cctv status=${res.status} body_preview=${raw.slice(0, 300)}`);
+    console.log(`[test-safety] cctv status=${res.status} content-type=${contentType} body_preview=${raw.slice(0, 300)}`);
+    let parsed: unknown = null;
+    let firstItem: unknown = null;
     try {
-      const data = JSON.parse(raw) as Record<string, unknown>;
-      const items = extractItems(data);
-      cctvItemCount = items.length;
-    } catch { cctvItemCount = null; }
+      parsed = JSON.parse(raw);
+      const items = extractItems(parsed as Record<string, unknown>);
+      firstItem = items[0] ?? null;
+    } catch { /* not JSON */ }
+    cctvResult = { status: res.status, contentType, keySet: !!env.CCTV_API_KEY, firstItem, rawPreview: raw.slice(0, 800) };
   } catch (e) {
-    cctvStatus = `exception: ${e instanceof Error ? e.message : String(e)}`;
+    cctvResult = { error: e instanceof Error ? e.message : String(e) };
   }
 
   // Test child zone API
-  let childStatus: string;
-  let childItemCount: number | null = null;
+  let childResult: unknown;
   try {
     const url = new URL("https://api.data.go.kr/openapi/tn_pubr_public_child_prtc_zn_api");
     url.searchParams.set("serviceKey", env.DATA_GO_KR_SERVICE_KEY);
     url.searchParams.set("pageNo", "1");
-    url.searchParams.set("numOfRows", "10");
+    url.searchParams.set("numOfRows", "3");
     url.searchParams.set("type", "json");
     const childController = new AbortController();
     const childTimeout = setTimeout(() => childController.abort(), 10000);
     const res = await fetch(url.toString(), { signal: childController.signal });
     clearTimeout(childTimeout);
+    const contentType = res.headers.get("content-type") ?? "";
     const raw = await res.text();
-    childStatus = `${res.status}`;
-    console.log(`[test-safety] child zone status=${res.status} body_preview=${raw.slice(0, 300)}`);
+    console.log(`[test-safety] child zone status=${res.status} content-type=${contentType} body_preview=${raw.slice(0, 300)}`);
+    let firstItem: unknown = null;
     try {
-      const data = JSON.parse(raw) as Record<string, unknown>;
-      const items = extractItems(data);
-      childItemCount = items.length;
-    } catch { childItemCount = null; }
+      const parsed = JSON.parse(raw);
+      const items = extractItems(parsed as Record<string, unknown>);
+      firstItem = items[0] ?? null;
+    } catch { /* not JSON */ }
+    childResult = { status: res.status, contentType, firstItem, rawPreview: raw.slice(0, 800) };
   } catch (e) {
-    childStatus = `exception: ${e instanceof Error ? e.message : String(e)}`;
+    childResult = { error: e instanceof Error ? e.message : String(e) };
   }
 
-  return json({
-    ok: true,
-    cctv: { status: cctvStatus, itemCount: cctvItemCount, keySet: !!env.CCTV_API_KEY },
-    childZone: { status: childStatus, itemCount: childItemCount },
-  });
+  return json({ ok: true, cctv: cctvResult, childZone: childResult });
 }
 
 function extractItems(data: Record<string, unknown>): unknown[] {

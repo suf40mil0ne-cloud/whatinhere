@@ -10,6 +10,8 @@ import {
   parseJsonItems,
   refreshOverall,
   round,
+  xmlItems,
+  xmlTag,
 } from "./utils";
 
 interface SubwayStation extends PointRecord {
@@ -48,11 +50,27 @@ async function fetchSubwayStations(serviceKey: string, kakaoKey: string): Promis
         numOfRows: 1000,
         type: "json",
       });
-      const data = await fetch(url).then((r) => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        return r.json();
-      });
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const contentType = res.headers.get("content-type") ?? "";
+      const raw = await res.text();
+      // Detect XML response (some gov APIs ignore type=json)
+      if (raw.trimStart().startsWith("<") || contentType.includes("xml")) {
+        console.warn(`[collectTransport] subway API returned XML on page=${pageNo}, content-type=${contentType}`);
+        const xmlItemList = xmlItems(raw);
+        console.log(`[collectTransport] subway XML items=${xmlItemList.length}`);
+        for (const item of xmlItemList) {
+          const name = xmlTag(item, "subwaySttnNm") ?? xmlTag(item, "subwayStationName") ?? xmlTag(item, "sttnNm");
+          const route = xmlTag(item, "subwayRouteNm") ?? xmlTag(item, "subwayRouteName") ?? xmlTag(item, "routeNm");
+          if (name) rawItems.push({ subwayStationId: undefined, subwayStationName: name, subwayRouteName: route ?? undefined });
+        }
+        if (xmlItemList.length < 1000) break;
+        continue;
+      }
+      let data: unknown;
+      try { data = JSON.parse(raw); } catch { console.warn(`[collectTransport] subway JSON parse failed page=${pageNo} body=${raw.slice(0, 200)}`); break; }
       const items = parseJsonItems(data) as RawItem[];
+      if (pageNo === 1) console.log(`[collectTransport] subway page=1 firstItem=${JSON.stringify(items[0] ?? null)}`);
       console.log(`[collectTransport] subway page=${pageNo} items=${items.length}`);
       if (!items.length) break;
       rawItems.push(...items);
@@ -66,7 +84,8 @@ async function fetchSubwayStations(serviceKey: string, kakaoKey: string): Promis
   // Step 2: determine transfer stations (same name, multiple routes)
   const nameToRoutes = new Map<string, Set<string>>();
   for (const item of rawItems) {
-    const name = item.subwayStationName?.trim();
+    // Field name varies by API version: try both English and Korean-style names
+    const name = (item.subwayStationName ?? (item as Record<string, unknown>)["subwaySttnNm"] as string | undefined)?.trim();
     if (!name) continue;
     if (!nameToRoutes.has(name)) nameToRoutes.set(name, new Set());
     if (item.subwayRouteName) nameToRoutes.get(name)!.add(item.subwayRouteName);
@@ -102,7 +121,7 @@ async function fetchBusStops(tagoKey: string): Promise<PointRecord[]> {
   const stops: PointRecord[] = [];
   try {
     for (let pageNo = 1; pageNo <= 200; pageNo++) {
-      const url = paramsToUrl("http://apis.data.go.kr/1613000/BusSttnInfoInqireService/getSttnNoList", {
+      const url = paramsToUrl("https://apis.data.go.kr/1613000/BusSttnInfoInqireService/getSttnNoList", {
         serviceKey: tagoKey,
         pageNo,
         numOfRows: 1000,
