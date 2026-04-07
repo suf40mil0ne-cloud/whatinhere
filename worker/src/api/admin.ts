@@ -100,7 +100,7 @@ export async function runTestWalk(request: Request, env: Env): Promise<Response>
   const url = new URL("http://api.data.go.kr/openapi/tn_pubr_public_cty_park_info_api");
   url.searchParams.set("serviceKey", env.DATA_GO_KR_SERVICE_KEY);
   url.searchParams.set("pageNo", "1");
-  url.searchParams.set("numOfRows", "10");
+  url.searchParams.set("numOfRows", "3");
   url.searchParams.set("type", "json");
 
   let status: number;
@@ -109,7 +109,10 @@ export async function runTestWalk(request: Request, env: Env): Promise<Response>
   let totalCount: unknown = null;
 
   try {
-    const res = await fetch(url.toString(), { signal: AbortSignal.timeout(15000) });
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000);
+    const res = await fetch(url.toString(), { signal: controller.signal });
+    clearTimeout(timeout);
     status = res.status;
     const raw = await res.text();
     console.log(`[test-walk] park API status=${status} body_preview=${raw.slice(0, 300)}`);
@@ -147,7 +150,10 @@ export async function runTestSafety(request: Request, env: Env): Promise<Respons
     url.searchParams.set("serviceKey", env.CCTV_API_KEY ?? "");
     url.searchParams.set("pageIndex", "1");
     url.searchParams.set("pageSize", "10");
-    const res = await fetch(url.toString(), { signal: AbortSignal.timeout(15000) });
+    const cctvController = new AbortController();
+    const cctvTimeout = setTimeout(() => cctvController.abort(), 10000);
+    const res = await fetch(url.toString(), { signal: cctvController.signal });
+    clearTimeout(cctvTimeout);
     const raw = await res.text();
     cctvStatus = `${res.status}`;
     console.log(`[test-safety] cctv status=${res.status} body_preview=${raw.slice(0, 300)}`);
@@ -169,7 +175,10 @@ export async function runTestSafety(request: Request, env: Env): Promise<Respons
     url.searchParams.set("pageNo", "1");
     url.searchParams.set("numOfRows", "10");
     url.searchParams.set("type", "json");
-    const res = await fetch(url.toString(), { signal: AbortSignal.timeout(15000) });
+    const childController = new AbortController();
+    const childTimeout = setTimeout(() => childController.abort(), 10000);
+    const res = await fetch(url.toString(), { signal: childController.signal });
+    clearTimeout(childTimeout);
     const raw = await res.text();
     childStatus = `${res.status}`;
     console.log(`[test-safety] child zone status=${res.status} body_preview=${raw.slice(0, 300)}`);
