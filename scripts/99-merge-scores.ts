@@ -1,6 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { buildReplaceSql, info, loadState, OUTPUT_DIR, updateOverallScores, writeSqlFile } from "./district-score-lib";
+import { buildUpsertSql, info, loadState, OUTPUT_DIR, updateOverallScores, writeSqlFile } from "./district-score-lib";
 
 async function main() {
   const districts = await loadState();
@@ -18,7 +18,7 @@ async function main() {
     const content = await fs.readFile(path.join(OUTPUT_DIR, name), "utf8");
     parts.push(content.trimEnd());
   }
-  parts.push(buildReplaceSql(districts).trimEnd());
+  parts.push(buildUpsertSql(districts).trimEnd());
 
   await writeSqlFile("99-final.sql", `${parts.join("\n")}\n`);
   info(`99-merge-scores: merged ${sqlFiles.length} sql files + final replace for ${districts.length} rows`);

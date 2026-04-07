@@ -300,6 +300,49 @@ export function buildReplaceSql(rows: DistrictState[]): string {
   return `${lines.join("\n")}\n`;
 }
 
+export function buildUpsertSql(rows: DistrictState[]): string {
+  const scoreKeys = ["s_transport", "s_walk", "s_value", "s_childcare", "s_safety"] as const;
+  const rawKeys = ["raw_transport", "raw_walk", "raw_value", "raw_childcare", "raw_safety"] as const;
+  const scoreToRaw: Record<string, string> = {
+    s_transport: "raw_transport", s_walk: "raw_walk", s_value: "raw_value",
+    s_childcare: "raw_childcare", s_safety: "raw_safety",
+  };
+  const columns = [
+    "code", "sido", "sigungu", "dong", "center_lat", "center_lng", "households", "population",
+    ...scoreKeys, "s_overall", ...rawKeys,
+  ] as const;
+  const lines = ["BEGIN TRANSACTION;"];
+  for (const row of rows) {
+    const values = columns.map((column) => {
+      const rawValue = (row as Record<string, unknown>)[column];
+      if (column.startsWith("raw_")) {
+        if (rawValue == null) return "NULL";
+        return quote(JSON.stringify(rawValue));
+      }
+      return sqlValue(rawValue as string | number | null | undefined);
+    });
+    const scoreUpdates = scoreKeys.map((s) =>
+      `${s} = CASE WHEN excluded.${s} > 0 THEN excluded.${s} ELSE ${s} END`
+    );
+    const rawUpdates = rawKeys.map((r) => {
+      const s = Object.keys(scoreToRaw).find((k) => scoreToRaw[k] === r)!;
+      return `${r} = CASE WHEN excluded.${s} > 0 THEN excluded.${r} ELSE ${r} END`;
+    });
+    const overallUpdate = `s_overall = CASE WHEN (excluded.s_transport > 0 OR excluded.s_walk > 0 OR excluded.s_value > 0 OR excluded.s_childcare > 0 OR excluded.s_safety > 0) THEN excluded.s_overall ELSE s_overall END`;
+    const metaUpdates = [
+      "sido = excluded.sido", "sigungu = excluded.sigungu", "dong = excluded.dong",
+      "center_lat = excluded.center_lat", "center_lng = excluded.center_lng",
+      "households = excluded.households", "population = excluded.population",
+    ];
+    const allUpdates = [...metaUpdates, ...scoreUpdates, overallUpdate, ...rawUpdates, "updated_at = datetime('now')"];
+    lines.push(
+      `INSERT INTO district_scores (${columns.join(", ")}) VALUES (${values.join(", ")}) ON CONFLICT(code) DO UPDATE SET ${allUpdates.join(", ")};`
+    );
+  }
+  lines.push("COMMIT;");
+  return `${lines.join("\n")}\n`;
+}
+
 export function paramsToUrl(baseUrl: string, params: Record<string, string | number | undefined>): string {
   const url = new URL(baseUrl);
   for (const [key, value] of Object.entries(params)) {
