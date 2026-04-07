@@ -15,7 +15,7 @@
     "collect:childcare": "tsx scripts/05-fetch-childcare.ts",
     "collect:safety": "tsx scripts/06-fetch-safety.ts",
     "collect:merge": "tsx scripts/99-merge-scores.ts",
-    "collect": "npm-run-all collect:transport collect:walk collect:childcare collect:safety collect:merge",
+    "collect": "npm-run-all collect:transport collect:walk collect:value collect:childcare collect:safety collect:merge",
     "data:kiscon": "node scripts/fetch-kiscon.js",
     "data:railway": "node scripts/fetch-railway.js",
     "data:housing": "node scripts/fetch-housing.js",
@@ -42,7 +42,8 @@
     "data:build": "npm-run-all data:kiscon data:railway data:housing data:urban-plan data:road data:building-plot data:building-hub data:building-overview data:building-permits data:housing-approvals data:committee-results data:capital-construction data:cals-construction data:private-urban-plan data:eia data:merge data:summary",
     "data:build:public": "npm-run-all data:capital-construction data:cals-construction data:kiscon-file data:building-plot data:building-hub data:building-overview data:building-permits-regional data:housing-approvals-regional data:molit-meta data:merge data:summary",
     "deploy:worker": "wrangler deploy",
-    "db:migrate": "wrangler d1 execute whatinhere-db --file ./worker/src/db/schema.sql"
+    "db:migrate": "wrangler d1 execute whatinhere-db --file ./worker/src/db/schema.sql",
+    "collect:value": "tsx scripts/04-fetch-value.ts"
   },
   "dependencies": {
     "react": "^18.3.1",

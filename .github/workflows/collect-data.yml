@@ -64,21 +64,17 @@ jobs:
           KAKAO_REST_API_KEY: ${{ secrets.KAKAO_REST_API_KEY }}
           CHILDCARE_API_KEY: ${{ secrets.CHILDCARE_API_KEY }}
           CCTV_API_KEY: ${{ secrets.CCTV_API_KEY }}
-        run: |
-          npx tsx scripts/02-fetch-transport.ts || echo "transport failed, continuing"
-          npx tsx scripts/03-fetch-walk.ts || echo "walk failed, continuing"
-          npx tsx scripts/05-fetch-childcare.ts || echo "childcare failed, continuing"
-          npx tsx scripts/06-fetch-safety.ts || echo "safety failed, continuing"
-          npx tsx scripts/99-merge-scores.ts
+        run: npm run collect
 
       - name: Verify generated artifacts
         run: |
           test -f output/02-transport.sql
           test -f output/03-walk.sql
+          test -f output/04-value.sql
           test -f output/05-childcare.sql
           test -f output/06-safety.sql
           test -f output/99-final.sql
-          ls -lh output/02-transport.sql output/03-walk.sql output/05-childcare.sql output/06-safety.sql output/99-final.sql
+          ls -lh output/02-transport.sql output/03-walk.sql output/04-value.sql output/05-childcare.sql output/06-safety.sql output/99-final.sql
 
       - name: Remove transactions from merged SQL
         run: sed -i '/BEGIN TRANSACTION/d; /COMMIT/d; /SAVEPOINT/d; /ROLLBACK/d' output/99-final.sql
