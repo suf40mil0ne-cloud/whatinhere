@@ -1,0 +1,47 @@
+name: Collect District Data
+
+on:
+  workflow_dispatch:  # 수동 실행
+  schedule:
+    - cron: '0 3 * * 0'  # 매주 일요일 새벽 3시
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run data collection scripts
+        env:
+          DATA_GO_KR_SERVICE_KEY: ${{ secrets.DATA_GO_KR_SERVICE_KEY }}
+          TAGO_API_KEY: ${{ secrets.DATA_GO_KR_SERVICE_KEY }}
+          NEIS_API_KEY: ${{ secrets.NEIS_API_KEY }}
+          NEIS_ACADEMY_API_KEY: ${{ secrets.NEIS_ACADEMY_API_KEY }}
+          KAKAO_REST_API_KEY: ${{ secrets.KAKAO_REST_API_KEY }}
+          CHILDCARE_API_KEY: ${{ secrets.CHILDCARE_API_KEY }}
+          SAFETY_INDEX_API_KEY: ${{ secrets.SAFETY_INDEX_API_KEY }}
+          CCTV_API_KEY: ${{ secrets.CCTV_API_KEY }}
+          VWORLD_API_KEY: ${{ secrets.VWORLD_API_KEY }}
+        run: |
+          npx tsx scripts/02-fetch-transport.ts
+          npx tsx scripts/03-fetch-walk.ts
+          npx tsx scripts/05-fetch-childcare.ts
+          npx tsx scripts/06-fetch-safety.ts
+          npx tsx scripts/99-merge-scores.ts
+
+      - name: Remove transactions from SQL
+        run: |
+          sed -i '/BEGIN TRANSACTION/d; /COMMIT/d; /SAVEPOINT/d; /ROLLBACK/d' output/99-final.sql
+
+      - name: Upload to D1
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          npx wrangler d1 execute whatinhere-db --remote --file=output/99-final.sql
