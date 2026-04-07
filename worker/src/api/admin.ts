@@ -97,7 +97,7 @@ export async function runCollectTransport(request: Request, env: Env): Promise<R
 export async function runTestWalk(request: Request, env: Env): Promise<Response> {
   if (!isBattleAdmin(request)) return unauthorized();
 
-  const url = new URL("https://api.data.go.kr/openapi/tn_pubr_public_cty_park_info_api");
+  const url = new URL("https://apis.data.go.kr/B554158/publicParkService/getParkList");
   url.searchParams.set("serviceKey", env.DATA_GO_KR_SERVICE_KEY);
   url.searchParams.set("pageNo", "1");
   url.searchParams.set("numOfRows", "10");
