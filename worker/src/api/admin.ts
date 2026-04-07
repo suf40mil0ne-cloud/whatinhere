@@ -39,6 +39,53 @@ export async function resetBattles(request: Request, env: Env): Promise<Response
   return json({ ok: true });
 }
 
+export async function runTestFetch(request: Request, env: Env): Promise<Response> {
+  if (!isBattleAdmin(request)) return unauthorized();
+
+  const serviceKey = env.DATA_GO_KR_SERVICE_KEY;
+  const kakaoKey = env.KAKAO_REST_API_KEY;
+
+  // Test subway API (page 1 only)
+  let subwayStatus: string;
+  let subwaySample: unknown[] = [];
+  try {
+    const url = new URL("https://apis.data.go.kr/1613000/SubwayInfo/GetKwrdFndSubwaySttnList");
+    url.searchParams.set("serviceKey", serviceKey);
+    url.searchParams.set("pageNo", "1");
+    url.searchParams.set("numOfRows", "5");
+    url.searchParams.set("type", "json");
+    const res = await fetch(url.toString());
+    const data = await res.json() as Record<string, unknown>;
+    subwayStatus = res.ok ? `ok (${res.status})` : `error (${res.status})`;
+    const body = (data?.response as Record<string, unknown>)?.body as Record<string, unknown> | undefined;
+    const items = (body?.items as Record<string, unknown>)?.item;
+    subwaySample = Array.isArray(items) ? items.slice(0, 3) : [];
+  } catch (e) {
+    subwayStatus = `exception: ${e instanceof Error ? e.message : String(e)}`;
+  }
+
+  // Test Kakao keyword search (one station)
+  let kakaoStatus: string;
+  let kakaoSample: unknown = null;
+  if (kakaoKey) {
+    try {
+      const url = new URL("https://dapi.kakao.com/v2/local/search/keyword.json");
+      url.searchParams.set("query", "강남 역");
+      url.searchParams.set("category_group_code", "SW8");
+      const res = await fetch(url.toString(), { headers: { Authorization: `KakaoAK ${kakaoKey}` } });
+      const data = await res.json() as { documents?: unknown[] };
+      kakaoStatus = res.ok ? `ok (${res.status})` : `error (${res.status})`;
+      kakaoSample = data.documents?.[0] ?? null;
+    } catch (e) {
+      kakaoStatus = `exception: ${e instanceof Error ? e.message : String(e)}`;
+    }
+  } else {
+    kakaoStatus = "KAKAO_REST_API_KEY not set";
+  }
+
+  return json({ ok: true, subway: { status: subwayStatus, sample: subwaySample }, kakao: { status: kakaoStatus, sample: kakaoSample } });
+}
+
 export async function runCollectTransport(request: Request, env: Env): Promise<Response> {
   if (!isBattleAdmin(request)) return unauthorized();
   console.log(`[admin] collect-transport start, kakaoKey=${env.KAKAO_REST_API_KEY ? "set" : "missing"}`);
