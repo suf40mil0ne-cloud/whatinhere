@@ -97,7 +97,7 @@ export async function runCollectTransport(request: Request, env: Env): Promise<R
 export async function runTestWalk(request: Request, env: Env): Promise<Response> {
   if (!isBattleAdmin(request)) return unauthorized();
 
-  const url = new URL("http://api.data.go.kr/openapi/tn_pubr_public_cty_park_info_api");
+  const url = new URL("https://api.data.go.kr/openapi/tn_pubr_public_cty_park_info_api");
   url.searchParams.set("serviceKey", env.DATA_GO_KR_SERVICE_KEY);
   url.searchParams.set("pageNo", "1");
   url.searchParams.set("numOfRows", "3");
@@ -170,7 +170,7 @@ export async function runTestSafety(request: Request, env: Env): Promise<Respons
   let childStatus: string;
   let childItemCount: number | null = null;
   try {
-    const url = new URL("http://api.data.go.kr/openapi/tn_pubr_public_child_prtc_zn_api");
+    const url = new URL("https://api.data.go.kr/openapi/tn_pubr_public_child_prtc_zn_api");
     url.searchParams.set("serviceKey", env.DATA_GO_KR_SERVICE_KEY);
     url.searchParams.set("pageNo", "1");
     url.searchParams.set("numOfRows", "10");

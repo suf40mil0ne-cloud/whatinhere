@@ -56,7 +56,7 @@ async function fetchChildZones(serviceKey: string): Promise<PointRecord[]> {
   const rows: PointRecord[] = [];
   try {
     for (let pageNo = 1; pageNo <= 200; pageNo++) {
-      const url = paramsToUrl("http://api.data.go.kr/openapi/tn_pubr_public_child_prtc_zn_api", {
+      const url = paramsToUrl("https://api.data.go.kr/openapi/tn_pubr_public_child_prtc_zn_api", {
         serviceKey,
         pageNo,
         numOfRows: 1000,
