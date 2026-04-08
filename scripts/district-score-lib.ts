@@ -360,6 +360,8 @@ interface FetchRetryOptions {
   parseAs?: "json" | "text";
   retries?: number;
   timeoutMs?: number;
+  /** Force TLS 1.2 and skip cert validation — required for safetydata.go.kr which rejects TLS 1.3 */
+  legacyTls?: boolean;
 }
 
 function redactUrlForLogs(rawUrl: string): string {
@@ -375,15 +377,27 @@ function previewBody(body: string): string {
 }
 
 async function fetchWithRetry(url: string, options: FetchRetryOptions = {}): Promise<unknown> {
-  const { headers, parseAs = "text", retries = 2, timeoutMs = 10000 } = options;
+  const { headers, parseAs = "text", retries = 2, timeoutMs = 10000, legacyTls = false } = options;
   const safeUrl = redactUrlForLogs(url);
   for (let attempt = 0; attempt <= retries; attempt += 1) {
     try {
-      const response = await fetch(url, { headers, signal: AbortSignal.timeout(timeoutMs) });
-      const body = await response.text();
-      if (!response.ok) {
-        const message = `HTTP ${response.status} for ${safeUrl}${body ? ` body=${previewBody(body)}` : ""}`;
-        if (attempt < retries && RETRYABLE_STATUS_CODES.has(response.status)) {
+      let status: number;
+      let body: string;
+      if (legacyTls) {
+        // safetydata.go.kr rejects TLS 1.3 — use undici with TLS 1.2 + skip cert validation
+        const { Agent, fetch: undiciFetch } = await import("undici");
+        const agent = new Agent({ connect: { rejectUnauthorized: false, maxVersion: "TLSv1.2" } });
+        const res = await undiciFetch(url, { headers: headers as Record<string, string>, dispatcher: agent, signal: AbortSignal.timeout(timeoutMs) });
+        status = res.status;
+        body = await res.text();
+      } else {
+        const res = await fetch(url, { headers, signal: AbortSignal.timeout(timeoutMs) });
+        status = res.status;
+        body = await res.text();
+      }
+      if (status < 200 || status >= 300) {
+        const message = `HTTP ${status} for ${safeUrl}${body ? ` body=${previewBody(body)}` : ""}`;
+        if (attempt < retries && RETRYABLE_STATUS_CODES.has(status)) {
           await new Promise((resolve) => setTimeout(resolve, 400 * (attempt + 1)));
           continue;
         }
@@ -489,6 +503,7 @@ export function parseJsonItems(payload: unknown): any[] {
   const root = payload as Record<string, any>;
   const response = root?.response ?? root;
   const body = response?.body ?? response;
+  if (Array.isArray(body)) return body;
   const items = body?.items ?? body?.item ?? response?.items ?? root?.items;
   if (Array.isArray(items)) return items;
   if (Array.isArray(items?.item)) return items.item;

@@ -26,9 +26,19 @@ import {
 interface BusStop extends PointRecord {}
 interface SubwayStation extends PointRecord { transfer: boolean; }
 
-const TAGO_API_KEY = process.env.TAGO_API_KEY;
 const KAKAO_REST_API_KEY = process.env.KAKAO_REST_API_KEY;
-const SUBWAY_SERVICE_KEY = process.env.DATA_GO_KR_SERVICE_KEY ?? DEFAULT_SERVICE_KEY;
+const SERVICE_KEY = process.env.DATA_GO_KR_SERVICE_KEY ?? DEFAULT_SERVICE_KEY;
+const SUBWAY_SERVICE_KEY = SERVICE_KEY;
+
+// City codes for capital region (수도권) from TAGO bus API
+// Seoul (서울) is NOT available via this API — only Gyeonggi + Incheon
+const CAPITAL_BUS_CITY_CODES = [
+  23,                                                             // 인천광역시
+  31010, 31020, 31030, 31040, 31050, 31060, 31070, 31080, 31090, // 경기 수원~안산
+  31100, 31110, 31120, 31130, 31140, 31150, 31160, 31170, 31180, // 경기 고양~하남
+  31190, 31200, 31210, 31220, 31230, 31240, 31250, 31260, 31270, // 경기 용인~포천
+  31320, 31350, 31370, 31380,                                     // 경기 여주·연천·가평·양평
+];
 
 function isAuthFailure(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error);
@@ -64,28 +74,32 @@ async function geocodeStation(name: string): Promise<{ lat: number; lng: number 
 }
 
 async function fetchBusStops(): Promise<BusStop[]> {
-  if (!TAGO_API_KEY) {
-    warn("02-fetch-transport: TAGO_API_KEY missing, bus metrics will be zeroed");
-    return [];
-  }
-
   const stops: BusStop[] = [];
-  for (let pageNo = 1; pageNo <= 200; pageNo += 1) {
-    const url = paramsToUrl("http://apis.data.go.kr/1613000/BusSttnInfoInqireService/getSttnNoList", {
-      serviceKey: TAGO_API_KEY,
-      pageNo,
-      numOfRows: 1000,
-    });
-    const xml = await fetchTextWithRetry(url);
-    const items = xmlItems(xml);
-    if (!items.length) break;
-    for (const item of items) {
-      const lat = numeric(xmlTag(item, "gpslati"));
-      const lng = numeric(xmlTag(item, "gpslong"));
-      if (lat == null || lng == null) continue;
-      stops.push({ lat, lng, name: xmlTag(item, "nodenm") ?? xmlTag(item, "nodeNm") });
+  for (const cityCode of CAPITAL_BUS_CITY_CODES) {
+    for (let pageNo = 1; pageNo <= 100; pageNo += 1) {
+      const url = paramsToUrl("https://apis.data.go.kr/1613000/BusSttnInfoInqireService/getSttnNoList", {
+        serviceKey: SERVICE_KEY,
+        cityCode,
+        pageNo,
+        numOfRows: 1000,
+      });
+      let xml: string;
+      try {
+        xml = await fetchTextWithRetry(url);
+      } catch (error) {
+        warn(`02-fetch-transport: bus API failed for cityCode=${cityCode} (${error instanceof Error ? error.message : String(error)})`);
+        break;
+      }
+      const items = xmlItems(xml);
+      if (!items.length) break;
+      for (const item of items) {
+        const lat = numeric(xmlTag(item, "gpslati"));
+        const lng = numeric(xmlTag(item, "gpslong"));
+        if (lat == null || lng == null) continue;
+        stops.push({ lat, lng, name: xmlTag(item, "nodenm") ?? xmlTag(item, "nodeNm") });
+      }
+      if (items.length < 1000) break;
     }
-    if (items.length < 1000) break;
   }
   return stops;
 }
@@ -191,7 +205,7 @@ function assignMetrics(districts: DistrictState[], buses: BusStop[], subways: Su
   const transferNorm = normalizeWithinSgg(districts, (row) => row.sigungu, (row) => row.raw_transport?.subwayTransferCount1km ?? null, false);
 
   for (const district of districts) {
-    const hasBus = Boolean(TAGO_API_KEY);
+    const hasBus = buses.length > 0;
     const hasSubwayInSigungu = (subwayBySigungu.get(district.sigungu)?.length ?? 0) > 0;
     if (!hasBus) {
       district.s_transport = round((subwayDistanceNorm.get(district) ?? 0) * 0.75 + (transferNorm.get(district) ?? 0) * 0.25, 2);
