@@ -47,7 +47,7 @@ async function fetchParks(): Promise<Park[]> {
         numOfRows: 1000,
         type: "json",
       });
-      const payload = await fetchJsonWithRetry(url, { timeoutMs: 10000 });
+      const payload = await fetchJsonWithRetry(url, { timeoutMs: 30000 });
       const items = parseJsonItems(payload);
       if (!items.length) break;
       for (const item of items) {
@@ -108,7 +108,9 @@ async function main() {
   if (!districts.length) throw new Error("Run 00-fetch-districts.ts first");
   const parks = await fetchParks();
   if (!parks.length) {
-    throw new Error("03-fetch-walk: park API returned no usable rows; refusing to overwrite existing scores");
+    warn("03-fetch-walk: park API returned no usable rows; keeping existing scores");
+    await writeSqlFile("03-walk.sql", "");
+    return;
   }
   applyWalkScores(districts, parks);
   updateOverallScores(districts);
