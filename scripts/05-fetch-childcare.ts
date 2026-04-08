@@ -57,40 +57,44 @@ async function fetchChildcareCenters(districts: DistrictState[]): Promise<Childc
 
   const rows: ChildcareCenter[] = [];
   let skippedMissingCoords = 0;
-  const bySido = new Map<string, Set<string>>();
+
+  // district code 형식: 11010530 → arcode=11(시도), stcode=010(시군구)
+  const byRegion = new Map<string, { arcode: string; stcode: string; sigungu: string }>();
   for (const district of districts) {
-    if (!bySido.has(district.sido)) bySido.set(district.sido, new Set());
-    bySido.get(district.sido)!.add(district.sigungu);
+    const arcode = district.code.slice(0, 2);
+    const stcode = district.code.slice(2, 5);
+    const regionKey = `${arcode}:${stcode}`;
+    if (!byRegion.has(regionKey)) {
+      byRegion.set(regionKey, { arcode, stcode, sigungu: district.sigungu });
+    }
   }
 
   try {
-    for (const [sidoNm, sigunguSet] of bySido.entries()) {
-      for (const sigunguNm of sigunguSet) {
-        for (let pageNo = 1; pageNo <= 30; pageNo += 1) {
-          const url = paramsToUrl("http://api.childcare.go.kr/mediate/rest/cpmsapi030/cpmsapi030/request", {
-            serviceKey: CHILDCARE_API_KEY,
-            sidoNm,
-            sigunguNm,
-            pageNo,
-            numOfRows: 1000,
-          });
-          const xml = await fetchTextWithRetry(url);
-          const items = xmlItems(xml);
-          if (!items.length) break;
-          for (const item of items) {
-            if ((xmlTag(item, "crrcl") ?? "") !== "정상") continue;
-            const lat = numeric(xmlTag(item, "lat"));
-            const lng = numeric(xmlTag(item, "lon"));
-            if (lat == null || lng == null) {
-              skippedMissingCoords += 1;
-              continue;
-            }
-            const capa = numeric(xmlTag(item, "crpCapa")) ?? 0;
-            const current = numeric(xmlTag(item, "crpCrnt")) ?? 0;
-            rows.push({ lat, lng, spare: Math.max(capa - current, 0), vehicle: (xmlTag(item, "vhcl") ?? "N") === "Y", sigungu: sigunguNm });
+    for (const { arcode, stcode, sigungu } of byRegion.values()) {
+      for (let pageNo = 1; pageNo <= 30; pageNo += 1) {
+        const url = paramsToUrl("https://api.childcare.go.kr/mediate/rest/cpmsapi030/cpmsapi030/request", {
+          key: CHILDCARE_API_KEY,
+          arcode,
+          stcode,
+          pageNo,
+          numOfRows: 1000,
+        });
+        const xml = await fetchTextWithRetry(url, { headers: { "User-Agent": "Mozilla/5.0 (compatible)" } });
+        const items = xmlItems(xml);
+        if (!items.length) break;
+        for (const item of items) {
+          if ((xmlTag(item, "crstatusname") ?? "") !== "정상") continue;
+          const lat = numeric(xmlTag(item, "la"));
+          const lng = numeric(xmlTag(item, "lo"));
+          if (lat == null || lng == null) {
+            skippedMissingCoords += 1;
+            continue;
           }
-          if (items.length < 1000) break;
+          const capa = numeric(xmlTag(item, "crcapat")) ?? 0;
+          const current = numeric(xmlTag(item, "crchcnt")) ?? 0;
+          rows.push({ lat, lng, spare: Math.max(capa - current, 0), vehicle: false, sigungu });
         }
+        if (items.length < 1000) break;
       }
     }
   } catch (error) {

@@ -4,6 +4,9 @@ export interface Env {
   DB: D1Database;
   DATA_GO_KR_SERVICE_KEY: string;
   KAKAO_REST_API_KEY?: string;
+  KAKAO_CLIENT_SECRET?: string;
+  VITE_KAKAO_JS_KEY?: string;
+  VITE_KAKAO_MAP_JS_KEY?: string;
   ADMIN_TOKEN?: string;
   JWT_SECRET?: string;
   TAGO_API_KEY?: string;
