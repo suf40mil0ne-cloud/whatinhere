@@ -53,7 +53,25 @@ const NEIS_API_KEY = process.env.NEIS_API_KEY ?? "9b61b187cc55411a90b99d802758e3
 const NEIS_ACADEMY_API_KEY = process.env.NEIS_ACADEMY_API_KEY;
 const SERVICE_KEY = process.env.DATA_GO_KR_SERVICE_KEY ?? DEFAULT_SERVICE_KEY;
 
-async function fetchChildcareCenters(districts: DistrictState[]): Promise<ChildcareCenter[]> {
+// 수도권 시군구 arcode(5자리) → 시군구명 매핑 (어린이집 포털 자체 코드)
+const CHILDCARE_ARCODE_MAP: Record<string, string> = {
+  // 서울 25개구
+  "11010": "종로구", "11020": "중구",    "11030": "용산구",  "11040": "성동구",  "11050": "광진구",
+  "11060": "동대문구","11070": "중랑구", "11080": "성북구",  "11090": "강북구",  "11100": "도봉구",
+  "11110": "노원구", "11120": "은평구",  "11130": "서대문구","11140": "마포구",  "11150": "양천구",
+  "11160": "강서구", "11170": "구로구",  "11180": "금천구",  "11190": "영등포구","11200": "동작구",
+  "11210": "관악구", "11220": "서초구",  "11230": "강남구",  "11240": "송파구",  "11250": "강동구",
+  // 인천 10개구군
+  "28010": "중구",   "28020": "동구",    "28030": "미추홀구","28040": "연수구",  "28050": "남동구",
+  "28060": "부평구", "28070": "계양구",  "28080": "서구",    "28090": "강화군",  "28100": "옹진군",
+  // 경기 주요시
+  "31010": "수원시", "31020": "성남시",  "31030": "의정부시","31040": "안양시",  "31050": "부천시",
+  "31060": "광명시", "31070": "평택시",  "31080": "동두천시","31090": "안산시",  "31100": "고양시",
+  "31110": "과천시", "31120": "구리시",  "31130": "남양주시","31140": "오산시",  "31150": "시흥시",
+  "31160": "군포시", "31170": "의왕시",  "31180": "하남시",  "31190": "용인시",  "31200": "파주시",
+};
+
+async function fetchChildcareCenters(_districts: DistrictState[]): Promise<ChildcareCenter[]> {
   if (!CHILDCARE_API_KEY) {
     warn("05-fetch-childcare: CHILDCARE_API_KEY missing, childcare-center metrics will be zeroed");
     return [];
@@ -62,32 +80,21 @@ async function fetchChildcareCenters(districts: DistrictState[]): Promise<Childc
   const rows: ChildcareCenter[] = [];
   let skippedMissingCoords = 0;
 
-  // district code 형식: 11010530 → arcode=11(시도), stcode=010(시군구)
-  const byRegion = new Map<string, { arcode: string; stcode: string; sigungu: string }>();
-  for (const district of districts) {
-    const arcode = district.code.slice(0, 2);
-    const stcode = district.code.slice(2, 5);
-    const regionKey = `${arcode}:${stcode}`;
-    if (!byRegion.has(regionKey)) {
-      byRegion.set(regionKey, { arcode, stcode, sigungu: district.sigungu });
-    }
-  }
-
   try {
-    for (const { arcode, stcode, sigungu } of byRegion.values()) {
-      for (let pageNo = 1; pageNo <= 30; pageNo += 1) {
-        const url = paramsToUrl("https://api.childcare.go.kr/mediate/rest/cpmsapi030/cpmsapi030/request", {
+    for (const [arcode, sigungu] of Object.entries(CHILDCARE_ARCODE_MAP)) {
+      for (let pageNo = 1; pageNo <= 50; pageNo += 1) {
+        const url = paramsToUrl("http://api.childcare.go.kr/mediate/rest/cpmsapi030/cpmsapi030/request", {
           key: CHILDCARE_API_KEY,
           arcode,
-          stcode,
           pageNo,
-          numOfRows: 1000,
+          numOfRows: 100,
         });
-        const xml = await fetchTextWithRetry(url, { headers: { "User-Agent": "Mozilla/5.0 (compatible)" } });
+        const xml = await fetchTextWithRetry(url, { headers: { "User-Agent": "Mozilla/5.0 (compatible)" }, timeoutMs: 15000 });
         const items = xmlItems(xml);
         if (!items.length) break;
         for (const item of items) {
-          if ((xmlTag(item, "crstatusname") ?? "") !== "정상") continue;
+          const status = xmlTag(item, "crstatusname") ?? "";
+          if (!status.includes("정상") && !status.includes("운영")) continue;
           const lat = numeric(xmlTag(item, "la"));
           const lng = numeric(xmlTag(item, "lo"));
           if (lat == null || lng == null) {
@@ -98,7 +105,7 @@ async function fetchChildcareCenters(districts: DistrictState[]): Promise<Childc
           const current = numeric(xmlTag(item, "crchcnt")) ?? 0;
           rows.push({ lat, lng, spare: Math.max(capa - current, 0), vehicle: false, sigungu });
         }
-        if (items.length < 1000) break;
+        if (items.length < 100) break;
       }
     }
   } catch (error) {
@@ -300,7 +307,7 @@ async function main() {
   await saveState(districts);
   await writeSqlFile("05-childcare.sql", buildUpdateSql(districts, ["s_childcare", "raw_childcare"]));
   await ensureOutputDir();
-  await fs.writeFile(path.join(OUTPUT_DIR, "childcare-raw.json"), JSON.stringify({ centers, schools }, null, 2));
+  await fs.writeFile(path.join(OUTPUT_DIR, "childcare-raw.json"), JSON.stringify({ centers, schools, academies }, null, 2));
   info(`05-fetch-childcare: centers=${centers.length}, schools=${schools.length}, academies=${academies.length}`);
 }
 

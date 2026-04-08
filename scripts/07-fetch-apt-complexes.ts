@@ -102,8 +102,10 @@ async function main() {
   if (!districts.length) throw new Error("Run 00-fetch-districts.ts first");
 
   if (!KAKAO_REST_API_KEY) {
-    warn("07-fetch-apt-complexes: KAKAO_REST_API_KEY missing — writing empty SQL");
+    warn("07-fetch-apt-complexes: KAKAO_REST_API_KEY missing — writing empty SQL and state");
     await writeSqlFile("07-apt-complexes.sql", "BEGIN TRANSACTION;\nCOMMIT;\n");
+    await ensureOutputDir();
+    await fs.writeFile(path.join(OUTPUT_DIR, "apt-complexes.state.json"), "[]");
     return;
   }
 
