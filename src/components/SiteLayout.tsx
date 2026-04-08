@@ -1,22 +1,29 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { fetchMe, logout, startKakaoLogin } from "../lib/auth";
-import type { AuthUser } from "../lib/auth";
+import { useAuth } from "../contexts/AuthContext";
 
-// 단지戰: 대결⚔️ · 랭킹 · HOT🔥 네비게이션 포함
 export function SiteLayout({ children }: { children: React.ReactNode }) {
   const location = useLocation();
-  const [user, setUser] = useState<AuthUser | null>(null);
-  const [userLoading, setUserLoading] = useState(true);
+  const { user, authChecked, isAuthenticated, startKakaoLogin, logout } = useAuth();
 
   useEffect(() => {
-    fetchMe()
-      .then(setUser)
-      .finally(() => setUserLoading(false));
-  }, [location.pathname]);
+    console.info("[auth-ui] header render state", {
+      authChecked,
+      isAuthenticated,
+      hasUser: Boolean(user),
+      path: location.pathname,
+    });
+  }, [authChecked, isAuthenticated, location.pathname, user]);
 
   function isActive(path: string) {
     return location.pathname === path || location.pathname.startsWith(path + "/");
+  }
+
+  async function handleLogout() {
+    await logout();
+    if (window.location.pathname !== "/") {
+      window.location.assign("/");
+    }
   }
 
   return (
@@ -44,16 +51,16 @@ export function SiteLayout({ children }: { children: React.ReactNode }) {
           </nav>
 
           <div className="site-header__auth">
-            {userLoading ? null : user ? (
+            {!authChecked ? null : isAuthenticated && user ? (
               <div className="auth-user">
                 {user.profileImg && (
                   <img src={user.profileImg} alt={user.nickname} className="auth-user__img" />
                 )}
                 <span className="auth-user__name">{user.nickname}</span>
-                <button className="btn btn--ghost" onClick={logout}>로그아웃</button>
+                <button className="btn btn--ghost" onClick={() => void handleLogout()}>로그아웃</button>
               </div>
             ) : (
-              <button className="btn btn--kakao" onClick={startKakaoLogin}>
+              <button className="btn btn--kakao" onClick={() => startKakaoLogin()}>
                 카카오 로그인
               </button>
             )}

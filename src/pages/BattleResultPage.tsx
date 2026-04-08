@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { useAuth } from "../components/AuthProvider";
+import { useAuth } from "../contexts/AuthContext";
 
 interface BattleScores {
   transport: number;

@@ -1,17 +1,7 @@
-import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { fetchMe, logout as requestLogout, startKakaoLogin as beginKakaoLogin } from "../lib/auth";
 import type { AuthUser } from "../lib/auth";
-
-interface AuthContextValue {
-  user: AuthUser | null;
-  authChecked: boolean;
-  isAuthenticated: boolean;
-  refreshAuth: () => Promise<AuthUser | null>;
-  startKakaoLogin: (returnTo?: string) => void;
-  logout: () => Promise<void>;
-}
-
-const AuthContext = createContext<AuthContextValue | null>(null);
+import { AuthContext } from "../contexts/AuthContext";
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -48,7 +38,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setAuthChecked(true);
   }, []);
 
-  const value: AuthContextValue = {
+  const value = {
     user,
     authChecked,
     isAuthenticated: Boolean(user),
@@ -60,10 +50,4 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
-export function useAuth(): AuthContextValue {
-  const value = useContext(AuthContext);
-  if (!value) {
-    throw new Error("useAuth must be used within AuthProvider");
-  }
-  return value;
-}
+export { useAuth } from "../contexts/AuthContext";
