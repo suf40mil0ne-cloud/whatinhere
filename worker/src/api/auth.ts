@@ -6,6 +6,26 @@ const SESSION_COOKIE = "whatsinhere_session";
 const SESSION_TTL_SECONDS = 30 * 24 * 60 * 60;
 const KAKAO_CALLBACK_PATH = "/auth/kakao/callback";
 
+const NICKNAME_ADJ = [
+  "용감한", "씩씩한", "당찬", "날카로운", "빠른",
+  "강한", "멋진", "늠름한", "활발한", "재빠른",
+  "지혜로운", "듬직한", "패기있는", "열정적인", "도전적인",
+  "신나는", "힘찬", "당당한", "뚜렷한", "야무진",
+];
+const NICKNAME_NOUN = [
+  "입주민", "세대주", "동대표", "관리소장", "경비원",
+  "분양자", "청약러", "갭투자자", "실거주자", "임차인",
+  "전세러", "월세러", "집주인", "무주택자", "1주택자",
+  "다주택자", "재건축러", "리모델러", "이사러", "청약당첨자",
+];
+
+function generateNickname(): string {
+  const adj  = NICKNAME_ADJ[Math.floor(Math.random() * NICKNAME_ADJ.length)];
+  const noun = NICKNAME_NOUN[Math.floor(Math.random() * NICKNAME_NOUN.length)];
+  const num  = String(Math.floor(Math.random() * 100)).padStart(2, "0");
+  return `${adj}${noun}${num}`;
+}
+
 function getFrontendBase(request: Request): string {
   const url = new URL(request.url);
   const isLocal = url.hostname === "localhost" || url.hostname === "127.0.0.1";
@@ -235,11 +255,11 @@ export async function kakaoCallback(request: Request, env: Env): Promise<Respons
   };
 
   const userId = String(me.id);
-  const nickname = me.kakao_account?.profile?.nickname ?? me.properties?.nickname ?? "익명";
   const profileImg = me.kakao_account?.profile?.profile_image_url ?? me.properties?.profile_image ?? null;
 
   const repo = new Repository(env.DB);
-  await repo.upsertUser({ id: userId, nickname, profileImg });
+  // Generate a random nickname only for new users; existing users keep their nickname
+  await repo.upsertUser({ id: userId, nickname: generateNickname(), profileImg });
 
   const token = crypto.randomUUID();
   const expiresAt = new Date(Date.now() + SESSION_TTL_SECONDS * 1000).toISOString();
@@ -277,6 +297,28 @@ export async function getMe(request: Request, env: Env): Promise<Response> {
 
   console.info("[auth] me session parse", { ok: true, userId: user.id });
   return authResponse({ id: user.id, nickname: user.nickname, profileImg: user.profile_img });
+}
+
+export async function updateNickname(request: Request, env: Env): Promise<Response> {
+  const token = extractToken(request);
+  if (!token) return authError("Unauthorized", 401);
+
+  const repo = new Repository(env.DB);
+  const user = await repo.getSessionUser(token);
+  if (!user) return authError("Unauthorized", 401);
+  if (new Date(user.expires_at) < new Date()) {
+    await repo.deleteSession(token);
+    return authError("Unauthorized", 401);
+  }
+
+  let body: unknown;
+  try { body = await request.json(); } catch { return authError("Invalid JSON", 400); }
+  const { nickname } = body as Record<string, unknown>;
+  if (typeof nickname !== "string" || !nickname.trim()) return authError("nickname is required", 400);
+  const trimmed = nickname.trim().slice(0, 10);
+
+  await repo.updateUserNickname(user.id, trimmed);
+  return authResponse({ ok: true, nickname: trimmed });
 }
 
 export async function logout(request: Request, env: Env): Promise<Response> {

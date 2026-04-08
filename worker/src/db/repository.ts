@@ -406,10 +406,15 @@ export class Repository {
   // ── Users / Sessions ─────────────────────────────────────────────────────────
 
   async upsertUser(user: { id: string; nickname: string; profileImg: string | null }): Promise<void> {
+    // On conflict (returning user), keep their existing nickname — only update profile_img
     await this.db.prepare(
       `INSERT INTO users (id, nickname, profile_img) VALUES (?, ?, ?)
-       ON CONFLICT(id) DO UPDATE SET nickname=excluded.nickname, profile_img=excluded.profile_img`
+       ON CONFLICT(id) DO UPDATE SET profile_img=excluded.profile_img`
     ).bind(user.id, user.nickname, user.profileImg ?? null).run();
+  }
+
+  async updateUserNickname(userId: string, nickname: string): Promise<void> {
+    await this.db.prepare(`UPDATE users SET nickname=? WHERE id=?`).bind(nickname, userId).run();
   }
 
   async createSession(token: string, userId: string, expiresAt: string): Promise<void> {

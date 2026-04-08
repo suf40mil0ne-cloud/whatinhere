@@ -1,6 +1,6 @@
-import { useEffect, useState, useRef } from "react";
-import { useParams, Link } from "react-router-dom";
-import { getToken, isLoggedIn, startKakaoLogin } from "../lib/auth";
+import { useEffect, useRef, useState } from "react";
+import { Link, useParams } from "react-router-dom";
+import { useAuth } from "../components/AuthProvider";
 
 interface BattleScores {
   transport: number;
@@ -100,32 +100,36 @@ function Toast({ message, onDone }: { message: string; onDone: () => void }) {
 
 export function BattleResultPage() {
   const { id } = useParams<{ id: string }>();
+  const { user, authChecked, isAuthenticated, startKakaoLogin } = useAuth();
   const [battle, setBattle] = useState<Battle | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
-  // Comment state
   const [comment, setComment] = useState("");
   const [commentLoading, setCommentLoading] = useState(false);
-
-  // Dispute modal
   const [disputeOpen, setDisputeOpen] = useState(false);
   const [disputeCategory, setDisputeCategory] = useState("transport");
   const [disputeReason, setDisputeReason] = useState("");
   const [disputeLoading, setDisputeLoading] = useState(false);
 
-  const loggedIn = isLoggedIn();
+  const loggedIn = authChecked && isAuthenticated;
   const hasFetched = useRef(false);
+
+  useEffect(() => {
+    console.info("[auth-ui] battle result render state", {
+      authChecked,
+      isAuthenticated,
+      hasUser: Boolean(user),
+      battleId: id ?? null,
+    });
+  }, [authChecked, id, isAuthenticated, user]);
 
   useEffect(() => {
     if (!id || hasFetched.current) return;
     hasFetched.current = true;
 
-    const token = getToken();
-    const headers: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {};
-
-    fetch(`/api/battles/${id}`, { headers })
+    fetch(`/api/battles/${id}`, { credentials: "include" })
       .then((r) => r.json())
       .then((data) => {
         if ((data as { error?: string }).error) throw new Error((data as { error: string }).error);
@@ -143,24 +147,27 @@ export function BattleResultPage() {
     navigator.clipboard.writeText(window.location.href).then(() => showToast("복사됐어요!")).catch(() => showToast("복사 실패"));
   }
 
+  async function reloadBattle(): Promise<void> {
+    if (!id) return;
+    const data = await fetch(`/api/battles/${id}`, { credentials: "include" }).then((r) => r.json());
+    setBattle(data as Battle);
+    hasFetched.current = true;
+  }
+
   async function submitComment() {
     if (!comment.trim() || !id) return;
     setCommentLoading(true);
     try {
       const res = await fetch(`/api/battles/${id}/comments`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${getToken()}` },
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ comment: comment.trim() }),
       });
       if (!res.ok) throw new Error("댓글 등록 실패");
       setComment("");
-      // Reload battle
       hasFetched.current = false;
-      const token = getToken();
-      const headers: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {};
-      const data = await fetch(`/api/battles/${id}`, { headers }).then((r) => r.json());
-      setBattle(data as Battle);
-      hasFetched.current = true;
+      await reloadBattle();
     } catch {
       showToast("댓글 등록 실패");
     } finally {
@@ -170,10 +177,14 @@ export function BattleResultPage() {
 
   async function likeComment(commentId: string) {
     if (!id) return;
-    await fetch(`/api/battles/${id}/comments/${commentId}/like`, {
+    const res = await fetch(`/api/battles/${id}/comments/${commentId}/like`, {
       method: "POST",
-      headers: { Authorization: `Bearer ${getToken()}` },
+      credentials: "include",
     });
+    if (!res.ok) {
+      showToast("좋아요 실패");
+      return;
+    }
     setBattle((b) => {
       if (!b) return b;
       return {
@@ -191,6 +202,7 @@ export function BattleResultPage() {
     try {
       const res = await fetch(`/api/battles/${id}/disputes`, {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ category: disputeCategory, reason: disputeReason.trim() }),
       });
@@ -208,27 +220,40 @@ export function BattleResultPage() {
   if (loading) return <div className="battle-result__loading">불러오는 중...</div>;
   if (error || !battle) return <div className="battle-result__error">{error ?? "대결을 찾을 수 없어요"}</div>;
 
+  // Check if apt A is "my apt" based on localStorage
+  const MY_APT_KEY = "whatsinhere_my_apt";
+  let myAptId: string | null = null;
+  try { myAptId = (JSON.parse(localStorage.getItem(MY_APT_KEY) ?? "null") as { id?: string } | null)?.id ?? null; } catch { /* ignore */ }
+  const myIsA = myAptId === battle.aptAId;
+  const myIsB = myAptId === battle.aptBId;
+  const hasMyApt = myIsA || myIsB;
+
   const keys: Array<keyof BattleScores> = ["transport", "walk", "value", "childcare", "safety"];
-  let winsA = 0, winsB = 0;
+  let winsA = 0;
+  let winsB = 0;
   for (const k of keys) {
     if (battle.scoreA[k] > battle.scoreB[k]) winsA++;
     else if (battle.scoreB[k] > battle.scoreA[k]) winsB++;
   }
 
-  const winnerName =
-    battle.winner === "a" ? battle.aptAName :
-    battle.winner === "b" ? battle.aptBName : null;
-  const scoreLabel =
-    battle.winner === "draw" ? "무승부" :
-    `${Math.max(winsA, winsB)}:${Math.min(winsA, winsB)} 승리`;
+  const myWins = myIsA ? winsA : winsB;
+  const opWins = myIsA ? winsB : winsA;
+  const myWon = myIsA ? battle.winner === "a" : myIsB ? battle.winner === "b" : false;
+  const opWon = myIsA ? battle.winner === "b" : myIsB ? battle.winner === "a" : false;
+
+  const verdict = !hasMyApt
+    ? (battle.winner === "draw" ? <strong>팽팽한 접전!</strong> : <>{battle.winner === "a" ? battle.aptAName : battle.aptBName} <strong>{Math.max(winsA, winsB)}:{Math.min(winsA, winsB)} 승리</strong></>)
+    : myWon ? <strong>🏆 우리 단지 승리! {myWins}:{opWins}</strong>
+    : opWon ? <strong>분발하세요! 💪 {myWins}:{opWins}</strong>
+    : <strong>팽팽한 접전! {myWins}:{opWins}</strong>;
 
   return (
     <div className="battle-result">
       {toast && <Toast message={toast} onDone={() => setToast(null)} />}
 
-      {/* Header */}
       <div className="battle-result__header">
         <div className="battle-result__apt">
+          {myIsA && <span className="battle-result__my-badge">🏠</span>}
           <span className="battle-result__apt-name">{battle.aptAName}</span>
           {battle.winner === "a" && <span className="battle-result__crown">🏆</span>}
         </div>
@@ -236,36 +261,28 @@ export function BattleResultPage() {
         <div className="battle-result__apt battle-result__apt--b">
           {battle.winner === "b" && <span className="battle-result__crown">🏆</span>}
           <span className="battle-result__apt-name">{battle.aptBName}</span>
+          {myIsB && <span className="battle-result__my-badge">🏠</span>}
         </div>
       </div>
 
-      {/* Score bars */}
       <div className="battle-result__scores">
         {keys.map((k) => (
           <ScoreBar key={k} category={k} scoreA={battle.scoreA[k]} scoreB={battle.scoreB[k]} />
         ))}
       </div>
 
-      {/* Result */}
-      <div className="battle-result__verdict">
-        {winnerName
-          ? <>{winnerName} <strong>{scoreLabel}</strong></>
-          : <strong>무승부</strong>
-        }
-      </div>
+      <div className="battle-result__verdict">{verdict}</div>
 
-      {/* Actions */}
       <div className="battle-result__actions">
         <button className="btn btn--outline" onClick={copyLink}>📤 결과 공유</button>
         <button className="btn btn--outline" onClick={() => setDisputeOpen(true)}>⚠️ 이 결과 틀렸어요</button>
         <Link to="/battle" className="btn btn--outline">새 대결 만들기</Link>
       </div>
 
-      {/* Comments */}
       <div className="battle-result__comments">
         <h2 className="battle-result__comments-title">💬 댓글</h2>
 
-        {loggedIn ? (
+        {!authChecked ? null : loggedIn ? (
           <div className="comment-form">
             <textarea
               className="comment-form__input"
@@ -286,7 +303,7 @@ export function BattleResultPage() {
         ) : (
           <div className="battle-result__login-prompt">
             <span>댓글을 달려면 로그인이 필요해요</span>
-            <button className="btn btn--kakao" onClick={startKakaoLogin}>카카오 로그인</button>
+            <button className="btn btn--kakao" onClick={() => startKakaoLogin()}>카카오 로그인</button>
           </div>
         )}
 
@@ -303,7 +320,7 @@ export function BattleResultPage() {
               <p className="comment-item__text">{c.comment}</p>
               <button
                 className={`comment-item__like ${c.likedByMe ? "comment-item__like--active" : ""}`}
-                onClick={() => loggedIn ? likeComment(c.id) : startKakaoLogin()}
+                onClick={() => loggedIn ? void likeComment(c.id) : startKakaoLogin()}
                 disabled={c.likedByMe}
               >
                 ♥ {c.likes}
@@ -313,7 +330,6 @@ export function BattleResultPage() {
         </div>
       </div>
 
-      {/* Dispute modal */}
       {disputeOpen && (
         <div className="modal-backdrop" onClick={() => setDisputeOpen(false)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>

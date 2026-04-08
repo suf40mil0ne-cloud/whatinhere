@@ -72,6 +72,8 @@ jobs:
           npm run collect:value
           npm run collect:childcare
           npm run collect:safety
+          npm run collect:apt-complexes || echo "apt complex collection failed, using existing complexes"
+          npm run collect:complex-scores || echo "complex scoring failed"
           npm run collect:merge
 
       - name: Verify generated artifacts

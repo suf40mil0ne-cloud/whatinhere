@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 interface AptItem {
@@ -23,8 +23,8 @@ interface DropdownOptions {
 
 const EMPTY_SEARCH: SearchState = { sido: "", sigungu: "", dong: "", aptId: "", aptName: "" };
 const EMPTY_OPTIONS: DropdownOptions = { sigungus: [], dongs: [], apts: [] };
+const MY_APT_KEY = "whatsinhere_my_apt";
 
-// Static sido list for Korea
 const SIDO_LIST = ["서울특별시", "인천광역시", "경기도"];
 
 async function fetchSearch(params: Record<string, string>): Promise<{ type: string; items: unknown[] }> {
@@ -36,16 +36,22 @@ async function fetchSearch(params: Record<string, string>): Promise<{ type: stri
 
 function AptSelector({
   label,
+  sublabel,
   state,
   options,
   loading,
   onChange,
+  saveCheckbox,
+  onSaveChange,
 }: {
   label: string;
+  sublabel?: string;
   state: SearchState;
   options: DropdownOptions;
   loading: boolean;
   onChange: (updates: Partial<SearchState & DropdownOptions>) => void;
+  saveCheckbox?: boolean;
+  onSaveChange?: (checked: boolean) => void;
 }) {
   async function onSido(sido: string) {
     onChange({ sido, sigungu: "", dong: "", aptId: "", aptName: "", sigungus: [], dongs: [], apts: [] });
@@ -82,55 +88,52 @@ function AptSelector({
   return (
     <div className="apt-selector">
       <h3 className="apt-selector__label">{label}</h3>
+      {sublabel && <p className="apt-selector__sublabel">{sublabel}</p>}
       <div className="apt-selector__fields">
-        <select
-          value={state.sido}
-          onChange={(e) => onSido(e.target.value)}
-          disabled={loading}
-          className="apt-selector__select"
-        >
+        <select value={state.sido} onChange={(e) => onSido(e.target.value)} disabled={loading} className="apt-selector__select">
           <option value="">시도 선택</option>
           {SIDO_LIST.map((s) => <option key={s} value={s}>{s}</option>)}
         </select>
-
-        <select
-          value={state.sigungu}
-          onChange={(e) => onSigungu(e.target.value)}
-          disabled={!state.sido || loading}
-          className="apt-selector__select"
-        >
+        <select value={state.sigungu} onChange={(e) => onSigungu(e.target.value)} disabled={!state.sido || loading} className="apt-selector__select">
           <option value="">시군구 선택</option>
           {options.sigungus.map((s) => <option key={s} value={s}>{s}</option>)}
         </select>
-
-        <select
-          value={state.dong}
-          onChange={(e) => onDong(e.target.value)}
-          disabled={!state.sigungu || loading}
-          className="apt-selector__select"
-        >
+        <select value={state.dong} onChange={(e) => onDong(e.target.value)} disabled={!state.sigungu || loading} className="apt-selector__select">
           <option value="">읍면동 선택</option>
           {options.dongs.map((d) => <option key={d} value={d}>{d}</option>)}
         </select>
-
-        <select
-          value={state.aptId}
-          onChange={(e) => onApt(e.target.value)}
-          disabled={!state.dong || loading}
-          className="apt-selector__select"
-        >
+        <select value={state.aptId} onChange={(e) => onApt(e.target.value)} disabled={!state.dong || loading} className="apt-selector__select">
           <option value="">단지 선택</option>
           {options.apts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
         </select>
-
         {state.aptName && (
           <div className="apt-selector__selected">
             선택됨: <strong>{state.aptName}</strong>
           </div>
         )}
+        {onSaveChange != null && state.aptId && (
+          <label className="apt-selector__save-label">
+            <input
+              type="checkbox"
+              checked={saveCheckbox ?? false}
+              onChange={(e) => onSaveChange(e.target.checked)}
+            />
+            {" "}내 단지로 저장
+          </label>
+        )}
       </div>
     </div>
   );
+}
+
+function loadSavedApt(): { id: string; name: string } | null {
+  try {
+    const raw = localStorage.getItem(MY_APT_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw) as { id: string; name: string };
+  } catch {
+    return null;
+  }
 }
 
 export function BattlePage() {
@@ -142,6 +145,15 @@ export function BattlePage() {
   const [optionsA, setOptionsA] = useState<DropdownOptions>(EMPTY_OPTIONS);
   const [stateB, setStateB] = useState<SearchState>(EMPTY_SEARCH);
   const [optionsB, setOptionsB] = useState<DropdownOptions>(EMPTY_OPTIONS);
+  const [saveAsMyApt, setSaveAsMyApt] = useState(false);
+
+  // Restore saved "my apt" on mount
+  useEffect(() => {
+    const saved = loadSavedApt();
+    if (saved) {
+      setStateA((s) => ({ ...s, aptId: saved.id, aptName: saved.name }));
+    }
+  }, []);
 
   function patchA(updates: Partial<SearchState & DropdownOptions>) {
     setStateA((s) => ({ ...s, ...updates }));
@@ -157,6 +169,9 @@ export function BattlePage() {
 
   async function startBattle() {
     if (!canStart) return;
+    if (saveAsMyApt && stateA.aptId) {
+      localStorage.setItem(MY_APT_KEY, JSON.stringify({ id: stateA.aptId, name: stateA.aptName }));
+    }
     setLoading(true);
     setError(null);
     try {
@@ -187,17 +202,21 @@ export function BattlePage() {
 
       <div className="battle-page__selectors">
         <AptSelector
-          label="1번 단지"
+          label="🏠 우리 단지"
+          sublabel="우리 단지를 선택하세요"
           state={stateA}
           options={optionsA}
           loading={loading}
           onChange={patchA}
+          saveCheckbox={saveAsMyApt}
+          onSaveChange={setSaveAsMyApt}
         />
 
         <div className="battle-page__vs">⚔️</div>
 
         <AptSelector
-          label="2번 단지"
+          label="⚔️ 도전장"
+          sublabel="도전할 단지를 선택하세요"
           state={stateB}
           options={optionsB}
           loading={loading}

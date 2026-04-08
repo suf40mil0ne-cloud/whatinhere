@@ -1,3 +1,5 @@
+import fs from "node:fs/promises";
+import path from "node:path";
 import {
   buildUpdateSql,
   CAPITAL_SIDO_NAMES,
@@ -22,6 +24,8 @@ import {
   countWithin,
   round,
   text,
+  OUTPUT_DIR,
+  ensureOutputDir,
 } from "./district-score-lib";
 
 interface ChildcareCenter {
@@ -295,6 +299,8 @@ async function main() {
   updateOverallScores(districts);
   await saveState(districts);
   await writeSqlFile("05-childcare.sql", buildUpdateSql(districts, ["s_childcare", "raw_childcare"]));
+  await ensureOutputDir();
+  await fs.writeFile(path.join(OUTPUT_DIR, "childcare-raw.json"), JSON.stringify({ centers, schools }, null, 2));
   info(`05-fetch-childcare: centers=${centers.length}, schools=${schools.length}, academies=${academies.length}`);
 }
 

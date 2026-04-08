@@ -1,3 +1,5 @@
+import fs from "node:fs/promises";
+import path from "node:path";
 import {
   buildUpdateSql,
   CAPITAL_SIDO_NAMES,
@@ -20,6 +22,8 @@ import {
   countWithin,
   round,
   text,
+  OUTPUT_DIR,
+  ensureOutputDir,
 } from "./district-score-lib";
 
 interface Park {
@@ -116,6 +120,8 @@ async function main() {
   updateOverallScores(districts);
   await saveState(districts);
   await writeSqlFile("03-walk.sql", buildUpdateSql(districts, ["s_walk", "raw_walk"]));
+  await ensureOutputDir();
+  await fs.writeFile(path.join(OUTPUT_DIR, "walk-raw.json"), JSON.stringify({ parks }, null, 2));
   info(`03-fetch-walk: parks=${parks.length}`);
 }
 

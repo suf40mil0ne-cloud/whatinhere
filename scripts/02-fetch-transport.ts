@@ -1,3 +1,5 @@
+import fs from "node:fs/promises";
+import path from "node:path";
 import {
   buildUpdateSql,
   DEFAULT_SERVICE_KEY,
@@ -21,6 +23,8 @@ import {
   xmlTag,
   countWithin,
   round,
+  OUTPUT_DIR,
+  ensureOutputDir,
 } from "./district-score-lib";
 
 interface BusStop extends PointRecord {}
@@ -238,6 +242,8 @@ async function main() {
 
   await saveState(districts);
   await writeSqlFile("02-transport.sql", buildUpdateSql(districts, ["s_transport", "raw_transport"]));
+  await ensureOutputDir();
+  await fs.writeFile(path.join(OUTPUT_DIR, "transport-raw.json"), JSON.stringify({ buses, subways }, null, 2));
   info(`02-fetch-transport: buses=${buses.length}, subways=${subways.length}`);
 }
 

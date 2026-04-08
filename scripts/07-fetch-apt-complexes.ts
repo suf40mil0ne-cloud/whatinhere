@@ -1,3 +1,5 @@
+import fs from "node:fs/promises";
+import path from "node:path";
 import {
   DistrictState,
   info,
@@ -10,7 +12,18 @@ import {
   writeSqlFile,
   quote,
   sqlValue,
+  OUTPUT_DIR,
+  ensureOutputDir,
 } from "./district-score-lib";
+
+export interface AptComplexState {
+  id: string;
+  name: string;
+  lat: number;
+  lng: number;
+  districtCode: string | null;
+  sigungu: string;
+}
 
 const KAKAO_REST_API_KEY = process.env.KAKAO_REST_API_KEY;
 const KAKAO_ORIGIN = "https://whatsinhere.pages.dev";
@@ -188,6 +201,15 @@ async function main() {
   lines.push("COMMIT;");
 
   await writeSqlFile("07-apt-complexes.sql", `${lines.join("\n")}\n`);
+
+  // Save state for 08-score-by-complex.ts
+  const aptState: AptComplexState[] = allApts.map((apt) => {
+    const d = apt.districtCode ? districts.find((district) => district.code === apt.districtCode) : undefined;
+    return { id: apt.id, name: apt.name, lat: apt.lat, lng: apt.lng, districtCode: apt.districtCode, sigungu: d?.sigungu ?? "" };
+  });
+  await ensureOutputDir();
+  await fs.writeFile(path.join(OUTPUT_DIR, "apt-complexes.state.json"), JSON.stringify(aptState, null, 2));
+
   info(`07-fetch-apt-complexes: wrote ${allApts.length} rows`);
 }
 

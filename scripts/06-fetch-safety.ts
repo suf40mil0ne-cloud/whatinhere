@@ -1,3 +1,5 @@
+import fs from "node:fs/promises";
+import path from "node:path";
 import {
   buildUpdateSql,
   DEFAULT_SERVICE_KEY,
@@ -19,6 +21,8 @@ import {
   round,
   text,
   CAPITAL_SIDO_NAMES,
+  OUTPUT_DIR,
+  ensureOutputDir,
 } from "./district-score-lib";
 
 interface CctvPoint { lat: number; lng: number; cameras: number; }
@@ -238,6 +242,10 @@ async function main() {
   updateOverallScores(districts);
   await saveState(districts);
   await writeSqlFile("06-safety.sql", buildUpdateSql(districts, ["s_safety", "raw_safety"]));
+  await ensureOutputDir();
+  const safetyIndexObj: Record<string, number> = {};
+  safetyIndex.forEach((v, k) => { safetyIndexObj[k] = v; });
+  await fs.writeFile(path.join(OUTPUT_DIR, "safety-raw.json"), JSON.stringify({ cctvs, childZones, safetyIndex: safetyIndexObj }, null, 2));
   info(`06-fetch-safety: cctv=${cctvs.length}, childZones=${childZones.length}, safetyIndex=${safetyIndex.size}`);
 }
 
