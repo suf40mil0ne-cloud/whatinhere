@@ -86,7 +86,11 @@ function assignValues(districts: DistrictState[], trades: TradeRow[]) {
   const priceNorm = normalizeWithinSgg(districts, (row) => row.sigungu, (row) => row.raw_value?.pricePerSqmMedian ?? null, true);
   for (const district of districts) {
     const convenience = (district.s_transport + district.s_walk) / 2;
-    district.s_value = round((priceNorm.get(district) ?? 0) * 0.6 + convenience * 0.4, 2);
+    // When no trade data exists (null price), use a neutral 0.5 rather than 0
+    // so the district isn't unfairly penalised for missing data.
+    const hasPrice = district.raw_value?.pricePerSqmMedian != null;
+    const priceScore = hasPrice ? (priceNorm.get(district) ?? 0) : 0.5;
+    district.s_value = round(priceScore * 0.6 + convenience * 0.4, 2);
   }
 }
 

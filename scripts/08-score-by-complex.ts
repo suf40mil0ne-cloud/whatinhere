@@ -120,7 +120,7 @@ async function main() {
         academyCount1km: academies.length ? countWithin(point, academies, 1000) : 0,
         academyDiversityScore: academyRealms.size,
         cctvCount500m: hasCctv ? countWithin(point, cctvs, 500, (c) => (c as CctvPoint).cameras) : 0,
-        cctvDistanceM: hasCctv ? nearestDistance(point, cctvs) : null,
+        cctvDistanceM: (() => { if (!hasCctv) return null; const d = nearestDistance(point, cctvs); return d != null && d <= 2000 ? d : null; })(),
         childZoneCount1km: childZones.length ? countWithin(point, childZones, 1000) : 0,
         safetyIndexScore: safetyIndex[apt.sigungu] ?? 0,
       };
