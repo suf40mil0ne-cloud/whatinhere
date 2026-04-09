@@ -219,6 +219,8 @@ async function fetchChildcareCenters(_districts: DistrictState[]): Promise<Child
         const probe = await runCurlProbe(url, ["--http1.0", "--max-time", "20", "-A", "Mozilla/5.0"]);
         const classification = classifyChildcareResponse(probe);
         if (pageNo === 1) {
+          console.log("[debug] childcare status:", probe.status ?? "n/a");
+          console.log("[debug] childcare body preview:", probe.body.slice(0, 500));
           info(
             `05-fetch-childcare: childcare page=${pageNo} arcode=${arcode} class=${classification} status=${probe.status ?? "n/a"} content-type=${probe.contentType ?? "unknown"} errorCode=${probe.errorCode ?? "n/a"} body=${preview(probe.body)}`
           );
@@ -385,6 +387,9 @@ async function fetchAcademies(districts: DistrictState[]): Promise<Academy[]> {
         const headResult = root?.[0]?.head?.[1]?.RESULT;
         const items: any[] = root?.[1]?.row ?? [];
         if (pageIndex === 1) {
+          console.log("[debug] academy status:", status);
+          console.log("[debug] academy top keys:", topKeys);
+          console.log("[debug] academy first item:", JSON.stringify(items[0] ?? null));
           info(`05-fetch-childcare: academy url=${safeUrl} status=${status} topKeys=${topKeys.join(",")} rowCount=${items.length} errorMessage=${headResult?.MESSAGE ?? ""}`);
         }
         if (!response.ok) {
@@ -399,8 +404,8 @@ async function fetchAcademies(districts: DistrictState[]): Promise<Academy[]> {
         for (const item of items) {
           const statusName = text(item.REG_STTUS_NM) ?? "";
           if (statusName.includes("폐") || statusName.includes("말소")) continue;
-          const lat = numeric(item.LA ?? item.latitude ?? item.lat);
-          const lng = numeric(item.LO ?? item.longitude ?? item.lng);
+          const lat = numeric(item.LA ?? item.la ?? item.latitude ?? item.lat);
+          const lng = numeric(item.LO ?? item.lo ?? item.longitude ?? item.lng);
           if (lat != null && lng != null) {
             academies.push({ lat, lng, realm: text(item.REALM_SC_NM) ?? "기타" });
             continue;

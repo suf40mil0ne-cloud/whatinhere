@@ -176,7 +176,7 @@ async function fetchCctv(): Promise<CctvPoint[]> {
         if (hasFilterFields && cameraType !== "방범용" && instlPurpose !== "범죄예방") continue;
         const lat = numeric(item.INSTL_YCRD ?? item.latitude ?? item.lat);
         const lng = numeric(item.INSTL_XCRD ?? item.longitude ?? item.lng);
-        if (lat == null || lng == null) {
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
           skippedMissingCoords += 1;
           continue;
         }
@@ -245,14 +245,18 @@ async function fetchChildZones(): Promise<ChildZonePoint[]> {
         break;
       }
       const items = parseJsonItems(payload);
+      if (pageNo === 1) {
+        console.log('[debug] childzone first item keys:', Object.keys(items[0] || {}));
+        console.log('[debug] childzone first item:', JSON.stringify(items[0] ?? null));
+      }
       if (!items.length) {
         warn(`06-fetch-safety: child zone page=${pageNo} returned zero items after successful parse body=${preview(probe.body)}`);
         break;
       }
       for (const item of items) {
-        const lat = numeric(item.latitude ?? item.la ?? item.LATITUDE ?? item.LA ?? item.lat ?? item.Latitude);
-        const lng = numeric(item.longitude ?? item.lo ?? item.LONGITUDE ?? item.LO ?? item.lng ?? item.Longitude);
-        if (lat == null || lng == null) {
+        const lat = parseFloat(item.la || item.latitude || item.LAT || item.grdLa || item.ctpvNm || '');
+        const lng = parseFloat(item.lo || item.longitude || item.LOT || item.grdLo || item.loNm || '');
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
           skippedMissingCoords += 1;
           continue;
         }
