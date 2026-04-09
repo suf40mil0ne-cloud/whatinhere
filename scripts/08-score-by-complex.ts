@@ -60,6 +60,10 @@ async function main() {
   const childZones = safetyRaw?.childZones ?? [];
   const safetyIndex = safetyRaw?.safetyIndex ?? {};
 
+  const hasTransportRaw = transportRaw !== null;
+  const hasWalkRaw = walkRaw !== null;
+  const hasChildcareRaw = childcareRaw !== null;
+  const hasSafetyRaw = safetyRaw !== null;
   const hasBus = buses.length > 0;
   const hasSubway = subways.length > 0;
   const hasCctv = cctvs.length > 0;
@@ -145,52 +149,61 @@ async function main() {
   const lines = ["BEGIN TRANSACTION;"];
 
   for (const row of rows) {
-    let sTransport: number;
-    if (!hasBus) {
-      sTransport = round((subDistNorm.get(row) ?? 0) * 0.75 + (transfNorm.get(row) ?? 0) * 0.25, 2);
-    } else if (!hasSubway) {
-      sTransport = round((busDistNorm.get(row) ?? 0) * 0.75 + (busCntNorm.get(row) ?? 0) * 0.25, 2);
-    } else {
-      sTransport = round(
-        (busDistNorm.get(row) ?? 0) * 0.45 + (subDistNorm.get(row) ?? 0) * 0.30 +
-        (busCntNorm.get(row) ?? 0) * 0.15 + (transfNorm.get(row) ?? 0) * 0.10, 2,
-      );
+    let sTransport: number | null = null;
+    if (hasTransportRaw) {
+      if (!hasBus) {
+        sTransport = round((subDistNorm.get(row) ?? 0) * 0.75 + (transfNorm.get(row) ?? 0) * 0.25, 2);
+      } else if (!hasSubway) {
+        sTransport = round((busDistNorm.get(row) ?? 0) * 0.75 + (busCntNorm.get(row) ?? 0) * 0.25, 2);
+      } else {
+        sTransport = round(
+          (busDistNorm.get(row) ?? 0) * 0.45 + (subDistNorm.get(row) ?? 0) * 0.30 +
+          (busCntNorm.get(row) ?? 0) * 0.15 + (transfNorm.get(row) ?? 0) * 0.10, 2,
+        );
+      }
     }
 
-    const sWalk = round(
+    const sWalk: number | null = hasWalkRaw ? round(
       (parkAreaNorm.get(row) ?? 0) * 0.45 + (parkCntNorm.get(row) ?? 0) * 0.20 +
       (parkDistNorm.get(row) ?? 0) * 0.20 + (parkFacNorm.get(row) ?? 0) * 0.15, 2,
-    );
+    ) : null;
 
-    const sChildcare = round(
+    const sChildcare: number | null = hasChildcareRaw ? round(
       (ccareCntNorm.get(row) ?? 0) * 0.28 +
       (capacityNorm.get(row) ?? 0) * 0.22 +
       (schoolDistNorm.get(row) ?? 0) * 0.20 +
       (academyCountNorm.get(row) ?? 0) * 0.18 +
       (academyDiversityNorm.get(row) ?? 0) * 0.12,
       2,
-    );
+    ) : null;
 
-    let sSafety: number;
-    if (hasCctv && hasSafetyIdx) {
-      sSafety = round(
-        (cctvCntNorm.get(row) ?? 0) * 0.35 + (cctvDistNorm.get(row) ?? 0) * 0.20 +
-        (czoneNorm.get(row) ?? 0) * 0.20 + row.safetyIndexScore * 0.25, 2,
-      );
-    } else if (hasCctv) {
-      sSafety = round(
-        (cctvCntNorm.get(row) ?? 0) * 0.47 + (cctvDistNorm.get(row) ?? 0) * 0.27 +
-        (czoneNorm.get(row) ?? 0) * 0.26, 2,
-      );
-    } else if (hasSafetyIdx) {
-      sSafety = round((czoneNorm.get(row) ?? 0) * 0.30 + row.safetyIndexScore * 0.70, 2);
-    } else {
-      sSafety = round(czoneNorm.get(row) ?? 0, 2);
+    let sSafety: number | null = null;
+    if (hasSafetyRaw) {
+      if (hasCctv && hasSafetyIdx) {
+        sSafety = round(
+          (cctvCntNorm.get(row) ?? 0) * 0.35 + (cctvDistNorm.get(row) ?? 0) * 0.20 +
+          (czoneNorm.get(row) ?? 0) * 0.20 + row.safetyIndexScore * 0.25, 2,
+        );
+      } else if (hasCctv) {
+        sSafety = round(
+          (cctvCntNorm.get(row) ?? 0) * 0.47 + (cctvDistNorm.get(row) ?? 0) * 0.27 +
+          (czoneNorm.get(row) ?? 0) * 0.26, 2,
+        );
+      } else if (hasSafetyIdx) {
+        sSafety = round((czoneNorm.get(row) ?? 0) * 0.30 + row.safetyIndexScore * 0.70, 2);
+      } else {
+        sSafety = round(czoneNorm.get(row) ?? 0, 2);
+      }
     }
 
-    lines.push(
-      `UPDATE apt_complexes SET s_transport=${sqlValue(sTransport)}, s_walk=${sqlValue(sWalk)}, s_childcare=${sqlValue(sChildcare)}, s_safety=${sqlValue(sSafety)}, updated_at=CURRENT_TIMESTAMP WHERE id=${quote(row.id)};`,
-    );
+    const setClauses: string[] = [];
+    if (sTransport !== null) setClauses.push(`s_transport=${sqlValue(sTransport)}`);
+    if (sWalk !== null) setClauses.push(`s_walk=${sqlValue(sWalk)}`);
+    if (sChildcare !== null) setClauses.push(`s_childcare=${sqlValue(sChildcare)}`);
+    if (sSafety !== null) setClauses.push(`s_safety=${sqlValue(sSafety)}`);
+    if (setClauses.length === 0) continue;
+    setClauses.push("updated_at=CURRENT_TIMESTAMP");
+    lines.push(`UPDATE apt_complexes SET ${setClauses.join(", ")} WHERE id=${quote(row.id)};`);
   }
 
   lines.push("COMMIT;");
