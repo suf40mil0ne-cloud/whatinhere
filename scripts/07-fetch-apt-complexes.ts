@@ -86,10 +86,23 @@ async function searchAptNear(lat: number, lng: number): Promise<KakaoPlace[]> {
   return places;
 }
 
-function findNearestDistrict(lat: number, lng: number, districts: DistrictState[]): DistrictState | null {
+const ADDRESS_SIDO_PREFIX: Array<[string, string]> = [
+  ["서울", "서울특별시"],
+  ["인천", "인천광역시"],
+  ["경기", "경기도"],
+];
+
+function findNearestDistrict(lat: number, lng: number, districts: DistrictState[], address: string): DistrictState | null {
+  // Prefer districts matching the address's sido to avoid cross-region assignment at borders.
+  const addressSido = ADDRESS_SIDO_PREFIX.find(([prefix]) => address.startsWith(prefix))?.[1] ?? null;
+  const candidates = addressSido
+    ? districts.filter((d) => d.sido === addressSido)
+    : districts;
+  const pool = candidates.length > 0 ? candidates : districts;
+
   let nearest: DistrictState | null = null;
   let minDist = Number.POSITIVE_INFINITY;
-  for (const d of districts) {
+  for (const d of pool) {
     if (d.center_lat == null || d.center_lng == null) continue;
     const dist = toMeters(lat, lng, d.center_lat, d.center_lng);
     if (dist < minDist) { minDist = dist; nearest = d; }
@@ -135,11 +148,12 @@ async function main() {
       const lat = numeric(place.y);
       const lng = numeric(place.x);
       if (lat == null || lng == null) continue;
-      const nearest = findNearestDistrict(lat, lng, districts);
+      const address = place.road_address_name || place.address_name;
+      const nearest = findNearestDistrict(lat, lng, districts, address);
       allApts.push({
         id: place.id,
         name: place.place_name.replace(/아파트$/, "").trim() || place.place_name,
-        address: place.road_address_name || place.address_name,
+        address,
         lat,
         lng,
         districtCode: nearest?.code ?? null,
