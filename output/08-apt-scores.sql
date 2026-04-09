@@ -1,4 +1,3 @@
-BEGIN TRANSACTION;
 UPDATE apt_complexes SET s_transport=0, s_walk=0, s_childcare=13.31, s_safety=0, updated_at=CURRENT_TIMESTAMP WHERE id='10874623';
 UPDATE apt_complexes SET s_transport=0, s_walk=0, s_childcare=16.84, s_safety=0, updated_at=CURRENT_TIMESTAMP WHERE id='211594893';
 UPDATE apt_complexes SET s_transport=0, s_walk=0, s_childcare=11.36, s_safety=0, updated_at=CURRENT_TIMESTAMP WHERE id='12754092';
@@ -13818,4 +13817,3 @@ UPDATE apt_complexes SET s_transport=0, s_walk=0, s_childcare=17.08, s_safety=0,
 UPDATE apt_complexes SET s_transport=0, s_walk=0, s_childcare=14.79, s_safety=0, updated_at=CURRENT_TIMESTAMP WHERE id='101954490';
 UPDATE apt_complexes SET s_transport=0, s_walk=0, s_childcare=16.1, s_safety=0, updated_at=CURRENT_TIMESTAMP WHERE id='17298693';
 UPDATE apt_complexes SET s_transport=0, s_walk=0, s_childcare=19.49, s_safety=0, updated_at=CURRENT_TIMESTAMP WHERE id='2040918971';
-COMMIT;

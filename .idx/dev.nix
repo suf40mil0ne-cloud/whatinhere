@@ -5,6 +5,9 @@
   channel = "stable-23.11"; # or "unstable"
   # Use https://search.nixos.org/packages to find packages
   packages = [
+    pkgs.python311
+    pkgs.python311Packages.pip
+    pkgs.python311Packages.kaggle # 최신 버전의 Kaggle API를 불러옵니다
     pkgs.nodejs_20
     pkgs.python3
   ];

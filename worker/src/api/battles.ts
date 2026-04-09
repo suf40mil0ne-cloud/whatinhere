@@ -2,7 +2,7 @@ import { Repository } from "../db/repository";
 import { readAptScores } from "../lib/apt-scores";
 import type { BattleScores, Env } from "../types";
 import { badRequest, json, serverError } from "./http";
-import { requireAuth } from "./auth";
+import { extractToken, requireAuth } from "./auth";
 
 const VALID_CATEGORIES = new Set(["transport", "walk", "value", "childcare", "safety"]);
 
@@ -46,7 +46,7 @@ export async function createBattle(request: Request, env: Env): Promise<Response
 }
 
 export async function getBattle(request: Request, env: Env, id: string): Promise<Response> {
-  const token = request.headers.get("authorization")?.slice(7) ?? undefined;
+  const token = extractToken(request) ?? undefined;
   let currentUserId: string | undefined;
   if (token) {
     const repo2 = new Repository(env.DB);
@@ -127,8 +127,7 @@ export async function addDispute(request: Request, env: Env, battleId: string): 
   if (typeof reason !== "string" || !reason.trim()) return badRequest("reason is required");
   if (reason.length > 200) return badRequest("reason must be 200 chars or fewer");
 
-  // Get userId if logged in (optional)
-  const token = request.headers.get("authorization")?.slice(7);
+  const token = extractToken(request);
   let userId: string | null = null;
   if (token) {
     const repo2 = new Repository(env.DB);

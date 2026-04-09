@@ -22,6 +22,7 @@ interface SubwayStation extends PointRecord { transfer: boolean; }
 interface Park extends PointRecord { area: number; facilityScore: number; }
 interface ChildcareCenter extends PointRecord { spare: number; sigungu: string; }
 interface ElementarySchool extends PointRecord {}
+interface Academy extends PointRecord { realm: string; }
 interface CctvPoint extends PointRecord { cameras: number; }
 interface ChildZonePoint extends PointRecord {}
 
@@ -46,7 +47,7 @@ async function main() {
 
   const transportRaw = await loadJson<{ buses: BusStop[]; subways: SubwayStation[] }>("transport-raw.json");
   const walkRaw = await loadJson<{ parks: Park[] }>("walk-raw.json");
-  const childcareRaw = await loadJson<{ centers: ChildcareCenter[]; schools: ElementarySchool[] }>("childcare-raw.json");
+  const childcareRaw = await loadJson<{ centers: ChildcareCenter[]; schools: ElementarySchool[]; academies: Academy[] }>("childcare-raw.json");
   const safetyRaw = await loadJson<{ cctvs: CctvPoint[]; childZones: ChildZonePoint[]; safetyIndex: Record<string, number> }>("safety-raw.json");
 
   const buses = transportRaw?.buses ?? [];
@@ -54,6 +55,7 @@ async function main() {
   const parks = walkRaw?.parks ?? [];
   const centers = childcareRaw?.centers ?? [];
   const schools = childcareRaw?.schools ?? [];
+  const academies = childcareRaw?.academies ?? [];
   const cctvs = safetyRaw?.cctvs ?? [];
   const childZones = safetyRaw?.childZones ?? [];
   const safetyIndex = safetyRaw?.safetyIndex ?? {};
@@ -77,6 +79,8 @@ async function main() {
     childcareCount1km: number;
     capacityLeft1km: number;
     elementaryDistanceM: number | null;
+    academyCount1km: number;
+    academyDiversityScore: number;
     cctvCount500m: number;
     cctvDistanceM: number | null;
     childZoneCount1km: number;
@@ -88,6 +92,13 @@ async function main() {
     .map((apt) => {
       const point = { lat: apt.lat, lng: apt.lng };
       const sggCenters = centers.filter((c) => c.sigungu === apt.sigungu);
+      const nearbyAcademies = academies.filter((a) => Math.abs(a.lat - point.lat) + Math.abs(a.lng - point.lng) < 0.02);
+      const academyRealms = new Set(
+        nearbyAcademies
+          .filter((academy) => countWithin(point, [academy], 1000) > 0)
+          .map((academy) => academy.realm)
+      );
+
       return {
         id: apt.id,
         sigungu: apt.sigungu,
@@ -102,6 +113,8 @@ async function main() {
         childcareCount1km: sggCenters.length ? countWithin(point, sggCenters, 1000) : 0,
         capacityLeft1km: sggCenters.length ? countWithin(point, sggCenters, 1000, (c) => (c as ChildcareCenter).spare) : 0,
         elementaryDistanceM: schools.length ? nearestDistance(point, schools) : null,
+        academyCount1km: academies.length ? countWithin(point, academies, 1000) : 0,
+        academyDiversityScore: academyRealms.size,
         cctvCount500m: hasCctv ? countWithin(point, cctvs, 500, (c) => (c as CctvPoint).cameras) : 0,
         cctvDistanceM: hasCctv ? nearestDistance(point, cctvs) : null,
         childZoneCount1km: childZones.length ? countWithin(point, childZones, 1000) : 0,
@@ -109,7 +122,6 @@ async function main() {
       };
     });
 
-  // Normalize within sigungu
   const busDistNorm = normalizeWithinSgg(rows, (r) => r.sigungu, (r) => r.busStopDistanceM, true);
   const subDistNorm = normalizeWithinSgg(rows, (r) => r.sigungu, (r) => r.subwayDistanceM, true);
   const busCntNorm  = normalizeWithinSgg(rows, (r) => r.sigungu, (r) => r.busStopCount500m, false);
@@ -120,9 +132,11 @@ async function main() {
   const parkDistNorm = normalizeWithinSgg(rows, (r) => r.sigungu, (r) => r.parkDistanceM, true);
   const parkFacNorm  = normalizeWithinSgg(rows, (r) => r.sigungu, (r) => r.parkFacilityCount, false);
 
-  const ccareCntNorm  = normalizeWithinSgg(rows, (r) => r.sigungu, (r) => r.childcareCount1km, false);
-  const capacityNorm  = normalizeWithinSgg(rows, (r) => r.sigungu, (r) => r.capacityLeft1km, false);
+  const ccareCntNorm = normalizeWithinSgg(rows, (r) => r.sigungu, (r) => r.childcareCount1km, false);
+  const capacityNorm = normalizeWithinSgg(rows, (r) => r.sigungu, (r) => r.capacityLeft1km, false);
   const schoolDistNorm = normalizeWithinSgg(rows, (r) => r.sigungu, (r) => r.elementaryDistanceM, true);
+  const academyCountNorm = normalizeWithinSgg(rows, (r) => r.sigungu, (r) => r.academyCount1km, false);
+  const academyDiversityNorm = normalizeWithinSgg(rows, (r) => r.sigungu, (r) => r.academyDiversityScore, false);
 
   const cctvCntNorm   = normalizeWithinSgg(rows, (r) => r.sigungu, (r) => r.cctvCount500m, false);
   const cctvDistNorm  = normalizeWithinSgg(rows, (r) => r.sigungu, (r) => r.cctvDistanceM, true);
@@ -131,7 +145,6 @@ async function main() {
   const lines = ["BEGIN TRANSACTION;"];
 
   for (const row of rows) {
-    // Transport
     let sTransport: number;
     if (!hasBus) {
       sTransport = round((subDistNorm.get(row) ?? 0) * 0.75 + (transfNorm.get(row) ?? 0) * 0.25, 2);
@@ -144,19 +157,20 @@ async function main() {
       );
     }
 
-    // Walk
     const sWalk = round(
       (parkAreaNorm.get(row) ?? 0) * 0.45 + (parkCntNorm.get(row) ?? 0) * 0.20 +
       (parkDistNorm.get(row) ?? 0) * 0.20 + (parkFacNorm.get(row) ?? 0) * 0.15, 2,
     );
 
-    // Childcare (no academy data in complex scoring)
     const sChildcare = round(
-      (ccareCntNorm.get(row) ?? 0) * 0.40 + (capacityNorm.get(row) ?? 0) * 0.30 +
-      (schoolDistNorm.get(row) ?? 0) * 0.30, 2,
+      (ccareCntNorm.get(row) ?? 0) * 0.28 +
+      (capacityNorm.get(row) ?? 0) * 0.22 +
+      (schoolDistNorm.get(row) ?? 0) * 0.20 +
+      (academyCountNorm.get(row) ?? 0) * 0.18 +
+      (academyDiversityNorm.get(row) ?? 0) * 0.12,
+      2,
     );
 
-    // Safety
     let sSafety: number;
     if (hasCctv && hasSafetyIdx) {
       sSafety = round(
