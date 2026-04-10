@@ -1827,6 +1827,98 @@ button {
   .brand-name { display: none; }
 }
 
+/* ── Mobile Bottom Nav ─────────────────────────────────────────────────────── */
+.mobile-bottom-nav {
+  display: none;
+}
+
+@media (max-width: 640px) {
+  /* Bottom nav */
+  .mobile-bottom-nav {
+    display: flex;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 200;
+    background: rgba(246, 242, 235, 0.96);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-top: 1px solid var(--line);
+    padding: 6px 0 max(10px, env(safe-area-inset-bottom));
+  }
+
+  .mobile-bottom-nav__item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    text-decoration: none;
+    color: var(--muted);
+    padding: 4px 8px;
+    font-size: 0.68rem;
+    font-weight: 600;
+    transition: color 0.15s;
+    min-height: 44px;
+    justify-content: center;
+  }
+
+  .mobile-bottom-nav__icon { font-size: 1.3rem; line-height: 1; }
+  .mobile-bottom-nav__item--active { color: var(--accent); }
+
+  /* Extra bottom padding for site-main to clear bottom nav */
+  .site-main { padding: 20px 16px 90px; }
+
+  /* Header: hide auth nickname, shrink gap */
+  .auth-user__name { display: none; }
+  .site-header__inner { padding: 0 14px; gap: 10px; }
+
+  /* Battle page: full-width start button */
+  .battle-page__start-btn { width: 100%; padding: 14px 24px; }
+
+  /* Battle selector: larger touch targets for selects */
+  .apt-selector__select { min-height: 44px; font-size: 1rem; }
+  .apt-selector { padding: 16px; }
+
+  /* Battle result: stack header vertically */
+  .battle-result__header {
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 16px;
+    text-align: center;
+  }
+
+  .battle-result__apt { justify-content: center; }
+  .battle-result__apt--b { flex-direction: row; text-align: center; }
+  .battle-result__apt-name { font-size: 1rem; }
+  .battle-result__vs { font-size: 1.4rem; }
+
+  /* Battle result: stack action buttons */
+  .battle-result__actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .battle-result__actions .btn { justify-content: center; }
+
+  /* Comment form: full-width submit */
+  .comment-form .btn--primary { align-self: stretch; justify-content: center; }
+
+  /* Hot page tabs: equal width */
+  .hot-page__tab { flex: 1; justify-content: center; padding: 10px 8px; }
+  .hot-page__tabs { display: flex; }
+
+  /* Ranking filters: stack vertically */
+  .ranking-page__filters { flex-direction: column; }
+
+  /* Modal: tighter on mobile */
+  .modal { padding: 20px 16px; max-height: 90vh; overflow-y: auto; }
+
+  /* Toast: above bottom nav */
+  .toast { bottom: 80px; }
+}
+
 /* ── Admin ──────────────────────────────────────────────────────────────────── */
 .admin-login {
   display: flex;

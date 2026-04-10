@@ -69,6 +69,25 @@ export function SiteLayout({ children }: { children: React.ReactNode }) {
       </header>
 
       <main className="site-main">{children}</main>
+
+      <nav className="mobile-bottom-nav" aria-label="하단 탐색">
+        <Link to="/" className={`mobile-bottom-nav__item ${location.pathname === "/" || isActive("/battle") ? "mobile-bottom-nav__item--active" : ""}`}>
+          <span className="mobile-bottom-nav__icon">⚔️</span>
+          <span className="mobile-bottom-nav__label">대결</span>
+        </Link>
+        <Link to="/ranking" className={`mobile-bottom-nav__item ${isActive("/ranking") ? "mobile-bottom-nav__item--active" : ""}`}>
+          <span className="mobile-bottom-nav__icon">🏆</span>
+          <span className="mobile-bottom-nav__label">랭킹</span>
+        </Link>
+        <Link to="/hot" className={`mobile-bottom-nav__item ${isActive("/hot") ? "mobile-bottom-nav__item--active" : ""}`}>
+          <span className="mobile-bottom-nav__icon">🔥</span>
+          <span className="mobile-bottom-nav__label">HOT</span>
+        </Link>
+        <Link to="/map" className={`mobile-bottom-nav__item ${isActive("/map") ? "mobile-bottom-nav__item--active" : ""}`}>
+          <span className="mobile-bottom-nav__icon">🗺️</span>
+          <span className="mobile-bottom-nav__label">지도</span>
+        </Link>
+      </nav>
     </div>
   );
 }
