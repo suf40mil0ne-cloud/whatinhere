@@ -212,6 +212,19 @@ function extractItems(data: Record<string, unknown>): unknown[] {
   return [];
 }
 
+export async function testJoin(request: Request, env: Env): Promise<Response> {
+  if (!isBattleAdmin(request)) return unauthorized();
+  const rows = await env.DB.prepare(`
+    SELECT a.id, a.name, a.district_code, a.s_value as apt_value,
+           d.code, d.s_value as district_value
+    FROM apt_complexes a
+    LEFT JOIN district_scores d ON a.district_code = d.code
+    WHERE a.name LIKE '%계산%'
+    LIMIT 5
+  `).all<{ id: string; name: string; district_code: string | null; apt_value: number | null; code: string | null; district_value: number | null }>();
+  return json({ ok: true, rows: rows.results });
+}
+
 export async function runCollectSafety(request: Request, env: Env): Promise<Response> {
   if (!isBattleAdmin(request)) return unauthorized();
   const updated = await collectSafety(env.DB, env.DATA_GO_KR_SERVICE_KEY, env.CCTV_API_KEY, env.SAFETY_INDEX_API_KEY);

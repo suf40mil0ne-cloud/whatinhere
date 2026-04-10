@@ -1,7 +1,7 @@
 import { listProjects, getProject, searchProject } from "./api/projects";
 import { listDistricts, getDistrict, voteDistrict } from "./api/districts";
 import { listApts, getApt, createComment, likeComment, searchApts } from "./api/apartments";
-import { syncAll, syncOne, resetBattles, getAdminStats, runCollectTransport, runCollectWalk, runCollectSafety, runTestFetch, runTestWalk, runTestSafety } from "./api/admin";
+import { syncAll, syncOne, resetBattles, getAdminStats, runCollectTransport, runCollectWalk, runCollectSafety, runTestFetch, runTestWalk, runTestSafety, testJoin } from "./api/admin";
 import { collectTransport } from "./cron/collectTransport";
 import { collectWalk } from "./cron/collectWalk";
 import { collectSafety } from "./cron/collectSafety";
@@ -76,6 +76,9 @@ export default {
       }
       if (request.method === "GET" && path === "/api/admin/test-safety") {
         return withCors(request, await runTestSafety(request, env));
+      }
+      if (request.method === "GET" && path === "/api/admin/test-join") {
+        return withCors(request, await testJoin(request, env));
       }
       if (request.method === "POST" && path === "/api/admin/collect-transport") {
         return withCors(request, await runCollectTransport(request, env));
