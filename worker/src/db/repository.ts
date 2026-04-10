@@ -29,11 +29,11 @@ const APT_RESOLVED_COLUMNS = `
   a.built_year,
   a.total_units,
   a.avg_price_per_m2,
-  COALESCE(a.s_transport, d.s_transport) AS s_transport,
-  COALESCE(a.s_walk, d.s_walk) AS s_walk,
-  COALESCE(a.s_value, d.s_value) AS s_value,
-  COALESCE(a.s_childcare, d.s_childcare) AS s_childcare,
-  COALESCE(a.s_safety, d.s_safety) AS s_safety,
+  COALESCE(NULLIF(a.s_transport, 0), d.s_transport) AS s_transport,
+  COALESCE(NULLIF(a.s_walk, 0), d.s_walk) AS s_walk,
+  COALESCE(NULLIF(a.s_value, 0), d.s_value) AS s_value,
+  COALESCE(NULLIF(a.s_childcare, 0), d.s_childcare) AS s_childcare,
+  COALESCE(NULLIF(a.s_safety, 0), d.s_safety) AS s_safety,
   a.updated_at
 `;
 
