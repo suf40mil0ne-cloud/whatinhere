@@ -30,7 +30,10 @@ interface ChildcareCenter {
   spare: number;
   vehicle: boolean;
   sigungu: string;
+  name?: string;
 }
+
+const CHILDCARE_API_ENDPOINT = "https://apis.data.go.kr/B553309/ChildCareLocaInfo/getChildCareList";
 
 interface ElementarySchool {
   lat: number;
@@ -122,7 +125,82 @@ function buildDistrictLookups(districts: DistrictState[]) {
   };
 }
 
-async function fetchChildcareCenters(_districts: DistrictState[]): Promise<ChildcareCenter[]> {
+async function fetchChildcareCentersFromApi(): Promise<ChildcareCenter[] | null> {
+  const pageSize = 1000;
+  const centers: ChildcareCenter[] = [];
+  let pageNo = 1;
+  let totalCount = 0;
+  let skippedStatus = 0;
+  let skippedCoords = 0;
+
+  try {
+    while (true) {
+      const url = paramsToUrl(CHILDCARE_API_ENDPOINT, {
+        serviceKey: DEFAULT_SERVICE_KEY,
+        pageNo,
+        numOfRows: pageSize,
+        _type: "json",
+      });
+
+      const payload = await fetchJsonWithRetry<Record<string, unknown>>(url, { timeoutMs: 20000 });
+      const body = ((payload?.response as Record<string, unknown>)?.body ?? payload) as Record<string, unknown>;
+
+      if (pageNo === 1) {
+        totalCount = numeric(body?.totalCount) ?? 0;
+        info(`05-fetch-childcare API: totalCount=${totalCount}`);
+        if (totalCount === 0) {
+          warn("05-fetch-childcare: API returned totalCount=0, will fall back to CSV");
+          return null;
+        }
+      }
+
+      const itemsNode = (body?.items as Record<string, unknown>)?.item ?? body?.items ?? body?.item;
+      const items: Record<string, unknown>[] = Array.isArray(itemsNode)
+        ? (itemsNode as Record<string, unknown>[])
+        : itemsNode != null && typeof itemsNode === "object"
+          ? [itemsNode as Record<string, unknown>]
+          : [];
+
+      if (!items.length) break;
+
+      for (const item of items) {
+        // 운영현황: "정상" text (CSV format) or "1" code (API format)
+        const status = text(item.crpstatus ?? item.crpStatus ?? item.CRPSTATUS) ?? "";
+        if (!status.includes("정상") && status !== "1") { skippedStatus++; continue; }
+
+        const lat = numeric(item.la ?? item.LA ?? item.latitude ?? item.LATITUDE);
+        const lng = numeric(item.lo ?? item.LO ?? item.longitude ?? item.LONGITUDE);
+        if (lat == null || lng == null) { skippedCoords++; continue; }
+
+        const capa = numeric(item.capa ?? item.CAPA) ?? 0;
+        const ccur = numeric(item.ccur ?? item.CCUR) ?? 0;
+        const sigungu = text(item.sigungunm ?? item.sigunguNm ?? item.SIGUNGUNM) ?? "";
+        const name = text(item.crpnm ?? item.crpNm ?? item.CRPNM ?? item.fcltyNm) ?? "";
+        const vehicleRaw = text(item.buse ?? item.BUSE ?? item.busEq) ?? "";
+        const vehicle = vehicleRaw.toUpperCase() === "Y";
+
+        centers.push({ lat, lng, spare: Math.max(capa - ccur, 0), vehicle, sigungu, name });
+      }
+
+      if (items.length < pageSize) break;
+      pageNo++;
+
+      // 페이지당 0.1초 간격으로 API 과부하 방지
+      if (pageNo % 5 === 0) {
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+    }
+
+    flushWarningSummary("05-fetch-childcare", "API centers with missing coordinates", skippedCoords);
+    info(`05-fetch-childcare API: loaded ${centers.length} centers from ${pageNo} pages (skipped status=${skippedStatus} coords=${skippedCoords})`);
+    return centers.length > 0 ? centers : null;
+  } catch (error) {
+    warn(`05-fetch-childcare: API failed (${error instanceof Error ? error.message : String(error)})`);
+    return null;
+  }
+}
+
+async function fetchChildcareCentersFromCsv(): Promise<ChildcareCenter[]> {
   await fs.mkdir(DATA_DIR, { recursive: true });
   const csvPath = path.join(DATA_DIR, "childcare.csv");
 
@@ -148,15 +226,26 @@ async function fetchChildcareCenters(_districts: DistrictState[]): Promise<Child
     const lat = numeric(row["위도"]);
     const lng = numeric(row["경도"]);
     if (lat == null || lng == null) { skippedMissingCoords++; continue; }
-    const capa = numeric(row["정원"]) ?? 0;
-    const current = numeric(row["현원"]) ?? 0;
+    const capa = numeric(row["정원수"] ?? row["정원"]) ?? 0;
+    const current = numeric(row["현원수"] ?? row["현원"]) ?? 0;
     const sigungu = row["시군구명"] ?? "";
-    centers.push({ lat, lng, spare: Math.max(capa - current, 0), vehicle: false, sigungu });
+    const name = row["시설명"] ?? "";
+    centers.push({ lat, lng, spare: Math.max(capa - current, 0), vehicle: false, sigungu, name });
   }
 
   flushWarningSummary("05-fetch-childcare", "childcare centers with missing coordinates", skippedMissingCoords);
   info(`05-fetch-childcare: loaded ${centers.length} childcare centers from CSV (skipped ${skippedStatus} non-정상)`);
   return centers;
+}
+
+async function fetchChildcareCenters(_districts: DistrictState[]): Promise<ChildcareCenter[]> {
+  info("05-fetch-childcare: trying data.go.kr API first...");
+  const apiCenters = await fetchChildcareCentersFromApi();
+  if (apiCenters !== null) {
+    return apiCenters;
+  }
+  warn("05-fetch-childcare: API unavailable or empty, falling back to CSV");
+  return fetchChildcareCentersFromCsv();
 }
 
 async function fetchElementarySchools(districts: DistrictState[]): Promise<ElementarySchool[]> {
@@ -380,6 +469,18 @@ async function main() {
   info(`05-fetch-childcare: centers=${centers.length}, schools=${schools.length}, academies=${academies.length}`);
   if (centers.length === 0) warn("05-fetch-childcare: childcare centers dataset is empty — place data/childcare.csv in the project root");
   if (academies.length === 0) warn("05-fetch-childcare: academy dataset is empty after fetch");
+
+  // 샘플 좌표 테스트: (37.5007, 127.0369) 기준 1km 내 어린이집
+  const testLat = 37.5007;
+  const testLng = 127.0369;
+  const testRadius = 1000;
+  const nearby = centers.filter((c) => toMeters(testLat, testLng, c.lat, c.lng) <= testRadius);
+  info(`[test] (${testLat}, ${testLng}) 기준 ${testRadius}m 내 어린이집: ${nearby.length}개`);
+  for (const c of nearby.slice(0, 10)) {
+    const dist = Math.round(toMeters(testLat, testLng, c.lat, c.lng));
+    info(`  - ${c.name || "(이름없음)"} [${c.sigungu}] 거리=${dist}m 정원여유=${c.spare}`);
+  }
+  if (nearby.length > 10) info(`  ... 외 ${nearby.length - 10}개`);
 }
 
 main().catch((error) => {
