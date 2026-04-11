@@ -5,3 +5,4 @@ dist
 .env.local
 .DS_Store
 firebase-debug.log
+data/*.csv
