@@ -3,6 +3,9 @@ export type SourceType = "openapi" | "file" | "csv" | "xlsx";
 export interface Env {
   DB: D1Database;
   DATA_GO_KR_SERVICE_KEY: string;
+  CHILDCARE_API_KEY?: string;
+  CHILDCARE_API_BASE?: string;
+  CHILDCARE_PROXY_URL?: string;
   KAKAO_REST_API_KEY?: string;
   KAKAO_CLIENT_SECRET?: string;
   VITE_KAKAO_JS_KEY?: string;

@@ -4,6 +4,7 @@ import { json, unauthorized } from "./http";
 import { collectTransport } from "../cron/collectTransport";
 import { collectWalk } from "../cron/collectWalk";
 import { collectSafety } from "../cron/collectSafety";
+import { buildChildcareProxyUrl, fetchChildcareApi } from "../services/childcare";
 
 const BATTLE_ADMIN_PASSWORD = "danjijeon2024";
 
@@ -199,6 +200,81 @@ export async function runTestSafety(request: Request, env: Env): Promise<Respons
   }
 
   return json({ ok: true, cctv: cctvResult, childZone: childResult });
+}
+
+async function inspectProxyFetch(env: Env, path: string, query: Record<string, string>, timeoutMs = 10000): Promise<Record<string, unknown>> {
+  if (!env.CHILDCARE_PROXY_URL) {
+    return { error: "CHILDCARE_PROXY_URL is not configured" };
+  }
+
+  const proxyUrl = buildChildcareProxyUrl(env.CHILDCARE_PROXY_URL, path, query);
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    const res = await fetch(proxyUrl, { signal: controller.signal });
+    clearTimeout(timeout);
+    const contentType = res.headers.get("content-type") ?? "";
+    const raw = await res.text();
+    return {
+      ok: res.ok,
+      status: res.status,
+      proxyUrl,
+      contentType,
+      bodyPreview: raw.slice(0, 500),
+      responseHeaders: {
+        xChildcareProxy: res.headers.get("x-childcare-proxy"),
+        xChildcareUpstreamHost: res.headers.get("x-childcare-upstream-host"),
+        xChildcareUpstreamPath: res.headers.get("x-childcare-upstream-path"),
+      },
+    };
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : String(error), proxyUrl };
+  }
+}
+
+export async function runTestChildcare(request: Request, env: Env): Promise<Response> {
+  if (!isBattleAdmin(request)) return unauthorized();
+
+  const url = new URL(request.url);
+  const apiPath = url.searchParams.get("path") ?? "/";
+  const query = Object.fromEntries([...url.searchParams.entries()].filter(([key]) => key !== "path"));
+
+  let workerResult: Record<string, unknown>;
+  try {
+    const result = await fetchChildcareApi(env, {
+      path: apiPath,
+      query,
+      timeoutMs: 10000,
+      debugLabel: "admin-test-childcare",
+    });
+    const raw = await result.response.text();
+    workerResult = {
+      via: result.via,
+      url: result.url,
+      startedAt: result.startedAt,
+      durationMs: result.durationMs,
+      ok: result.response.ok,
+      status: result.response.status,
+      contentType: result.response.headers.get("content-type") ?? "",
+      responseHeaders: {
+        xChildcareProxy: result.response.headers.get("x-childcare-proxy"),
+        xChildcareUpstreamHost: result.response.headers.get("x-childcare-upstream-host"),
+        xChildcareUpstreamPath: result.response.headers.get("x-childcare-upstream-path"),
+      },
+      bodyPreview: raw.slice(0, 500),
+    };
+  } catch (error) {
+    workerResult = { error: error instanceof Error ? error.message : String(error) };
+  }
+
+  return json({
+    ok: true,
+    apiPath,
+    proxyConfigured: !!env.CHILDCARE_PROXY_URL,
+    proxyUrl: env.CHILDCARE_PROXY_URL ?? null,
+    proxyFetch: await inspectProxyFetch(env, apiPath, query),
+    workerFetch: workerResult,
+  });
 }
 
 function extractItems(data: Record<string, unknown>): unknown[] {

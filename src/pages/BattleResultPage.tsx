@@ -58,10 +58,22 @@ const DISPUTE_CATEGORIES = [
   { value: "safety", label: "안심" },
 ];
 
-function ScoreBar({ scoreA, scoreB, category }: { scoreA: number; scoreB: number; category: keyof BattleScores }) {
+function ScoreBar({
+  scoreA,
+  scoreB,
+  category,
+  myIsA,
+}: {
+  scoreA: number;
+  scoreB: number;
+  category: keyof BattleScores;
+  myIsA: boolean | null;
+}) {
   const label = SCORE_LABELS[category];
   const aWins = scoreA > scoreB;
   const bWins = scoreB > scoreA;
+  const aMine = myIsA === true;
+  const bMine = myIsA === false;
 
   return (
     <div className="score-row">
@@ -71,14 +83,14 @@ function ScoreBar({ scoreA, scoreB, category }: { scoreA: number; scoreB: number
       <div className="score-row__bars">
         <div className="score-row__bar-a-wrap">
           <div
-            className={`score-row__bar score-row__bar--a ${aWins ? "score-row__bar--winner" : ""}`}
+            className={`score-row__bar score-row__bar--a ${aWins ? "score-row__bar--winner" : aMine ? "score-row__bar--mine" : ""}`}
             style={{ width: `${scoreA}%` }}
           />
         </div>
         <div className="score-row__label">{label}</div>
         <div className="score-row__bar-b-wrap">
           <div
-            className={`score-row__bar score-row__bar--b ${bWins ? "score-row__bar--winner" : ""}`}
+            className={`score-row__bar score-row__bar--b ${bWins ? "score-row__bar--winner" : bMine ? "score-row__bar--mine" : ""}`}
             style={{ width: `${scoreB}%` }}
           />
         </div>
@@ -241,11 +253,13 @@ export function BattleResultPage() {
   const myWon = myIsA ? battle.winner === "a" : myIsB ? battle.winner === "b" : false;
   const opWon = myIsA ? battle.winner === "b" : myIsB ? battle.winner === "a" : false;
 
+  const draws = 5 - myWins - opWins;
+
   const verdict = !hasMyApt
     ? (battle.winner === "draw" ? <strong>팽팽한 접전!</strong> : <>{battle.winner === "a" ? battle.aptAName : battle.aptBName} <strong>{Math.max(winsA, winsB)}:{Math.min(winsA, winsB)} 승리</strong></>)
-    : myWon ? <strong>🏆 우리 단지 승리! {myWins}:{opWins}</strong>
-    : opWon ? <strong>분발하세요! 💪 {myWins}:{opWins}</strong>
-    : <strong>팽팽한 접전! {myWins}:{opWins}</strong>;
+    : myWon ? <strong>우리 단지가 {myWins}:{opWins}로 이겼어요! 🎉</strong>
+    : opWon ? <strong>아쉽게 {myWins}:{opWins}로 졌어요 😢</strong>
+    : <strong>{myWins}:{opWins}{draws > 0 ? `:${draws}` : ""} 무승부예요!</strong>;
 
   return (
     <div className="battle-result">
@@ -253,21 +267,21 @@ export function BattleResultPage() {
 
       <div className="battle-result__header">
         <div className="battle-result__apt">
-          {myIsA && <span className="battle-result__my-badge">🏠</span>}
           <span className="battle-result__apt-name">{battle.aptAName}</span>
+          {myIsA && <span className="battle-result__my-badge">우리 단지</span>}
           {battle.winner === "a" && <span className="battle-result__crown">🏆</span>}
         </div>
         <div className="battle-result__vs">⚔️</div>
         <div className="battle-result__apt battle-result__apt--b">
           {battle.winner === "b" && <span className="battle-result__crown">🏆</span>}
+          {myIsB && <span className="battle-result__my-badge">우리 단지</span>}
           <span className="battle-result__apt-name">{battle.aptBName}</span>
-          {myIsB && <span className="battle-result__my-badge">🏠</span>}
         </div>
       </div>
 
       <div className="battle-result__scores">
         {keys.map((k) => (
-          <ScoreBar key={k} category={k} scoreA={battle.scoreA[k]} scoreB={battle.scoreB[k]} />
+          <ScoreBar key={k} category={k} scoreA={battle.scoreA[k]} scoreB={battle.scoreB[k]} myIsA={hasMyApt ? myIsA : null} />
         ))}
       </div>
 

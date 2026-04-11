@@ -6,3 +6,5 @@ dist
 .DS_Store
 firebase-debug.log
 data/*.csv
+.vercel
+.env*.local
