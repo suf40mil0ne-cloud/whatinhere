@@ -3,8 +3,9 @@ import path from "node:path";
 import {
   DistrictState,
   info,
+  linearScore,
+  loadNationalPriceRef,
   loadState,
-  normalizeWithinSgg,
   numeric,
   round,
   toMeters,
@@ -174,19 +175,20 @@ async function main() {
 
   info(`07-fetch-apt-complexes: collected ${allApts.length} unique apartments`);
 
-  // Normalize s_value within sigungu
-  interface AptForNorm { apt: AptComplex; sigungu: string; price: number | null; }
-  const normRows: AptForNorm[] = allApts.map((apt) => {
-    const d = apt.districtCode ? districts.find((d) => d.code === apt.districtCode) : undefined;
-    return { apt, sigungu: d?.sigungu ?? "", price: apt.avgPricePerM2 };
-  });
-  const priceNorm = normalizeWithinSgg(normRows, (r) => r.sigungu, (r) => r.price, true);
-  for (const normRow of normRows) {
-    const { apt } = normRow;
+  // s_value: absolute price scoring vs national median reference
+  const nationalMedianPrice = await loadNationalPriceRef();
+  for (const apt of allApts) {
     if (apt.avgPricePerM2 != null) {
       const d = apt.districtCode ? districts.find((d) => d.code === apt.districtCode) : undefined;
-      const convenience = d ? (d.s_transport + d.s_walk) / 2 : 0;
-      apt.sValue = round((priceNorm.get(normRow) ?? 0) * 0.6 + convenience * 0.4, 2);
+      let priceScore: number;
+      if (nationalMedianPrice == null || nationalMedianPrice <= 0) {
+        priceScore = 50;
+      } else {
+        const ratio = apt.avgPricePerM2 / nationalMedianPrice;
+        priceScore = linearScore(ratio, 0.7, 2.0);
+      }
+      const otherAvg = d ? (d.s_transport + d.s_walk + d.s_childcare + d.s_safety) / 4 : 0;
+      apt.sValue = round(priceScore * 0.50 + otherAvg * 0.50, 2);
     }
   }
 

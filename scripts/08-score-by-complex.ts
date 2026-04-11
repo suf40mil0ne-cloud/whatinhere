@@ -2,15 +2,17 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import {
   info,
-  warn,
-  writeSqlFile,
+  linearScore,
+  loadCrimeStats,
+  loadNationalPriceRef,
   nearestDistance,
   countWithin,
   sumWithin,
-  normalizeWithinSgg,
   round,
   quote,
   sqlValue,
+  warn,
+  writeSqlFile,
   OUTPUT_DIR,
   ensureOutputDir,
   PointRecord,
@@ -72,6 +74,8 @@ async function main() {
   interface AptRow {
     id: string;
     sigungu: string;
+    totalUnits: number;
+    avgPricePerM2: number | null;
     busStopCount500m: number;
     busStopDistanceM: number | null;
     subwayDistanceM: number | null;
@@ -81,7 +85,7 @@ async function main() {
     parkDistanceM: number | null;
     parkFacilityCount: number;
     childcareCount1km: number;
-    capacityLeft1km: number;
+    vehicleRatio: number;
     elementaryDistanceM: number | null;
     academyCount1km: number;
     academyDiversityScore: number;
@@ -89,7 +93,12 @@ async function main() {
     cctvDistanceM: number | null;
     childZoneCount1km: number;
     safetyIndexScore: number;
+    crimeRate: number | null;
   }
+
+  const crimeStats = await loadCrimeStats();
+  const nationalMedianPrice = await loadNationalPriceRef();
+  const hasCrimeStats = crimeStats.size > 0;
 
   const rows: AptRow[] = aptState
     .filter((apt) => apt.lat != null && apt.lng != null)
@@ -102,10 +111,13 @@ async function main() {
           .filter((academy) => countWithin(point, [academy], 1000) > 0)
           .map((academy) => academy.realm)
       );
+      const vehicleCount = sggCenters.filter((c) => (c as ChildcareCenter).vehicle).length;
 
       return {
         id: apt.id,
         sigungu: apt.sigungu,
+        totalUnits: apt.totalUnits ?? 1,
+        avgPricePerM2: apt.avgPricePerM2 ?? null,
         busStopCount500m: hasBus ? countWithin(point, buses, 500) : 0,
         busStopDistanceM: hasBus ? nearestDistance(point, buses) : null,
         subwayDistanceM: hasSubway ? nearestDistance(point, subways) : null,
@@ -115,7 +127,7 @@ async function main() {
         parkDistanceM: parks.length ? nearestDistance(point, parks) : null,
         parkFacilityCount: parks.length ? countWithin(point, parks.filter((p) => (p as Park).facilityScore > 0), 1000) : 0,
         childcareCount1km: sggCenters.length ? countWithin(point, sggCenters, 1000) : 0,
-        capacityLeft1km: sggCenters.length ? countWithin(point, sggCenters, 1000, (c) => (c as ChildcareCenter).spare) : 0,
+        vehicleRatio: sggCenters.length ? round(vehicleCount / sggCenters.length, 4) : 0,
         elementaryDistanceM: schools.length ? nearestDistance(point, schools) : null,
         academyCount1km: academies.length ? countWithin(point, academies, 1000) : 0,
         academyDiversityScore: academyRealms.size,
@@ -123,77 +135,83 @@ async function main() {
         cctvDistanceM: (() => { if (!hasCctv) return null; const d = nearestDistance(point, cctvs); return d != null && d <= 2000 ? d : null; })(),
         childZoneCount1km: childZones.length ? countWithin(point, childZones, 1000) : 0,
         safetyIndexScore: safetyIndex[apt.sigungu] ?? 0,
+        crimeRate: crimeStats.get(apt.sigungu) ?? null,
       };
     });
-
-  const busDistNorm = normalizeWithinSgg(rows, (r) => r.sigungu, (r) => r.busStopDistanceM, true);
-  const subDistNorm = normalizeWithinSgg(rows, (r) => r.sigungu, (r) => r.subwayDistanceM, true);
-  const busCntNorm  = normalizeWithinSgg(rows, (r) => r.sigungu, (r) => r.busStopCount500m, false);
-  const transfNorm  = normalizeWithinSgg(rows, (r) => r.sigungu, (r) => r.transferCount1km, false);
-
-  const parkAreaNorm = normalizeWithinSgg(rows, (r) => r.sigungu, (r) => r.parkArea1km, false);
-  const parkCntNorm  = normalizeWithinSgg(rows, (r) => r.sigungu, (r) => r.parkCount1km, false);
-  const parkDistNorm = normalizeWithinSgg(rows, (r) => r.sigungu, (r) => r.parkDistanceM, true);
-  const parkFacNorm  = normalizeWithinSgg(rows, (r) => r.sigungu, (r) => r.parkFacilityCount, false);
-
-  const ccareCntNorm = normalizeWithinSgg(rows, (r) => r.sigungu, (r) => r.childcareCount1km, false);
-  const capacityNorm = normalizeWithinSgg(rows, (r) => r.sigungu, (r) => r.capacityLeft1km, false);
-  const schoolDistNorm = normalizeWithinSgg(rows, (r) => r.sigungu, (r) => r.elementaryDistanceM, true);
-  const academyCountNorm = normalizeWithinSgg(rows, (r) => r.sigungu, (r) => r.academyCount1km, false);
-  const academyDiversityNorm = normalizeWithinSgg(rows, (r) => r.sigungu, (r) => r.academyDiversityScore, false);
-
-  const cctvCntNorm   = normalizeWithinSgg(rows, (r) => r.sigungu, (r) => r.cctvCount500m, false);
-  const cctvDistNorm  = normalizeWithinSgg(rows, (r) => r.sigungu, (r) => r.cctvDistanceM, true);
-  const czoneNorm     = normalizeWithinSgg(rows, (r) => r.sigungu, (r) => r.childZoneCount1km, false);
 
   const lines = ["BEGIN TRANSACTION;"];
 
   for (const row of rows) {
+    // ── 교통 ───────────────────────────────────────────────────────────────────
     let sTransport: number | null = null;
     if (hasTransportRaw) {
+      const busDistScore    = linearScore(row.busStopDistanceM,  100,  800);
+      const subwayDistScore = linearScore(row.subwayDistanceM,   250, 2000);
+      const busCountScore   = linearScore(row.busStopCount500m,   10,    0);
+      const transferScore   = linearScore(row.transferCount1km,    2,    0);
       if (!hasBus) {
-        sTransport = round((subDistNorm.get(row) ?? 0) * 0.75 + (transfNorm.get(row) ?? 0) * 0.25, 2);
+        sTransport = round(subwayDistScore * 0.75 + transferScore * 0.25, 2);
       } else if (!hasSubway) {
-        sTransport = round((busDistNorm.get(row) ?? 0) * 0.75 + (busCntNorm.get(row) ?? 0) * 0.25, 2);
+        sTransport = round(busDistScore * 0.75 + busCountScore * 0.25, 2);
       } else {
-        sTransport = round(
-          (busDistNorm.get(row) ?? 0) * 0.45 + (subDistNorm.get(row) ?? 0) * 0.30 +
-          (busCntNorm.get(row) ?? 0) * 0.15 + (transfNorm.get(row) ?? 0) * 0.10, 2,
-        );
+        sTransport = round(busDistScore * 0.45 + subwayDistScore * 0.30 + busCountScore * 0.15 + transferScore * 0.10, 2);
       }
     }
 
-    const sWalk: number | null = hasWalkRaw ? round(
-      (parkAreaNorm.get(row) ?? 0) * 0.45 + (parkCntNorm.get(row) ?? 0) * 0.20 +
-      (parkDistNorm.get(row) ?? 0) * 0.20 + (parkFacNorm.get(row) ?? 0) * 0.15, 2,
-    ) : null;
+    // ── 산책 ───────────────────────────────────────────────────────────────────
+    let sWalk: number | null = null;
+    if (hasWalkRaw) {
+      const households = Math.max(row.totalUnits, 1);
+      sWalk = round(
+        linearScore(row.parkArea1km / households, 30,   0) * 0.45 +
+        linearScore(row.parkCount1km,              5,   0) * 0.20 +
+        linearScore(row.parkDistanceM,           100, 1000) * 0.20 +
+        linearScore(row.parkFacilityCount,         3,   0) * 0.15, 2,
+      );
+    }
 
-    const sChildcare: number | null = hasChildcareRaw ? round(
-      (ccareCntNorm.get(row) ?? 0) * 0.28 +
-      (capacityNorm.get(row) ?? 0) * 0.22 +
-      (schoolDistNorm.get(row) ?? 0) * 0.20 +
-      (academyCountNorm.get(row) ?? 0) * 0.18 +
-      (academyDiversityNorm.get(row) ?? 0) * 0.12,
-      2,
-    ) : null;
+    // ── 육아 ───────────────────────────────────────────────────────────────────
+    let sChildcare: number | null = null;
+    if (hasChildcareRaw) {
+      const households = Math.max(row.totalUnits, 1);
+      const centerPerUnit = round(row.childcareCount1km / households, 6);
+      const schoolScore   = linearScore(row.elementaryDistanceM,  300, 1500);
+      const acaCountScore = linearScore(row.academyCount1km,        20,    0);
+      const acaDivScore   = linearScore(row.academyDiversityScore,   5,    0);
+      const vehicleScore  = linearScore(row.vehicleRatio,           0.8,   0);
+      sChildcare = row.childcareCount1km > 0 || centers.length > 0
+        ? round(linearScore(centerPerUnit, 0.01, 0) * 0.25 + schoolScore * 0.25 + acaCountScore * 0.20 + acaDivScore * 0.15 + vehicleScore * 0.15, 2)
+        : round(schoolScore * 0.45 + acaCountScore * 0.35 + acaDivScore * 0.20, 2);
+    }
 
+    // ── 안심 ───────────────────────────────────────────────────────────────────
     let sSafety: number | null = null;
     if (hasSafetyRaw) {
-      if (hasCctv && hasSafetyIdx) {
-        sSafety = round(
-          (cctvCntNorm.get(row) ?? 0) * 0.35 + (cctvDistNorm.get(row) ?? 0) * 0.20 +
-          (czoneNorm.get(row) ?? 0) * 0.20 + row.safetyIndexScore * 0.25, 2,
-        );
-      } else if (hasCctv) {
-        sSafety = round(
-          (cctvCntNorm.get(row) ?? 0) * 0.47 + (cctvDistNorm.get(row) ?? 0) * 0.27 +
-          (czoneNorm.get(row) ?? 0) * 0.26, 2,
-        );
-      } else if (hasSafetyIdx) {
-        sSafety = round((czoneNorm.get(row) ?? 0) * 0.30 + row.safetyIndexScore * 0.70, 2);
+      const cctvCountScore = linearScore(row.cctvCount500m,   30,    0);
+      const cctvDistScore  = linearScore(row.cctvDistanceM,   50,  500);
+      const childZoneScore = linearScore(row.childZoneCount1km, 3,   0);
+      const crimeRateScore = linearScore(row.crimeRate,      500, 3000);
+      const components: Array<[number, number]> = [
+        [childZoneScore, 0.15],
+        ...(hasCctv      ? [[cctvCountScore, 0.25], [cctvDistScore, 0.10]] as [number, number][] : []),
+        ...(hasSafetyIdx ? [[row.safetyIndexScore, 0.25]] as [number, number][] : []),
+        ...(hasCrimeStats ? [[crimeRateScore, 0.25]] as [number, number][] : []),
+      ];
+      const tw = components.reduce((s, [, w]) => s + w, 0);
+      sSafety = tw > 0 ? round(components.reduce((s, [sc, w]) => s + sc * w, 0) / tw, 2) : 0;
+    }
+
+    // ── 가성비 ─────────────────────────────────────────────────────────────────
+    let sValue: number | null = null;
+    if (row.avgPricePerM2 != null) {
+      let priceScore: number;
+      if (nationalMedianPrice == null || nationalMedianPrice <= 0) {
+        priceScore = 50;
       } else {
-        sSafety = round(czoneNorm.get(row) ?? 0, 2);
+        priceScore = linearScore(row.avgPricePerM2 / nationalMedianPrice, 0.7, 2.0);
       }
+      const otherAvg = ((sTransport ?? 0) + (sWalk ?? 0) + (sChildcare ?? 0) + (sSafety ?? 0)) / 4;
+      sValue = round(priceScore * 0.50 + otherAvg * 0.50, 2);
     }
 
     const setClauses: string[] = [];
@@ -201,6 +219,7 @@ async function main() {
     if (sWalk !== null) setClauses.push(`s_walk=${sqlValue(sWalk)}`);
     if (sChildcare !== null) setClauses.push(`s_childcare=${sqlValue(sChildcare)}`);
     if (sSafety !== null) setClauses.push(`s_safety=${sqlValue(sSafety)}`);
+    if (sValue !== null) setClauses.push(`s_value=${sqlValue(sValue)}`);
     if (setClauses.length === 0) continue;
     setClauses.push("updated_at=CURRENT_TIMESTAMP");
     lines.push(`UPDATE apt_complexes SET ${setClauses.join(", ")} WHERE id=${quote(row.id)};`);

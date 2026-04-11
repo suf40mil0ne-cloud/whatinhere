@@ -7,12 +7,13 @@ import {
   fetchJsonWithRetry,
   fetchTextWithRetry,
   info,
+  linearScore,
   loadState,
   nearestDistance,
-  normalizeWithinSgg,
   numeric,
   paramsToUrl,
   PointRecord,
+  round,
   saveState,
   updateOverallScores,
   warn,
@@ -22,7 +23,6 @@ import {
   xmlItems,
   xmlTag,
   countWithin,
-  round,
   OUTPUT_DIR,
   ensureOutputDir,
 } from "./district-score-lib";
@@ -203,29 +203,28 @@ function assignMetrics(districts: DistrictState[], buses: BusStop[], subways: Su
     };
   }
 
-  const busDistanceNorm = normalizeWithinSgg(districts, (row) => row.sigungu, (row) => row.raw_transport?.busStopDistanceM ?? null, true);
-  const subwayDistanceNorm = normalizeWithinSgg(districts, (row) => row.sigungu, (row) => row.raw_transport?.subwayStationDistanceM ?? null, true);
-  const busCountNorm = normalizeWithinSgg(districts, (row) => row.sigungu, (row) => row.raw_transport?.busStopCount500m ?? null, false);
-  const transferNorm = normalizeWithinSgg(districts, (row) => row.sigungu, (row) => row.raw_transport?.subwayTransferCount1km ?? null, false);
-
   for (const district of districts) {
+    const raw = district.raw_transport;
+    if (!raw) { district.s_transport = 0; continue; }
+
     const hasBus = buses.length > 0;
     const hasSubwayInSigungu = (subwayBySigungu.get(district.sigungu)?.length ?? 0) > 0;
+
+    // absolute scoring: best → worst thresholds
+    const busDistScore    = linearScore(raw.busStopDistanceM,        100,  800);  // 100m=100, 800m=0
+    const subwayDistScore = linearScore(raw.subwayStationDistanceM,  250, 2000);  // 250m=100, 2000m=0
+    const busCountScore   = linearScore(raw.busStopCount500m,         10,    0);  // 10개=100, 0개=0
+    const transferScore   = linearScore(raw.subwayTransferCount1km,    2,    0);  // 2개=100, 0개=0
+
     if (!hasBus) {
-      district.s_transport = round((subwayDistanceNorm.get(district) ?? 0) * 0.75 + (transferNorm.get(district) ?? 0) * 0.25, 2);
-      continue;
+      district.s_transport = round(subwayDistScore * 0.75 + transferScore * 0.25, 2);
+    } else if (!hasSubwayInSigungu) {
+      district.s_transport = round(busDistScore * 0.75 + busCountScore * 0.25, 2);
+    } else {
+      district.s_transport = round(
+        busDistScore * 0.45 + subwayDistScore * 0.30 + busCountScore * 0.15 + transferScore * 0.10, 2
+      );
     }
-    if (!hasSubwayInSigungu) {
-      district.s_transport = round((busDistanceNorm.get(district) ?? 0) * 0.75 + (busCountNorm.get(district) ?? 0) * 0.25, 2);
-      continue;
-    }
-    district.s_transport = round(
-      (busDistanceNorm.get(district) ?? 0) * 0.45 +
-        (subwayDistanceNorm.get(district) ?? 0) * 0.30 +
-        (busCountNorm.get(district) ?? 0) * 0.15 +
-        (transferNorm.get(district) ?? 0) * 0.10,
-      2
-    );
   }
 }
 

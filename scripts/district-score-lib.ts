@@ -1,7 +1,11 @@
 import fs from "node:fs/promises";
 import fsSync from "node:fs";
+import { execFile as execFileCallback } from "node:child_process";
 import path from "node:path";
+import { promisify } from "node:util";
+import XLSX from "xlsx";
 
+const execFile = promisify(execFileCallback);
 const _rootForEnv = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..");
 
 function loadEnvFiles(): void {
@@ -24,6 +28,7 @@ loadEnvFiles();
 
 export const ROOT_DIR = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..");
 export const OUTPUT_DIR = path.join(ROOT_DIR, "output");
+export const DATA_DIR = path.join(ROOT_DIR, "data");
 export const STATE_PATH = path.join(OUTPUT_DIR, "district-scores.state.json");
 export const CAPITAL_SIDO_NAMES = ["서울특별시", "경기도", "인천광역시"] as const;
 export const CAPITAL_SIDO_CODES = new Set(["11", "41", "28"]);
@@ -49,7 +54,6 @@ export interface RawValue {
 
 export interface RawChildcare {
   childcareCount: number | null;
-  capacityLeft1km: number | null;
   elementaryDistanceM: number | null;
   academyCount1km: number | null;
   academyDiversityScore: number | null;
@@ -61,6 +65,7 @@ export interface RawSafety {
   cctvDistanceM: number | null;
   childZoneCount1km: number | null;
   safetyIndexScore: number | null;
+  crimeRate: number | null;
 }
 
 export interface DistrictState {
@@ -179,28 +184,20 @@ export function groupBy<T>(rows: T[], getKey: (row: T) => string): Map<string, T
   return map;
 }
 
-export function normalizeWithinSgg<T>(rows: T[], getGroup: (row: T) => string, getValue: (row: T) => number | null, inverse = false): Map<T, number> {
-  const result = new Map<T, number>();
-  const groups = groupBy(rows, getGroup);
-  for (const bucket of groups.values()) {
-    const values = bucket.map(getValue).filter((value): value is number => value != null && Number.isFinite(value));
-    const min = values.length ? Math.min(...values) : 0;
-    const max = values.length ? Math.max(...values) : 0;
-    for (const row of bucket) {
-      const value = getValue(row);
-      if (value == null || !Number.isFinite(value)) {
-        result.set(row, 0);
-        continue;
-      }
-      if (max === min) {
-        result.set(row, value > 0 ? 100 : 0);
-        continue;
-      }
-      const ratio = inverse ? (max - value) / (max - min) : (value - min) / (max - min);
-      result.set(row, round(ratio * 100, 2));
-    }
-  }
-  return result;
+export function clamp(value: number, lo: number, hi: number): number {
+  return Math.max(lo, Math.min(hi, value));
+}
+
+/**
+ * Linear absolute scoring: best → 100 pts, worst → 0 pts.
+ * Works for both directions:
+ *   distance (inverse): linearScore(500, 100, 2000) — 100m=100, 2000m=0
+ *   count   (normal):   linearScore(8, 10, 0)       — 10=100, 0=0
+ */
+export function linearScore(value: number | null | undefined, best: number, worst: number): number {
+  if (value == null || !Number.isFinite(value)) return 0;
+  if (best === worst) return value >= best ? 100 : 0;
+  return clamp(round((value - worst) / (best - worst) * 100, 2), 0, 100);
 }
 
 export function average(values: Array<number | null | undefined>): number {
@@ -256,7 +253,6 @@ export function buildUpdateSql(rows: DistrictState[], columns: string[]): string
   for (const row of rows) {
     const assignments = columns.map((column) => {
       const rawValue = (row as Record<string, unknown>)[column];
-      // Serialize raw_* JSON blobs
       if (column.startsWith("raw_") && rawValue != null && typeof rawValue === "object") {
         return `${column} = ${quote(JSON.stringify(rawValue))}`;
       }
@@ -360,7 +356,6 @@ interface FetchRetryOptions {
   parseAs?: "json" | "text";
   retries?: number;
   timeoutMs?: number;
-  /** Force TLS 1.2 and skip cert validation — required for safetydata.go.kr which rejects TLS 1.3 */
   legacyTls?: boolean;
 }
 
@@ -384,7 +379,6 @@ async function fetchWithRetry(url: string, options: FetchRetryOptions = {}): Pro
       let status: number;
       let body: string;
       if (legacyTls) {
-        // safetydata.go.kr rejects TLS 1.3 — use undici with TLS 1.2 + skip cert validation
         const { Agent, fetch: undiciFetch } = await import("undici");
         const agent = new Agent({ connect: { rejectUnauthorized: false, maxVersion: "TLSv1.2" } });
         const res = await undiciFetch(url, { headers: headers as Record<string, string>, dispatcher: agent, signal: AbortSignal.timeout(timeoutMs) });
@@ -435,6 +429,32 @@ export async function fetchText(url: string): Promise<string> {
 
 export async function fetchJson(url: string): Promise<unknown> {
   return fetchJsonWithRetry(url);
+}
+
+export interface CurlTextResult {
+  status: number;
+  contentType: string | null;
+  body: string;
+}
+
+export async function curlText(url: string, args: string[] = []): Promise<CurlTextResult> {
+  const marker = "__CURL_META__";
+  const { stdout } = await execFile(
+    "curl",
+    ["-sS", ...args, "-o", "-", "-w", `\n${marker}%{http_code}|%{content_type}`, url],
+    { maxBuffer: 20 * 1024 * 1024 }
+  );
+  const output = stdout.toString();
+  const markerIndex = output.lastIndexOf(`\n${marker}`);
+  if (markerIndex === -1) return { status: 0, contentType: null, body: output };
+  const body = output.slice(0, markerIndex);
+  const meta = output.slice(markerIndex + marker.length + 1).trim();
+  const [statusRaw, contentTypeRaw] = meta.split("|");
+  return {
+    status: Number(statusRaw) || 0,
+    contentType: contentTypeRaw || null,
+    body,
+  };
 }
 
 export function xmlItems(xml: string): string[] {
@@ -496,6 +516,154 @@ function flattenCoordinates(input: unknown): Array<[number, number]> {
   }
   const result: Array<[number, number]> = [];
   for (const item of input) result.push(...flattenCoordinates(item));
+  return result;
+}
+
+// ── xlsx helpers ─────────────────────────────────────────────────────────────
+
+export function readXlsxSheet(filePath: string, sheetName: string): Record<string, unknown>[] {
+  const workbook = XLSX.readFile(filePath);
+  const sheet = workbook.Sheets[sheetName];
+  if (!sheet) {
+    const available = workbook.SheetNames.join(", ");
+    throw new Error(`Sheet "${sheetName}" not found in ${filePath}. Available: ${available}`);
+  }
+  return XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet);
+}
+
+export function writeXlsxSheet(filePath: string, sheetName: string, data: Record<string, unknown>[]): void {
+  const worksheet = XLSX.utils.json_to_sheet(data);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
+  XLSX.writeFile(workbook, filePath);
+}
+
+// ── Reference data loaders ────────────────────────────────────────────────────
+
+/**
+ * Reads data/national-price-reference.xlsx (sheet: "평형별중위가격").
+ * Returns the simple average of all size-band national m² medians (만원/m²).
+ * Creates a sample file if missing.
+ */
+export async function loadNationalPriceRef(): Promise<number | null> {
+  await fs.mkdir(DATA_DIR, { recursive: true });
+  const xlsxPath = path.join(DATA_DIR, "national-price-reference.xlsx");
+  let rows: Record<string, unknown>[];
+  try {
+    rows = readXlsxSheet(xlsxPath, "평형별중위가격");
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+      const sample = [
+        { "평형대": "소형", "전국m²중위가격(만원)": 1200 },
+        { "평형대": "중형", "전국m²중위가격(만원)": 1500 },
+        { "평형대": "대형", "전국m²중위가격(만원)": 1900 },
+      ];
+      writeXlsxSheet(xlsxPath, "평형별중위가격", sample);
+      warn("district-score-lib: data/national-price-reference.xlsx 없음 → 샘플 파일 생성. 실제 전국 중위가격으로 업데이트하세요.");
+      rows = sample;
+    } else throw error;
+  }
+  const prices = rows.map((r) => numeric(r["전국m²중위가격(만원)"])).filter((v): v is number => v != null);
+  if (!prices.length) { warn("district-score-lib: national-price-reference.xlsx에 유효한 가격 행 없음"); return null; }
+  return prices.reduce((a, b) => a + b, 0) / prices.length;
+}
+
+const CRIME_STATS_SAMPLE: Record<string, unknown>[] = [
+  // 서울특별시
+  { "시군구코드": "11110", "시군구명": "종로구",    "5대범죄합계": 2646, "인구수": 140000, "인구10만명당발생건수": 1890 },
+  { "시군구코드": "11140", "시군구명": "중구",       "5대범죄합계": 2880, "인구수": 120000, "인구10만명당발생건수": 2400 },
+  { "시군구코드": "11170", "시군구명": "용산구",     "5대범죄합계": 3588, "인구수": 260000, "인구10만명당발생건수": 1380 },
+  { "시군구코드": "11200", "시군구명": "성동구",     "5대범죄합계": 2944, "인구수": 320000, "인구10만명당발생건수":  920 },
+  { "시군구코드": "11215", "시군구명": "광진구",     "5대범죄합계": 3572, "인구수": 380000, "인구10만명당발생건수":  940 },
+  { "시군구코드": "11230", "시군구명": "동대문구",   "5대범죄합계": 4608, "인구수": 360000, "인구10만명당발생건수": 1280 },
+  { "시군구코드": "11260", "시군구명": "중랑구",     "5대범죄합계": 4714, "인구수": 410000, "인구10만명당발생건수": 1150 },
+  { "시군구코드": "11290", "시군구명": "성북구",     "5대범죄합계": 4224, "인구수": 480000, "인구10만명당발생건수":  880 },
+  { "시군구코드": "11305", "시군구명": "강북구",     "5대범죄합계": 3432, "인구수": 330000, "인구10만명당발생건수": 1040 },
+  { "시군구코드": "11320", "시군구명": "도봉구",     "5대범죄합계": 2592, "인구수": 360000, "인구10만명당발생건수":  720 },
+  { "시군구코드": "11350", "시군구명": "노원구",     "5대범죄합계": 3920, "인구수": 560000, "인구10만명당발생건수":  700 },
+  { "시군구코드": "11380", "시군구명": "은평구",     "5대범죄합계": 3850, "인구수": 500000, "인구10만명당발생건수":  770 },
+  { "시군구코드": "11410", "시군구명": "서대문구",   "5대범죄합계": 3740, "인구수": 340000, "인구10만명당발생건수": 1100 },
+  { "시군구코드": "11440", "시군구명": "마포구",     "5대범죄합계": 5040, "인구수": 400000, "인구10만명당발생건수": 1260 },
+  { "시군구코드": "11470", "시군구명": "양천구",     "5대범죄합계": 3400, "인구수": 500000, "인구10만명당발생건수":  680 },
+  { "시군구코드": "11500", "시군구명": "강서구",     "5대범죄합계": 4856, "인구수": 600000, "인구10만명당발생건수":  810 },
+  { "시군구코드": "11530", "시군구명": "구로구",     "5대범죄합계": 4704, "인구수": 420000, "인구10만명당발생건수": 1120 },
+  { "시군구코드": "11545", "시군구명": "금천구",     "5대범죄합계": 3510, "인구수": 260000, "인구10만명당발생건수": 1350 },
+  { "시군구코드": "11560", "시군구명": "영등포구",   "5대범죄합계": 6160, "인구수": 400000, "인구10만명당발생건수": 1540 },
+  { "시군구코드": "11590", "시군구명": "동작구",     "5대범죄합계": 3828, "인구수": 440000, "인구10만명당발생건수":  870 },
+  { "시군구코드": "11620", "시군구명": "관악구",     "5대범죄합계": 6344, "인구수": 520000, "인구10만명당발생건수": 1220 },
+  { "시군구코드": "11650", "시군구명": "서초구",     "5대범죄합계": 3648, "인구수": 480000, "인구10만명당발생건수":  760 },
+  { "시군구코드": "11680", "시군구명": "강남구",     "5대범죄합계": 4704, "인구수": 560000, "인구10만명당발생건수":  840 },
+  { "시군구코드": "11710", "시군구명": "송파구",     "5대범죄합계": 5040, "인구수": 700000, "인구10만명당발생건수":  720 },
+  { "시군구코드": "11740", "시군구명": "강동구",     "5대범죄합계": 3381, "인구수": 490000, "인구10만명당발생건수":  690 },
+  // 인천광역시
+  { "시군구코드": "28110", "시군구명": "중구",       "5대범죄합계":  378, "인구수":  25000, "인구10만명당발생건수": 1510 },
+  { "시군구코드": "28140", "시군구명": "동구",       "5대범죄합계":  253, "인구수":  16000, "인구10만명당발생건수": 1580 },
+  { "시군구코드": "28170", "시군구명": "미추홀구",   "5대범죄합계": 1548, "인구수": 120000, "인구10만명당발생건수": 1290 },
+  { "시군구코드": "28185", "시군구명": "연수구",     "5대범죄합계": 1116, "인구수": 155000, "인구10만명당발생건수":  720 },
+  { "시군구코드": "28200", "시군구명": "남동구",     "5대범죄합계": 1800, "인구수": 202000, "인구10만명당발생건수":  890 },
+  { "시군구코드": "28237", "시군구명": "부평구",     "5대범죄합계": 2904, "인구수": 264000, "인구10만명당발생건수": 1100 },
+  { "시군구코드": "28245", "시군구명": "계양구",     "5대범죄합계": 1176, "인구수": 140000, "인구10만명당발생건수":  840 },
+  { "시군구코드": "28260", "시군구명": "서구",       "5대범죄합계": 2136, "인구수": 270000, "인구10만명당발생건수":  790 },
+  { "시군구코드": "28710", "시군구명": "강화군",     "5대범죄합계":  268, "인구수":  69000, "인구10만명당발생건수":  390 },
+  { "시군구코드": "28720", "시군구명": "옹진군",     "5대범죄합계":   56, "인구수":  20000, "인구10만명당발생건수":  280 },
+  // 경기도
+  { "시군구코드": "41110", "시군구명": "수원시",     "5대범죄합계": 10788,"인구수":1160000, "인구10만명당발생건수":  930 },
+  { "시군구코드": "41130", "시군구명": "성남시",     "5대범죄합계":  7112,"인구수": 900000, "인구10만명당발생건수":  790 },
+  { "시군구코드": "41150", "시군구명": "의정부시",   "5대범죄합계":  4312,"인구수": 440000, "인구10만명당발생건수":  980 },
+  { "시군구코드": "41170", "시군구명": "안양시",     "5대범죄합계":  5376,"인구수": 640000, "인구10만명당발생건수":  840 },
+  { "시군구코드": "41190", "시군구명": "부천시",     "5대범죄합계":  8484,"인구수": 840000, "인구10만명당발생건수": 1010 },
+  { "시군구코드": "41210", "시군구명": "광명시",     "5대범죄합계":  2848,"인구수": 320000, "인구10만명당발생건수":  890 },
+  { "시군구코드": "41220", "시군구명": "평택시",     "5대범죄합계":  4800,"인구수": 500000, "인구10만명당발생건수":  960 },
+  { "시군구코드": "41250", "시군구명": "동두천시",   "5대범죄합계":  1012,"인구수":  93000, "인구10만명당발생건수": 1090 },
+  { "시군구코드": "41270", "시군구명": "안산시",     "5대범죄합계":  8568,"인구수": 720000, "인구10만명당발생건수": 1190 },
+  { "시군구코드": "41280", "시군구명": "고양시",     "5대범죄합계":  7770,"인구수":1050000, "인구10만명당발생건수":  740 },
+  { "시군구코드": "41290", "시군구명": "과천시",     "5대범죄합계":   356,"인구수":  66000, "인구10만명당발생건수":  540 },
+  { "시군구코드": "41310", "시군구명": "구리시",     "5대범죄합계":  1596,"인구수": 190000, "인구10만명당발생건수":  840 },
+  { "시군구코드": "41360", "시군구명": "남양주시",   "5대범죄합계":  4624,"인구수": 680000, "인구10만명당발생건수":  680 },
+  { "시군구코드": "41370", "시군구명": "오산시",     "5대범죄합계":  1738,"인구수": 220000, "인구10만명당발생건수":  790 },
+  { "시군구코드": "41390", "시군구명": "시흥시",     "5대범죄합계":  4048,"인구수": 460000, "인구10만명당발생건수":  880 },
+  { "시군구코드": "41410", "시군구명": "군포시",     "5대범죄합계":  2072,"인구수": 280000, "인구10만명당발생건수":  740 },
+  { "시군구코드": "41430", "시군구명": "의왕시",     "5대범죄합계":  1173,"인구수": 170000, "인구10만명당발생건수":  690 },
+  { "시군구코드": "41450", "시군구명": "하남시",     "5대범죄합계":  1932,"인구수": 280000, "인구10만명당발생건수":  690 },
+  { "시군구코드": "41460", "시군구명": "용인시",     "5대범죄합계":  7452,"인구수":1080000, "인구10만명당발생건수":  690 },
+  { "시군구코드": "41480", "시군구명": "파주시",     "5대범죄합계":  3712,"인구수": 470000, "인구10만명당발생건수":  790 },
+  { "시군구코드": "41500", "시군구명": "이천시",     "5대범죄합계":  1848,"인구수": 220000, "인구10만명당발생건수":  840 },
+  { "시군구코드": "41550", "시군구명": "안성시",     "5대범죄합계":  1692,"인구수": 190000, "인구10만명당발생건수":  890 },
+  { "시군구코드": "41570", "시군구명": "김포시",     "5대범죄합계":  3330,"인구수": 450000, "인구10만명당발생건수":  740 },
+  { "시군구코드": "41590", "시군구명": "화성시",     "5대범죄합계":  6000,"인구수": 810000, "인구10만명당발생건수":  740 },
+  { "시군구코드": "41610", "시군구명": "광주시",     "5대범죄합계":  2560,"인구수": 330000, "인구10만명당발생건수":  790 },
+  { "시군구코드": "41630", "시군구명": "양주시",     "5대범죄합계":  2052,"인구수": 230000, "인구10만명당발생건수":  890 },
+  { "시군구코드": "41650", "시군구명": "포천시",     "5대범죄합계":  1584,"인구수": 160000, "인구10만명당발생건수":  990 },
+  { "시군구코드": "41670", "시군구명": "여주시",     "5대범죄합계":   924,"인구수": 105000, "인구10만명당발생건수":  880 },
+  { "시군구코드": "41800", "시군구명": "연천군",     "5대범죄합계":   448,"인구수":  65000, "인구10만명당발생건수":  690 },
+  { "시군구코드": "41820", "시군구명": "가평군",     "5대범죄합계":   360,"인구수":  61000, "인구10만명당발생건수":  590 },
+  { "시군구코드": "41830", "시군구명": "양평군",     "5대범죄합계":   594,"인구수": 108000, "인구10만명당발생건수":  540 },
+];
+
+/**
+ * Reads data/crime-stats.xlsx (sheet: "시군구범죄현황").
+ * Returns Map<시군구명, 인구10만명당발생건수>.
+ * Creates a sample file if missing.
+ */
+export async function loadCrimeStats(): Promise<Map<string, number>> {
+  await fs.mkdir(DATA_DIR, { recursive: true });
+  const xlsxPath = path.join(DATA_DIR, "crime-stats.xlsx");
+  let rows: Record<string, unknown>[];
+  try {
+    rows = readXlsxSheet(xlsxPath, "시군구범죄현황");
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+      writeXlsxSheet(xlsxPath, "시군구범죄현황", CRIME_STATS_SAMPLE);
+      warn("district-score-lib: data/crime-stats.xlsx 없음 → 샘플 파일 생성. 경찰청 범죄통계 연보로 업데이트하세요.");
+      rows = CRIME_STATS_SAMPLE;
+    } else throw error;
+  }
+  const result = new Map<string, number>();
+  for (const row of rows) {
+    const name = typeof row["시군구명"] === "string" ? row["시군구명"].trim() : null;
+    const rate = numeric(row["인구10만명당발생건수"]);
+    if (name && rate != null) result.set(name, rate);
+  }
   return result;
 }
 

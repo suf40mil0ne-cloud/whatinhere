@@ -2,22 +2,23 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import {
   buildUpdateSql,
+  DATA_DIR,
   DistrictState,
   fetchJsonWithRetry,
   flushWarningSummary,
   info,
+  linearScore,
   loadState,
   nearestDistance,
-  normalizeWithinSgg,
   numeric,
   paramsToUrl,
+  round,
   saveState,
   toMeters,
   updateOverallScores,
   warn,
   writeSqlFile,
   countWithin,
-  round,
   text,
   OUTPUT_DIR,
   ensureOutputDir,
@@ -45,7 +46,6 @@ interface Academy {
 
 const NEIS_API_KEY = process.env.NEIS_API_KEY ?? "9b61b187cc55411a90b99d802758e3a2";
 const NEIS_ACADEMY_API_KEY = process.env.NEIS_ACADEMY_API_KEY;
-const DATA_DIR = path.join(process.cwd(), "data");
 
 function preview(textValue: string): string {
   return textValue.replace(/\s+/g, " ").trim().slice(0, 300);
@@ -316,7 +316,6 @@ function applyChildcareScores(
     const sigunguCenters = centers.filter((row) => row.sigungu === district.sigungu);
 
     const childcareCount = sigunguCenters.length ? countWithin(point, sigunguCenters, 1000) : 0;
-    const capacityLeft1km = sigunguCenters.length ? countWithin(point, sigunguCenters, 1000, (row) => row.spare) : 0;
     const elementaryDistanceM = schools.length ? nearestDistance(point, schools.filter((row) => row.sido === district.sido)) : null;
     const vehicleCount = sigunguCenters.filter((row) => row.vehicle).length;
     const vehicleRatio = sigunguCenters.length ? round(vehicleCount / sigunguCenters.length, 4) : 0;
@@ -335,60 +334,32 @@ function applyChildcareScores(
 
     district.raw_childcare = {
       childcareCount,
-      capacityLeft1km,
       elementaryDistanceM,
       academyCount1km,
       academyDiversityScore,
       vehicleRatio,
     };
-  }
 
-  const households = (row: DistrictState): number => Math.max(row.households ?? 0, 1);
+    const households = Math.max(district.households ?? 0, 1);
+    const centerPerHousehold = round(childcareCount / households, 6);
 
-  const centerPerHouseholdNorm = normalizeWithinSgg(
-    districts, (row) => row.sigungu,
-    (row) => row.raw_childcare != null ? round((row.raw_childcare.childcareCount ?? 0) / households(row), 4) : null
-  );
-  const sparePerHouseholdNorm = normalizeWithinSgg(
-    districts, (row) => row.sigungu,
-    (row) => row.raw_childcare != null ? round((row.raw_childcare.capacityLeft1km ?? 0) / households(row), 4) : null
-  );
-  const schoolDistanceNorm = normalizeWithinSgg(
-    districts, (row) => row.sigungu,
-    (row) => row.raw_childcare?.elementaryDistanceM ?? null, true
-  );
-  const academyCountNorm = normalizeWithinSgg(
-    districts, (row) => row.sigungu,
-    (row) => row.raw_childcare != null ? round((row.raw_childcare.academyCount1km ?? 0) / households(row), 4) : null
-  );
-  const academyDiversityNorm = normalizeWithinSgg(
-    districts, (row) => row.sigungu,
-    (row) => row.raw_childcare?.academyDiversityScore ?? null
-  );
-  const vehicleRatioNorm = normalizeWithinSgg(
-    districts, (row) => row.sigungu,
-    (row) => row.raw_childcare?.vehicleRatio ?? null
-  );
+    // absolute scoring (centers available)
+    const centerScore   = linearScore(centerPerHousehold,    0.01,    0);  // 100세대당1개=100
+    const schoolScore   = linearScore(elementaryDistanceM,   300,  1500);  // 300m=100, 1500m=0
+    const acaCountScore = linearScore(academyCount1km,        20,     0);  // 20개=100
+    const acaDivScore   = linearScore(academyDiversityScore,   5,     0);  // 5분야=100
+    const vehicleScore  = linearScore(vehicleRatio,          0.8,     0);  // 80%=100
 
-  for (const district of districts) {
     if (centers.length === 0) {
       district.s_childcare = round(
-        (schoolDistanceNorm.get(district) ?? 0) * 0.45 +
-          (academyCountNorm.get(district) ?? 0) * 0.35 +
-          (academyDiversityNorm.get(district) ?? 0) * 0.20,
-        2
+        schoolScore * 0.45 + acaCountScore * 0.35 + acaDivScore * 0.20, 2
       );
-      continue;
+    } else {
+      district.s_childcare = round(
+        centerScore * 0.25 + schoolScore * 0.25 + acaCountScore * 0.20 +
+        acaDivScore * 0.15 + vehicleScore * 0.15, 2
+      );
     }
-    district.s_childcare = round(
-      (centerPerHouseholdNorm.get(district) ?? 0) * 0.25 +
-        (sparePerHouseholdNorm.get(district) ?? 0) * 0.20 +
-        (schoolDistanceNorm.get(district) ?? 0) * 0.20 +
-        (academyCountNorm.get(district) ?? 0) * 0.15 +
-        (academyDiversityNorm.get(district) ?? 0) * 0.10 +
-        (vehicleRatioNorm.get(district) ?? 0) * 0.10,
-      2
-    );
   }
 }
 

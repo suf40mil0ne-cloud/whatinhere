@@ -8,19 +8,19 @@ import {
   fetchJsonWithRetry,
   flushWarningSummary,
   info,
+  linearScore,
   loadState,
   nearestDistance,
-  normalizeWithinSgg,
   numeric,
   paramsToUrl,
   parseJsonItems,
+  round,
   saveState,
   sumWithin,
   updateOverallScores,
   warn,
   writeSqlFile,
   countWithin,
-  round,
   text,
   OUTPUT_DIR,
   ensureOutputDir,
@@ -84,24 +84,16 @@ function applyWalkScores(districts: DistrictState[], parks: Park[]) {
     const parkDistanceM = parks.length ? nearestDistance(point, parks) : null;
     const parkFacilityCount = countWithin(point, parks.filter((park) => park.facilityScore > 0), 1000);
     district.raw_walk = { parkCount1km, parkArea1km, parkDistanceM, parkFacilityCount };
-  }
 
-  const households = (row: DistrictState): number => Math.max(row.households ?? 0, 1);
-  const areaPerHouseholdNorm = normalizeWithinSgg(
-    districts,
-    (row) => row.sigungu,
-    (row) => row.raw_walk != null ? round((row.raw_walk.parkArea1km ?? 0) / households(row), 4) : null
-  );
-  const countNorm = normalizeWithinSgg(districts, (row) => row.sigungu, (row) => row.raw_walk?.parkCount1km ?? null, false);
-  const distanceNorm = normalizeWithinSgg(districts, (row) => row.sigungu, (row) => row.raw_walk?.parkDistanceM ?? null, true);
-  const facilityNorm = normalizeWithinSgg(districts, (row) => row.sigungu, (row) => row.raw_walk?.parkFacilityCount ?? null, false);
+    const households = Math.max(district.households ?? 0, 1);
+    const areaPerHousehold = round(parkArea1km / households, 4);
 
-  for (const district of districts) {
+    // absolute scoring: best → worst thresholds (㎡/세대, 개수, 거리m)
     district.s_walk = round(
-      (areaPerHouseholdNorm.get(district) ?? 0) * 0.45 +
-        (countNorm.get(district) ?? 0) * 0.20 +
-        (distanceNorm.get(district) ?? 0) * 0.20 +
-        (facilityNorm.get(district) ?? 0) * 0.15,
+      linearScore(areaPerHousehold, 30,   0) * 0.45 +  // 30㎡/세대=100, 0=0
+      linearScore(parkCount1km,      5,   0) * 0.20 +  // 5개=100, 0=0
+      linearScore(parkDistanceM,   100, 1000) * 0.20 + // 100m=100, 1000m=0
+      linearScore(parkFacilityCount, 3,   0) * 0.15,   // 3개=100, 0=0
       2
     );
   }

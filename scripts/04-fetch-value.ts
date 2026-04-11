@@ -4,9 +4,10 @@ import {
   DistrictState,
   info,
   lastRegionToken,
+  linearScore,
+  loadNationalPriceRef,
   loadState,
   median,
-  normalizeWithinSgg,
   numeric,
   paramsToUrl,
   round,
@@ -172,7 +173,7 @@ async function fetchTrades(lawdCds: string[]): Promise<TradeRow[]> {
   return rows;
 }
 
-function assignValues(districts: DistrictState[], trades: TradeRow[]) {
+function assignValues(districts: DistrictState[], trades: TradeRow[], nationalMedianPrice: number | null) {
   const districtLawdMap = new Map(districts.map((district) => [`${district.sido}:${district.sigungu}`, CAPITAL_LAWD_CODES[`${district.sido}:${district.sigungu}`] ?? null]));
   const lawdMedian = new Map<string, number>();
   for (const lawdCd of [...new Set(trades.map((row) => row.lawdCd))]) {
@@ -193,12 +194,19 @@ function assignValues(districts: DistrictState[], trades: TradeRow[]) {
     district.raw_value = { pricePerSqmMedian };
   }
 
-  const priceNorm = normalizeWithinSgg(districts, (row) => row.sigungu, (row) => row.raw_value?.pricePerSqmMedian ?? null, true);
   for (const district of districts) {
-    const convenience = (district.s_transport + district.s_walk) / 2;
-    const hasPrice = district.raw_value?.pricePerSqmMedian != null;
-    const priceScore = hasPrice ? (priceNorm.get(district) ?? 0) : 0.5;
-    district.s_value = round(priceScore * 0.6 + convenience * 0.4, 2);
+    const price = district.raw_value?.pricePerSqmMedian ?? null;
+    let priceScore: number;
+    if (price == null || nationalMedianPrice == null || nationalMedianPrice <= 0) {
+      priceScore = 50; // neutral fallback when price data unavailable
+    } else {
+      // ratio=0.7 이하 → 100점, ratio=2.0 이상 → 0점 (선형보간)
+      const ratio = price / nationalMedianPrice;
+      priceScore = linearScore(ratio, 0.7, 2.0);
+    }
+    // 나머지 4개 점수 평균 (transport, walk, childcare, safety — 먼저 계산된 후 실행)
+    const otherAvg = (district.s_transport + district.s_walk + district.s_childcare + district.s_safety) / 4;
+    district.s_value = round(priceScore * 0.50 + otherAvg * 0.50, 2);
   }
 }
 
@@ -207,8 +215,12 @@ async function main() {
   if (!districts.length) throw new Error("Run 00-fetch-districts.ts first");
   const lawdCds = districtLawdCodes(districts);
   info(`04-fetch-value: querying ${lawdCds.length} LAWD_CD values across ${recentMonths(12).length} completed months`);
-  const trades = await fetchTrades(lawdCds);
-  assignValues(districts, trades);
+  const [trades, nationalMedianPrice] = await Promise.all([
+    fetchTrades(lawdCds),
+    loadNationalPriceRef(),
+  ]);
+  if (nationalMedianPrice != null) info(`04-fetch-value: 전국m²중위가격 기준=${round(nationalMedianPrice, 0)}만원/m²`);
+  assignValues(districts, trades, nationalMedianPrice);
   updateOverallScores(districts);
   await saveState(districts);
   await writeSqlFile("04-value.sql", buildUpdateSql(districts, ["s_value", "raw_value"]));

@@ -17,7 +17,8 @@
     "collect:apt-complexes": "tsx scripts/07-fetch-apt-complexes.ts",
     "collect:complex-scores": "tsx scripts/08-score-by-complex.ts",
     "collect:merge": "tsx scripts/99-merge-scores.ts",
-    "collect": "npm-run-all collect:transport collect:walk collect:value collect:childcare collect:safety collect:apt-complexes collect:complex-scores collect:merge",
+    "collect:value": "tsx scripts/04-fetch-value.ts",
+    "collect": "npm-run-all collect:transport collect:walk collect:childcare collect:safety collect:value collect:apt-complexes collect:complex-scores collect:merge",
     "data:kiscon": "node scripts/fetch-kiscon.js",
     "data:railway": "node scripts/fetch-railway.js",
     "data:housing": "node scripts/fetch-housing.js",
@@ -61,6 +62,7 @@
     "tsx": "^4.21.0",
     "typescript": "^5.7.3",
     "vite": "^5.4.11",
-    "wrangler": "^4.79.0"
+    "wrangler": "^4.79.0",
+    "xlsx": "^0.18.5"
   }
 }

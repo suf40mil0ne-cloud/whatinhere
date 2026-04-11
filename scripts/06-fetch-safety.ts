@@ -4,23 +4,25 @@ import path from "node:path";
 import { promisify } from "node:util";
 import {
   buildUpdateSql,
+  DATA_DIR,
   DEFAULT_SERVICE_KEY,
   DistrictState,
   fetchJsonWithRetry,
   flushWarningSummary,
   info,
+  linearScore,
+  loadCrimeStats,
   loadState,
   nearestDistance,
-  normalizeWithinSgg,
   numeric,
   paramsToUrl,
   parseJsonItems,
+  round,
   saveState,
   updateOverallScores,
   warn,
   writeSqlFile,
   countWithin,
-  round,
   text,
   CAPITAL_SIDO_NAMES,
   OUTPUT_DIR,
@@ -327,61 +329,60 @@ async function fetchSafetyIndex(): Promise<Map<string, number>> {
   return result;
 }
 
-function applySafetyScores(districts: DistrictState[], cctvs: CctvPoint[], childZones: ChildZonePoint[], safetyIndex: Map<string, number>) {
+function applySafetyScores(
+  districts: DistrictState[],
+  cctvs: CctvPoint[],
+  childZones: ChildZonePoint[],
+  safetyIndex: Map<string, number>,
+  crimeStats: Map<string, number>
+) {
+  const hasCctv = cctvs.length > 0;
+  const hasSafetyIndex = safetyIndex.size > 0;
+  const hasCrimeStats = crimeStats.size > 0;
+
   for (const district of districts) {
     if (district.center_lat == null || district.center_lng == null) continue;
     const point = { lat: district.center_lat, lng: district.center_lng };
-    const cctvCount500m = cctvs.length ? countWithin(point, cctvs, 500, (row) => row.cameras) : 0;
-    const cctvDistanceM = cctvs.length ? nearestDistance(point, cctvs) : null;
+
+    const cctvCount500m    = hasCctv ? countWithin(point, cctvs, 500, (row) => row.cameras) : 0;
+    const cctvDistanceM    = hasCctv ? nearestDistance(point, cctvs) : null;
     const childZoneCount1km = childZones.length ? countWithin(point, childZones, 1000) : 0;
-    const safetyIndexScore = safetyIndex.get(district.sigungu) ?? 0;
-    district.raw_safety = { cctvCount500m, cctvDistanceM, childZoneCount1km, safetyIndexScore };
-  }
+    const safetyIndexScore  = safetyIndex.get(district.sigungu) ?? 0;
+    const crimeRate         = crimeStats.get(district.sigungu) ?? null;
 
-  const cctvCountNorm = normalizeWithinSgg(districts, (row) => row.sigungu, (row) => row.raw_safety?.cctvCount500m ?? null, false);
-  const cctvDistanceNorm = normalizeWithinSgg(districts, (row) => row.sigungu, (row) => row.raw_safety?.cctvDistanceM ?? null, true);
-  const childZoneNorm = normalizeWithinSgg(districts, (row) => row.sigungu, (row) => row.raw_safety?.childZoneCount1km ?? null, false);
+    district.raw_safety = { cctvCount500m, cctvDistanceM, childZoneCount1km, safetyIndexScore, crimeRate };
 
-  const hasCctv = cctvs.length > 0;
-  const hasSafetyIndex = safetyIndex.size > 0;
+    // absolute scoring
+    const cctvCountScore  = linearScore(cctvCount500m,  30,    0);  // 30개=100
+    const cctvDistScore   = linearScore(cctvDistanceM,  50,  500);  // 50m=100, 500m=0
+    const childZoneScore  = linearScore(childZoneCount1km, 3, 0);   // 3개=100
+    // safetyIndexScore already 0–100 (GRADE_SCORE mapping)
+    const crimeRateScore  = linearScore(crimeRate,     500, 3000);  // 500건이하=100, 3000건이상=0
 
-  for (const district of districts) {
-    const safetyIndexScore = safetyIndex.get(district.sigungu) ?? 0;
-    if (hasCctv && hasSafetyIndex) {
-      district.s_safety = round(
-        (cctvCountNorm.get(district) ?? 0) * 0.35 +
-          (cctvDistanceNorm.get(district) ?? 0) * 0.20 +
-          (childZoneNorm.get(district) ?? 0) * 0.20 +
-          safetyIndexScore * 0.25,
-        2
-      );
-      continue;
-    }
-    if (hasCctv) {
-      district.s_safety = round(
-        (cctvCountNorm.get(district) ?? 0) * 0.47 +
-          (cctvDistanceNorm.get(district) ?? 0) * 0.27 +
-          (childZoneNorm.get(district) ?? 0) * 0.26,
-        2
-      );
-      continue;
-    }
-    if (hasSafetyIndex) {
-      district.s_safety = round((childZoneNorm.get(district) ?? 0) * 0.30 + safetyIndexScore * 0.70, 2);
-      continue;
-    }
-    district.s_safety = round(childZoneNorm.get(district) ?? 0, 2);
+    // proportional fallback: use only available components, normalize weights
+    const components: Array<[number, number]> = [
+      [childZoneScore, 0.15],
+      ...(hasCctv       ? [[cctvCountScore, 0.25], [cctvDistScore, 0.10]] as [number, number][] : []),
+      ...(hasSafetyIndex ? [[safetyIndexScore, 0.25]] as [number, number][] : []),
+      ...(hasCrimeStats  ? [[crimeRateScore, 0.25]] as [number, number][] : []),
+    ];
+    const totalWeight = components.reduce((s, [, w]) => s + w, 0);
+    district.s_safety = totalWeight > 0
+      ? round(components.reduce((s, [score, w]) => s + score * w, 0) / totalWeight, 2)
+      : 0;
   }
 }
 
 async function main() {
   const districts = await loadState();
   if (!districts.length) throw new Error("Run 00-fetch-districts.ts first");
-  const [safetyIndex, cctvs, childZones] = await Promise.all([fetchSafetyIndex(), fetchCctv(), fetchChildZones()]);
+  const [safetyIndex, cctvs, childZones, crimeStats] = await Promise.all([
+    fetchSafetyIndex(), fetchCctv(), fetchChildZones(), loadCrimeStats(),
+  ]);
   if (!cctvs.length && !childZones.length && safetyIndex.size === 0) {
     throw new Error("06-fetch-safety: no safety source data fetched; refusing to overwrite existing scores");
   }
-  applySafetyScores(districts, cctvs, childZones, safetyIndex);
+  applySafetyScores(districts, cctvs, childZones, safetyIndex, crimeStats);
   updateOverallScores(districts);
   await saveState(districts);
   await writeSqlFile("06-safety.sql", buildUpdateSql(districts, ["s_safety", "raw_safety"]));
