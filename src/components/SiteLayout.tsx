@@ -39,14 +39,14 @@ export function SiteLayout({ children }: { children: React.ReactNode }) {
             <Link to="/" className={`top-nav__link ${location.pathname === "/" || isActive("/battle") ? "top-nav__link--active" : ""}`}>
               대결 ⚔️
             </Link>
-            <Link to="/map" className={`top-nav__link ${isActive("/map") ? "top-nav__link--active" : ""}`}>
-              지도
-            </Link>
             <Link to="/ranking" className={`top-nav__link ${isActive("/ranking") ? "top-nav__link--active" : ""}`}>
-              랭킹
+              랭킹 🏆
             </Link>
-            <Link to="/hot" className={`top-nav__link ${isActive("/hot") ? "top-nav__link--active" : ""}`}>
-              HOT 🔥
+            <Link to="/my-apt" className={`top-nav__link ${isActive("/my-apt") ? "top-nav__link--active" : ""}`}>
+              내 단지 🏠
+            </Link>
+            <Link to="/trend" className={`top-nav__link ${isActive("/trend") ? "top-nav__link--active" : ""}`}>
+              트렌드 🔥
             </Link>
           </nav>
 
@@ -70,6 +70,19 @@ export function SiteLayout({ children }: { children: React.ReactNode }) {
 
       <main className="site-main">{children}</main>
 
+      <footer className="site-footer">
+        <div className="site-footer__inner">
+          <nav className="site-footer__nav" aria-label="푸터 탐색">
+            <Link to="/about" className="site-footer__link">서비스 소개</Link>
+            <Link to="/privacy" className="site-footer__link">개인정보처리방침</Link>
+            <Link to="/terms" className="site-footer__link">이용약관</Link>
+          </nav>
+          <p className="site-footer__copy">
+            © 2025 단지戰 · 모든 점수는 참고용입니다 · 데이터 출처: 공공데이터포털, NEIS
+          </p>
+        </div>
+      </footer>
+
       <nav className="mobile-bottom-nav" aria-label="하단 탐색">
         <Link to="/" className={`mobile-bottom-nav__item ${location.pathname === "/" || isActive("/battle") ? "mobile-bottom-nav__item--active" : ""}`}>
           <span className="mobile-bottom-nav__icon">⚔️</span>
@@ -79,13 +92,13 @@ export function SiteLayout({ children }: { children: React.ReactNode }) {
           <span className="mobile-bottom-nav__icon">🏆</span>
           <span className="mobile-bottom-nav__label">랭킹</span>
         </Link>
-        <Link to="/hot" className={`mobile-bottom-nav__item ${isActive("/hot") ? "mobile-bottom-nav__item--active" : ""}`}>
-          <span className="mobile-bottom-nav__icon">🔥</span>
-          <span className="mobile-bottom-nav__label">HOT</span>
+        <Link to="/my-apt" className={`mobile-bottom-nav__item ${isActive("/my-apt") ? "mobile-bottom-nav__item--active" : ""}`}>
+          <span className="mobile-bottom-nav__icon">🏠</span>
+          <span className="mobile-bottom-nav__label">내 단지</span>
         </Link>
-        <Link to="/map" className={`mobile-bottom-nav__item ${isActive("/map") ? "mobile-bottom-nav__item--active" : ""}`}>
-          <span className="mobile-bottom-nav__icon">🗺️</span>
-          <span className="mobile-bottom-nav__label">지도</span>
+        <Link to="/trend" className={`mobile-bottom-nav__item ${isActive("/trend") ? "mobile-bottom-nav__item--active" : ""}`}>
+          <span className="mobile-bottom-nav__icon">🔥</span>
+          <span className="mobile-bottom-nav__label">트렌드</span>
         </Link>
       </nav>
     </div>

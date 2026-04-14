@@ -5,9 +5,15 @@ import { HomePage } from "./pages/HomePage";
 import { BattlePage } from "./pages/BattlePage";
 import { BattleResultPage } from "./pages/BattleResultPage";
 import { RankingPage } from "./pages/RankingPage";
+import { MyAptPage } from "./pages/MyAptPage";
+import { TrendPage } from "./pages/TrendPage";
 import { HotPage } from "./pages/HotPage";
 import { AuthCallbackPage } from "./pages/AuthCallbackPage";
 import { AdminPage } from "./pages/AdminPage";
+import { PrivacyPage } from "./pages/PrivacyPage";
+import { TermsPage } from "./pages/TermsPage";
+import { AboutPage } from "./pages/AboutPage";
+import { NotFoundPage } from "./pages/NotFoundPage";
 
 export function App() {
   return (
@@ -51,6 +57,22 @@ export function App() {
             }
           />
           <Route
+            path="/my-apt"
+            element={
+              <SiteLayout>
+                <MyAptPage />
+              </SiteLayout>
+            }
+          />
+          <Route
+            path="/trend"
+            element={
+              <SiteLayout>
+                <TrendPage />
+              </SiteLayout>
+            }
+          />
+          <Route
             path="/hot"
             element={
               <SiteLayout>
@@ -60,6 +82,39 @@ export function App() {
           />
 
           <Route path="/admin" element={<AdminPage />} />
+
+          <Route
+            path="/privacy"
+            element={
+              <SiteLayout>
+                <PrivacyPage />
+              </SiteLayout>
+            }
+          />
+          <Route
+            path="/terms"
+            element={
+              <SiteLayout>
+                <TermsPage />
+              </SiteLayout>
+            }
+          />
+          <Route
+            path="/about"
+            element={
+              <SiteLayout>
+                <AboutPage />
+              </SiteLayout>
+            }
+          />
+          <Route
+            path="*"
+            element={
+              <SiteLayout>
+                <NotFoundPage />
+              </SiteLayout>
+            }
+          />
         </Routes>
       </AuthProvider>
     </BrowserRouter>

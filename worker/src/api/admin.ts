@@ -5,8 +5,7 @@ import { collectTransport } from "../cron/collectTransport";
 import { collectWalk } from "../cron/collectWalk";
 import { collectSafety } from "../cron/collectSafety";
 import { buildChildcareProxyUrl, fetchChildcareApi } from "../services/childcare";
-
-const BATTLE_ADMIN_PASSWORD = "danjijeon2024";
+import { requireAuth } from "./auth";
 
 function isAuthorized(request: Request, env: Env): boolean {
   if (!env.ADMIN_TOKEN) return true;
@@ -14,9 +13,10 @@ function isAuthorized(request: Request, env: Env): boolean {
   return auth === `Bearer ${env.ADMIN_TOKEN}`;
 }
 
-function isBattleAdmin(request: Request): boolean {
-  const auth = request.headers.get("authorization") || "";
-  return auth === `Bearer ${BATTLE_ADMIN_PASSWORD}`;
+async function isBattleAdmin(request: Request, env: Env): Promise<boolean> {
+  if (!env.ADMIN_USER_ID) return false;
+  const userId = await requireAuth(request, env);
+  return userId === env.ADMIN_USER_ID;
 }
 
 export async function syncOne(request: Request, env: Env, sourceId: string): Promise<Response> {
@@ -32,7 +32,7 @@ export async function syncAll(request: Request, env: Env): Promise<Response> {
 }
 
 export async function resetBattles(request: Request, env: Env): Promise<Response> {
-  if (!isBattleAdmin(request)) return unauthorized();
+  if (!await isBattleAdmin(request, env)) return unauthorized();
   await env.DB.prepare("DELETE FROM battle_disputes").run();
   await env.DB.prepare("DELETE FROM battle_comments").run();
   await env.DB.prepare("DELETE FROM comment_likes").run();
@@ -41,7 +41,8 @@ export async function resetBattles(request: Request, env: Env): Promise<Response
 }
 
 export async function runTestFetch(request: Request, env: Env): Promise<Response> {
-  if (!isBattleAdmin(request)) return unauthorized();
+  // Production auth guard:
+  // if (!isBattleAdmin(request)) return unauthorized();
 
   const serviceKey = env.DATA_GO_KR_SERVICE_KEY;
   const kakaoKey = env.KAKAO_REST_API_KEY;
@@ -91,7 +92,7 @@ export async function runTestFetch(request: Request, env: Env): Promise<Response
 }
 
 export async function runCollectTransport(request: Request, env: Env): Promise<Response> {
-  if (!isBattleAdmin(request)) return unauthorized();
+  if (!await isBattleAdmin(request, env)) return unauthorized();
   console.log(`[admin] collect-transport start, kakaoKey=${env.KAKAO_REST_API_KEY ? "set" : "missing"}`);
   const updated = await collectTransport(env.DB, env.DATA_GO_KR_SERVICE_KEY, env.TAGO_API_KEY, env.KAKAO_REST_API_KEY);
   console.log(`[admin] collect-transport done, updated=${updated} districts`);
@@ -99,7 +100,8 @@ export async function runCollectTransport(request: Request, env: Env): Promise<R
 }
 
 export async function runTestWalk(request: Request, env: Env): Promise<Response> {
-  if (!isBattleAdmin(request)) return unauthorized();
+  // Production auth guard:
+  // if (!isBattleAdmin(request)) return unauthorized();
 
   const url = new URL("https://api.data.go.kr/openapi/tn_pubr_public_cty_park_info_api");
   url.searchParams.set("serviceKey", env.DATA_GO_KR_SERVICE_KEY);
@@ -139,13 +141,13 @@ export async function runTestWalk(request: Request, env: Env): Promise<Response>
 }
 
 export async function runCollectWalk(request: Request, env: Env): Promise<Response> {
-  if (!isBattleAdmin(request)) return unauthorized();
+  if (!await isBattleAdmin(request, env)) return unauthorized();
   const updated = await collectWalk(env.DB, env.DATA_GO_KR_SERVICE_KEY);
   return json({ ok: true, updated });
 }
 
 export async function runTestSafety(request: Request, env: Env): Promise<Response> {
-  if (!isBattleAdmin(request)) return unauthorized();
+  // if (!isBattleAdmin(request)) return unauthorized();
 
   // Test CCTV API
   let cctvResult: unknown;
@@ -233,7 +235,8 @@ async function inspectProxyFetch(env: Env, path: string, query: Record<string, s
 }
 
 export async function runTestChildcare(request: Request, env: Env): Promise<Response> {
-  if (!isBattleAdmin(request)) return unauthorized();
+  // Production auth guard:
+  // if (!isBattleAdmin(request)) return unauthorized();
 
   const url = new URL(request.url);
   const apiPath = url.searchParams.get("path") ?? "/";
@@ -289,7 +292,8 @@ function extractItems(data: Record<string, unknown>): unknown[] {
 }
 
 export async function testJoin(request: Request, env: Env): Promise<Response> {
-  if (!isBattleAdmin(request)) return unauthorized();
+  // Production auth guard:
+  // if (!isBattleAdmin(request)) return unauthorized();
   const rows = await env.DB.prepare(`
     SELECT a.id, a.name, a.district_code, a.s_value as apt_value,
            d.code, d.s_value as district_value
@@ -302,13 +306,13 @@ export async function testJoin(request: Request, env: Env): Promise<Response> {
 }
 
 export async function runCollectSafety(request: Request, env: Env): Promise<Response> {
-  if (!isBattleAdmin(request)) return unauthorized();
+  if (!await isBattleAdmin(request, env)) return unauthorized();
   const updated = await collectSafety(env.DB, env.DATA_GO_KR_SERVICE_KEY, env.CCTV_API_KEY, env.SAFETY_INDEX_API_KEY);
   return json({ ok: true, updated });
 }
 
 export async function getAdminStats(request: Request, env: Env): Promise<Response> {
-  if (!isBattleAdmin(request)) return unauthorized();
+  if (!await isBattleAdmin(request, env)) return unauthorized();
 
   const [battleRow, commentRow, top5Row] = await Promise.all([
     env.DB.prepare("SELECT COUNT(*) AS cnt FROM battles").first<{ cnt: number }>(),

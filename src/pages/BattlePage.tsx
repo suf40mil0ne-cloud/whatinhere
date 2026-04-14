@@ -185,7 +185,7 @@ export function BattlePage() {
         throw new Error(data.error ?? "대결 생성 실패");
       }
       const data = await res.json() as { id: string };
-      navigate(`/battle/${data.id}`);
+      navigate(`/battle/${data.id}`, { state: { myAptId: stateA.aptId } });
     } catch (e) {
       setError(e instanceof Error ? e.message : "오류가 발생했습니다");
     } finally {

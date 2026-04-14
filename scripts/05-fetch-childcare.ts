@@ -5,6 +5,7 @@ import {
   DATA_DIR,
   DistrictState,
   fetchJsonWithRetry,
+  fetchTextWithRetry,
   flushWarningSummary,
   info,
   linearScore,
@@ -33,7 +34,11 @@ interface ChildcareCenter {
   name?: string;
 }
 
-const CHILDCARE_API_ENDPOINT = "https://apis.data.go.kr/B553309/ChildCareLocaInfo/getChildCareList";
+// api.childcare.go.kr: HTTP-only, XML 응답
+// 스크립트에서는 직접 호출, Worker에서는 CHILDCARE_PROXY_URL 경유
+const CHILDCARE_API_HOST = "api.childcare.go.kr";
+const CHILDCARE_API_PATH = "/mediate/rest/cpmsAPI.do";
+const CHILDCARE_API_KEY = process.env.CHILDCARE_API_KEY ?? "";
 
 interface ElementarySchool {
   lat: number;
@@ -125,7 +130,24 @@ function buildDistrictLookups(districts: DistrictState[]) {
   };
 }
 
+/** XML 태그 한 개의 내용 추출 (CDATA 포함) */
+function xmlTag(xml: string, tag: string): string | null {
+  const re = new RegExp(`<${tag}[^>]*>(?:<!\\[CDATA\\[)?([^<\\]]*?)(?:\\]\\]>)?<\\/${tag}>`, "s");
+  const m = xml.match(re);
+  return m?.[1]?.trim() ?? null;
+}
+
+/** XML <item>…</item> 블록 전체 목록 추출 */
+function xmlItems(xml: string): string[] {
+  return [...xml.matchAll(/<item>([\s\S]*?)<\/item>/g)].map((m) => m[1]);
+}
+
 async function fetchChildcareCentersFromApi(): Promise<ChildcareCenter[] | null> {
+  if (!CHILDCARE_API_KEY) {
+    warn("05-fetch-childcare: CHILDCARE_API_KEY not set, skipping API");
+    return null;
+  }
+
   const pageSize = 1000;
   const centers: ChildcareCenter[] = [];
   let pageNo = 1;
@@ -135,64 +157,64 @@ async function fetchChildcareCentersFromApi(): Promise<ChildcareCenter[] | null>
 
   try {
     while (true) {
-      const url = paramsToUrl(CHILDCARE_API_ENDPOINT, {
-        serviceKey: DEFAULT_SERVICE_KEY,
-        pageNo,
-        numOfRows: pageSize,
-        _type: "json",
+      const url = paramsToUrl(`http://${CHILDCARE_API_HOST}${CHILDCARE_API_PATH}`, {
+        q_api_name: "childCareLocaInfo",
+        q_auth_key: CHILDCARE_API_KEY,
+        q_page_no: pageNo,
+        q_record_count: pageSize,
       });
 
-      const payload = await fetchJsonWithRetry<Record<string, unknown>>(url, { timeoutMs: 20000 });
-      const body = ((payload?.response as Record<string, unknown>)?.body ?? payload) as Record<string, unknown>;
+      const raw = await fetchTextWithRetry(url, { timeoutMs: 20000 });
 
+      // 첫 페이지에서 totalCount 파악
       if (pageNo === 1) {
-        totalCount = numeric(body?.totalCount) ?? 0;
-        info(`05-fetch-childcare API: totalCount=${totalCount}`);
-        if (totalCount === 0) {
-          warn("05-fetch-childcare: API returned totalCount=0, will fall back to CSV");
+        totalCount = numeric(xmlTag(raw, "totalCount")) ?? 0;
+        const returnCode = xmlTag(raw, "returnCode") ?? "";
+        info(`05-fetch-childcare API: page=1 returnCode=${returnCode} totalCount=${totalCount}`);
+        if (returnCode !== "0" && returnCode !== "" && !raw.includes("<item>")) {
+          warn(`05-fetch-childcare: API returned returnCode=${returnCode}, falling back to CSV`);
+          return null;
+        }
+        if (totalCount === 0 && !raw.includes("<item>")) {
+          warn("05-fetch-childcare: API returned totalCount=0 with no items, falling back to CSV");
           return null;
         }
       }
 
-      const itemsNode = (body?.items as Record<string, unknown>)?.item ?? body?.items ?? body?.item;
-      const items: Record<string, unknown>[] = Array.isArray(itemsNode)
-        ? (itemsNode as Record<string, unknown>[])
-        : itemsNode != null && typeof itemsNode === "object"
-          ? [itemsNode as Record<string, unknown>]
-          : [];
-
+      const items = xmlItems(raw);
       if (!items.length) break;
 
-      for (const item of items) {
-        // 운영현황: "정상" text (CSV format) or "1" code (API format)
-        const status = text(item.crpstatus ?? item.crpStatus ?? item.CRPSTATUS) ?? "";
-        if (!status.includes("정상") && status !== "1") { skippedStatus++; continue; }
+      for (const block of items) {
+        // 운영현황: "1" = 정상, "2" = 휴지, "3" = 폐지 등 (코드값)
+        // 혹은 "정상" 텍스트일 수도 있음 — 둘 다 처리
+        const status = xmlTag(block, "crpstatus") ?? "";
+        if (status !== "1" && !status.includes("정상")) { skippedStatus++; continue; }
 
-        const lat = numeric(item.la ?? item.LA ?? item.latitude ?? item.LATITUDE);
-        const lng = numeric(item.lo ?? item.LO ?? item.longitude ?? item.LONGITUDE);
+        const lat = numeric(xmlTag(block, "la"));
+        const lng = numeric(xmlTag(block, "lo"));
         if (lat == null || lng == null) { skippedCoords++; continue; }
 
-        const capa = numeric(item.capa ?? item.CAPA) ?? 0;
-        const ccur = numeric(item.ccur ?? item.CCUR) ?? 0;
-        const sigungu = text(item.sigungunm ?? item.sigunguNm ?? item.SIGUNGUNM) ?? "";
-        const name = text(item.crpnm ?? item.crpNm ?? item.CRPNM ?? item.fcltyNm) ?? "";
-        const vehicleRaw = text(item.buse ?? item.BUSE ?? item.busEq) ?? "";
-        const vehicle = vehicleRaw.toUpperCase() === "Y";
+        const capa = numeric(xmlTag(block, "capa")) ?? 0;
+        const ccur = numeric(xmlTag(block, "ccur")) ?? 0;
+        const sigungu = xmlTag(block, "sigungunm") ?? "";
+        const name = xmlTag(block, "crpnm") ?? "";
+        const vehicle = (xmlTag(block, "buse") ?? "").toUpperCase() === "Y";
 
         centers.push({ lat, lng, spare: Math.max(capa - ccur, 0), vehicle, sigungu, name });
       }
 
+      // 마지막 페이지면 종료
       if (items.length < pageSize) break;
       pageNo++;
 
-      // 페이지당 0.1초 간격으로 API 과부하 방지
+      // API 과부하 방지: 5페이지마다 100ms 대기
       if (pageNo % 5 === 0) {
         await new Promise((resolve) => setTimeout(resolve, 100));
       }
     }
 
     flushWarningSummary("05-fetch-childcare", "API centers with missing coordinates", skippedCoords);
-    info(`05-fetch-childcare API: loaded ${centers.length} centers from ${pageNo} pages (skipped status=${skippedStatus} coords=${skippedCoords})`);
+    info(`05-fetch-childcare API: loaded ${centers.length} centers from ${pageNo} pages (skippedStatus=${skippedStatus} skippedCoords=${skippedCoords})`);
     return centers.length > 0 ? centers : null;
   } catch (error) {
     warn(`05-fetch-childcare: API failed (${error instanceof Error ? error.message : String(error)})`);

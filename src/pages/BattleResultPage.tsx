@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useLocation, useParams } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 
 interface BattleScores {
@@ -77,25 +77,25 @@ function ScoreBar({
 
   return (
     <div className="score-row">
-      <span className={`score-row__num score-row__num--a ${aWins ? "score-row__num--winner" : ""}`}>
+      <span className={`score-row__num score-row__num--a ${aWins ? "score-row__num--winner" : aMine ? "score-row__num--mine" : ""}`}>
         {scoreA}
       </span>
       <div className="score-row__bars">
         <div className="score-row__bar-a-wrap">
           <div
-            className={`score-row__bar score-row__bar--a ${aWins ? "score-row__bar--winner" : aMine ? "score-row__bar--mine" : ""}`}
+            className={`score-row__bar score-row__bar--a ${aWins ? "score-row__bar--winner" : ""} ${aMine ? "score-row__bar--mine" : ""}`}
             style={{ width: `${scoreA}%` }}
           />
         </div>
         <div className="score-row__label">{label}</div>
         <div className="score-row__bar-b-wrap">
           <div
-            className={`score-row__bar score-row__bar--b ${bWins ? "score-row__bar--winner" : bMine ? "score-row__bar--mine" : ""}`}
+            className={`score-row__bar score-row__bar--b ${bWins ? "score-row__bar--winner" : ""} ${bMine ? "score-row__bar--mine" : ""}`}
             style={{ width: `${scoreB}%` }}
           />
         </div>
       </div>
-      <span className={`score-row__num score-row__num--b ${bWins ? "score-row__num--winner" : ""}`}>
+      <span className={`score-row__num score-row__num--b ${bWins ? "score-row__num--winner" : bMine ? "score-row__num--mine" : ""}`}>
         {scoreB}
       </span>
     </div>
@@ -112,6 +112,7 @@ function Toast({ message, onDone }: { message: string; onDone: () => void }) {
 
 export function BattleResultPage() {
   const { id } = useParams<{ id: string }>();
+  const location = useLocation();
   const { user, authChecked, isAuthenticated, startKakaoLogin } = useAuth();
   const [battle, setBattle] = useState<Battle | null>(null);
   const [loading, setLoading] = useState(true);
@@ -229,13 +230,26 @@ export function BattleResultPage() {
     }
   }
 
-  if (loading) return <div className="battle-result__loading">불러오는 중...</div>;
-  if (error || !battle) return <div className="battle-result__error">{error ?? "대결을 찾을 수 없어요"}</div>;
+  /* NO_ADS: 로딩 중 화면 — 광고 게재 불가 */
+  if (loading) return (
+    <div className="battle-result__loading">
+      <p>대결 결과를 불러오는 중이에요...</p>
+    </div>
+  );
 
-  // Check if apt A is "my apt" based on localStorage
+  if (error || !battle) return (
+    <div className="battle-result__error">
+      <p>{error ? "데이터를 불러오는 중 오류가 발생했어요. 잠시 후 다시 시도해주세요." : "대결을 찾을 수 없어요."}</p>
+      <Link to="/battle" className="btn btn--primary" style={{ marginTop: 16, display: "inline-block" }}>새 대결 만들기</Link>
+    </div>
+  );
+
+  // Prefer apt passed via navigation state (direct flow); fall back to localStorage (shared links)
   const MY_APT_KEY = "whatsinhere_my_apt";
-  let myAptId: string | null = null;
-  try { myAptId = (JSON.parse(localStorage.getItem(MY_APT_KEY) ?? "null") as { id?: string } | null)?.id ?? null; } catch { /* ignore */ }
+  let myAptId: string | null = (location.state as { myAptId?: string } | null)?.myAptId ?? null;
+  if (!myAptId) {
+    try { myAptId = (JSON.parse(localStorage.getItem(MY_APT_KEY) ?? "null") as { id?: string } | null)?.id ?? null; } catch { /* ignore */ }
+  }
   const myIsA = myAptId === battle.aptAId;
   const myIsB = myAptId === battle.aptBId;
   const hasMyApt = myIsA || myIsB;

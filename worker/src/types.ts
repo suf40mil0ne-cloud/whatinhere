@@ -11,6 +11,7 @@ export interface Env {
   VITE_KAKAO_JS_KEY?: string;
   VITE_KAKAO_MAP_JS_KEY?: string;
   ADMIN_TOKEN?: string;
+  ADMIN_USER_ID?: string;
   JWT_SECRET?: string;
   TAGO_API_KEY?: string;
   CCTV_API_KEY?: string;

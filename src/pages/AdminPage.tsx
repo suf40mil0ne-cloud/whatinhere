@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
-
-const ADMIN_PASSWORD = "danjijeon2024";
+import { useAuth } from "../contexts/AuthContext";
 
 interface Stats {
   totalBattles: number;
@@ -24,12 +23,11 @@ function Toast({ message, onDone }: { message: string; onDone: () => void }) {
 }
 
 export function AdminPage() {
-  const [authed, setAuthed] = useState(false);
-  const [pw, setPw] = useState("");
-  const [pwError, setPwError] = useState(false);
+  const { user, authChecked, isAuthenticated, startKakaoLogin } = useAuth();
 
   const [stats, setStats] = useState<Stats | null>(null);
   const [statsLoading, setStatsLoading] = useState(false);
+  const [forbidden, setForbidden] = useState(false);
 
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [resetLoading, setResetLoading] = useState(false);
@@ -38,33 +36,25 @@ export function AdminPage() {
   const [collectLoading, setCollectLoading] = useState<CollectKey | null>(null);
   const [collectResult, setCollectResult] = useState<Partial<Record<CollectKey, string>>>({});
 
-  function login() {
-    if (pw === ADMIN_PASSWORD) {
-      setAuthed(true);
-      setPwError(false);
-    } else {
-      setPwError(true);
-    }
-  }
-
   useEffect(() => {
-    if (!authed) return;
+    if (!authChecked || !isAuthenticated) return;
     setStatsLoading(true);
-    fetch("/api/admin/stats", {
-      headers: { Authorization: `Bearer ${ADMIN_PASSWORD}` },
-    })
-      .then((r) => r.json())
-      .then((d) => setStats(d as Stats))
+    fetch("/api/admin/stats", { credentials: "include" })
+      .then(async (r) => {
+        if (r.status === 401 || r.status === 403) { setForbidden(true); return null; }
+        return r.json() as Promise<Stats>;
+      })
+      .then((d) => { if (d) setStats(d); })
       .catch(() => {})
       .finally(() => setStatsLoading(false));
-  }, [authed]);
+  }, [authChecked, isAuthenticated]);
 
   async function resetBattles() {
     setResetLoading(true);
     try {
       const res = await fetch("/api/admin/reset-battles", {
         method: "POST",
-        headers: { Authorization: `Bearer ${ADMIN_PASSWORD}` },
+        credentials: "include",
       });
       if (!res.ok) throw new Error();
       setToast("초기화됐습니다");
@@ -83,7 +73,7 @@ export function AdminPage() {
     try {
       const res = await fetch(`/api/admin/collect-${key}`, {
         method: "POST",
-        headers: { Authorization: `Bearer ${ADMIN_PASSWORD}` },
+        credentials: "include",
       });
       const data = await res.json() as { ok?: boolean; updated?: number; error?: string };
       if (!res.ok) throw new Error(data.error ?? "실패");
@@ -95,27 +85,44 @@ export function AdminPage() {
     }
   }
 
-  if (!authed) {
+  // 1. 인증 확인 중
+  if (!authChecked) {
+    return <div className="admin-login"><p style={{ color: "var(--muted)" }}>확인 중...</p></div>;
+  }
+
+  // 2. 로그인 안 됨
+  if (!isAuthenticated) {
     return (
       <div className="admin-login">
         <h1 className="admin-login__title">관리자</h1>
-        <div className="admin-login__form">
-          <input
-            type="password"
-            className="admin-login__input"
-            placeholder="비밀번호"
-            value={pw}
-            onChange={(e) => setPw(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && login()}
-            autoFocus
-          />
-          <button className="btn btn--primary" onClick={login}>
-            입장
-          </button>
-        </div>
-        {pwError && <p className="admin-login__error">비밀번호가 틀렸습니다</p>}
+        <button className="btn btn--kakao" onClick={() => startKakaoLogin("/admin")}>
+          카카오로 로그인
+        </button>
       </div>
     );
+  }
+
+  // 3. 로그인은 됐지만 권한 없음
+  if (forbidden) {
+    return (
+      <div className="admin-login">
+        <h1 className="admin-login__title">접근 불가</h1>
+        <p style={{ color: "var(--muted)", fontSize: "0.9rem", marginTop: 8 }}>
+          관리자 권한이 없습니다.
+        </p>
+        <p style={{ color: "var(--muted)", fontSize: "0.8rem", marginTop: 12 }}>
+          내 카카오 ID: <code style={{ userSelect: "all" }}>{user?.id}</code>
+        </p>
+        <p style={{ color: "var(--muted)", fontSize: "0.75rem", marginTop: 4 }}>
+          wrangler.toml의 ADMIN_USER_ID에 위 값을 설정하고 재배포하세요
+        </p>
+      </div>
+    );
+  }
+
+  // 4. 통계 로딩 중 (로그인은 됐으나 아직 응답 전)
+  if (statsLoading) {
+    return <div className="admin-login"><p style={{ color: "var(--muted)" }}>로딩 중...</p></div>;
   }
 
   return (
@@ -127,9 +134,7 @@ export function AdminPage() {
       {/* 통계 */}
       <section className="admin-section">
         <h2 className="admin-section__title">배틀 통계</h2>
-        {statsLoading ? (
-          <p className="admin-section__loading">로딩 중...</p>
-        ) : stats ? (
+        {stats ? (
           <>
             <div className="admin-stats">
               <div className="admin-stat">
@@ -191,7 +196,6 @@ export function AdminPage() {
         </button>
       </section>
 
-      {/* 확인 모달 */}
       {confirmOpen && (
         <div className="modal-backdrop" onClick={() => setConfirmOpen(false)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>

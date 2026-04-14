@@ -7,23 +7,24 @@ const SESSION_TTL_SECONDS = 30 * 24 * 60 * 60;
 const KAKAO_CALLBACK_PATH = "/auth/kakao/callback";
 
 const NICKNAME_ADJ = [
-  "용감한", "씩씩한", "당찬", "날카로운", "빠른",
-  "강한", "멋진", "늠름한", "활발한", "재빠른",
-  "지혜로운", "듬직한", "패기있는", "열정적인", "도전적인",
-  "신나는", "힘찬", "당당한", "뚜렷한", "야무진",
+  "졸린", "급한", "느긋한", "신나는", "배고픈",
+  "꼼꼼한", "대담한", "소심한", "의심많은", "용감한",
+  "당당한", "수줍은", "부지런한", "게으른", "억울한",
+  "뿌듯한", "억척스런", "고집센", "눈치빠른", "철두철미한",
+  "겁많은", "호기심많은", "까다로운", "느려터진", "번개같은",
 ];
 const NICKNAME_NOUN = [
-  "입주민", "세대주", "동대표", "관리소장", "경비원",
-  "분양자", "청약러", "갭투자자", "실거주자", "임차인",
-  "전세러", "월세러", "집주인", "무주택자", "1주택자",
-  "다주택자", "재건축러", "리모델러", "이사러", "청약당첨자",
+  "입주민", "관리소장", "경비아저씨", "경비아줌마", "세입자",
+  "집주인", "부동산중개사", "청약당첨자", "재건축파", "갭투자자",
+  "실거주자", "분양권자", "동대표", "층간소음민원인", "이사짐센터",
+  "베란다텃밭러", "주차자리지킴이", "택배함지킴이", "헬스장단골", "재활용분리왕",
 ];
 
 function generateNickname(): string {
   const adj  = NICKNAME_ADJ[Math.floor(Math.random() * NICKNAME_ADJ.length)];
   const noun = NICKNAME_NOUN[Math.floor(Math.random() * NICKNAME_NOUN.length)];
-  const num  = String(Math.floor(Math.random() * 100)).padStart(2, "0");
-  return `${adj}${noun}${num}`;
+  const dong = Math.floor(Math.random() * 199) + 101; // 101–299동
+  return `${dong}동 ${adj} ${noun}`;
 }
 
 function getFrontendBase(request: Request): string {
@@ -258,7 +259,7 @@ export async function kakaoCallback(request: Request, env: Env): Promise<Respons
   const profileImg = me.kakao_account?.profile?.profile_image_url ?? me.properties?.profile_image ?? null;
 
   const repo = new Repository(env.DB);
-  // Generate a random nickname only for new users; existing users keep their nickname
+  // 신규 유저는 랜덤 닉네임 부여, 기존 유저는 닉네임 유지
   await repo.upsertUser({ id: userId, nickname: generateNickname(), profileImg });
 
   const token = crypto.randomUUID();

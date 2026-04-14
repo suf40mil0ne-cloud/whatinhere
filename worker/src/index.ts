@@ -8,6 +8,8 @@ import { collectSafety } from "./cron/collectSafety";
 import { json, serverError } from "./api/http";
 import { kakaoLoginRedirect, kakaoCallback, getMe, logout, updateNickname } from "./api/auth";
 import { createBattle, getBattle, addBattleComment, likeBattleComment, addDispute, getRanking, getHot } from "./api/battles";
+import { getRanking as getScoreRanking } from "./api/ranking";
+import { getTrendHot, getTrendPopular, getTrendRecent } from "./api/trends";
 import type { Env } from "./types";
 
 function withCors(request: Request, response: Response): Response {
@@ -91,6 +93,19 @@ export default {
       }
       if (request.method === "POST" && path === "/api/admin/collect-safety") {
         return withCors(request, await runCollectSafety(request, env));
+      }
+
+      if (request.method === "GET" && path === "/api/ranking") {
+        return withCors(request, await getScoreRanking(request, env));
+      }
+      if (request.method === "GET" && path === "/api/trends/hot") {
+        return withCors(request, await getTrendHot(request, env));
+      }
+      if (request.method === "GET" && path === "/api/trends/popular") {
+        return withCors(request, await getTrendPopular(request, env));
+      }
+      if (request.method === "GET" && path === "/api/trends/recent") {
+        return withCors(request, await getTrendRecent(request, env));
       }
 
       if (request.method === "GET" && path === "/api/districts") {

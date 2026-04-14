@@ -406,7 +406,6 @@ export class Repository {
   // ── Users / Sessions ─────────────────────────────────────────────────────────
 
   async upsertUser(user: { id: string; nickname: string; profileImg: string | null }): Promise<void> {
-    // On conflict (returning user), keep their existing nickname — only update profile_img
     await this.db.prepare(
       `INSERT INTO users (id, nickname, profile_img) VALUES (?, ?, ?)
        ON CONFLICT(id) DO UPDATE SET profile_img=excluded.profile_img`
@@ -605,6 +604,81 @@ export class Repository {
        WHERE d.sido = ? AND d.sigungu = ? AND d.dong = ?
        ORDER BY a.name LIMIT 100`
     ).bind(sido, sigungu, dong).all<AptComplexRow>();
+    return rows.results;
+  }
+
+  // ── Ranking ──────────────────────────────────────────────────────────────────
+
+  async getRankingByScore(opts: {
+    region?: string;
+    scoreCol: string;
+    limit: number;
+  }): Promise<Array<{
+    id: string; name: string; address: string | null;
+    sido: string | null; sigungu: string | null;
+    s_transport: number | null; s_walk: number | null; s_value: number | null;
+    s_childcare: number | null; s_safety: number | null;
+    score: number | null;
+  }>> {
+    const { region, scoreCol, limit } = opts;
+    const rc = (col: string) => `COALESCE(NULLIF(a.${col},0), d.${col})`;
+    const scoreExpr = scoreCol === "s_overall"
+      ? `(${rc("s_transport")} + ${rc("s_walk")} + ${rc("s_value")} + ${rc("s_childcare")} + ${rc("s_safety")}) / 5.0`
+      : rc(scoreCol);
+
+    const where: string[] = [`(${scoreExpr}) IS NOT NULL`];
+    const binds: (string | number)[] = [];
+    if (region) { where.push("d.sido = ?"); binds.push(region); }
+    binds.push(limit);
+
+    const rows = await this.db.prepare(`
+      SELECT a.id, a.name, a.address, d.sido, d.sigungu,
+        ${rc("s_transport")} AS s_transport,
+        ${rc("s_walk")} AS s_walk,
+        ${rc("s_value")} AS s_value,
+        ${rc("s_childcare")} AS s_childcare,
+        ${rc("s_safety")} AS s_safety,
+        (${scoreExpr}) AS score
+      FROM apt_complexes a
+      LEFT JOIN district_scores d ON d.code = a.district_code
+      WHERE ${where.join(" AND ")}
+      ORDER BY score DESC
+      LIMIT ?
+    `).bind(...binds).all<{
+      id: string; name: string; address: string | null;
+      sido: string | null; sigungu: string | null;
+      s_transport: number | null; s_walk: number | null; s_value: number | null;
+      s_childcare: number | null; s_safety: number | null;
+      score: number | null;
+    }>();
+    return rows.results;
+  }
+
+  // ── Trends ───────────────────────────────────────────────────────────────────
+
+  async getTrendHot(limit: number): Promise<BattleRow[]> {
+    const rows = await this.db.prepare(
+      `SELECT * FROM battles ORDER BY view_count DESC LIMIT ?`
+    ).bind(limit).all<BattleRow>();
+    return rows.results;
+  }
+
+  async getTrendPopular(limit: number): Promise<Array<{ id: string; name: string; address: string | null; battle_count: number }>> {
+    const rows = await this.db.prepare(`
+      SELECT a.id, a.name, a.address, COUNT(b.id) AS battle_count
+      FROM apt_complexes a
+      JOIN battles b ON b.apt_a_id = a.id OR b.apt_b_id = a.id
+      GROUP BY a.id
+      ORDER BY battle_count DESC
+      LIMIT ?
+    `).bind(limit).all<{ id: string; name: string; address: string | null; battle_count: number }>();
+    return rows.results;
+  }
+
+  async getTrendRecent(limit: number): Promise<BattleRow[]> {
+    const rows = await this.db.prepare(
+      `SELECT * FROM battles ORDER BY created_at DESC LIMIT ?`
+    ).bind(limit).all<BattleRow>();
     return rows.results;
   }
 }

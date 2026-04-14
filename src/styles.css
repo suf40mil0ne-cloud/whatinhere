@@ -1526,6 +1526,7 @@ button {
 }
 
 .score-row__num--winner { color: var(--accent); font-weight: 700; }
+.score-row__num--mine { color: var(--text); font-weight: 600; }
 
 .score-row__bars {
   flex: 1;
@@ -1557,7 +1558,8 @@ button {
 .score-row__bar--a { border-radius: 4px 2px 2px 4px; }
 .score-row__bar--b { border-radius: 2px 4px 4px 2px; }
 .score-row__bar--winner { background: var(--accent); }
-.score-row__bar--mine { background: rgba(111, 58, 34, 0.3); }
+.score-row__bar--mine { background: rgba(111, 58, 34, 0.45); }
+.score-row__bar--winner.score-row__bar--mine { background: var(--accent); }
 
 .score-row__label {
   width: 48px;
@@ -2006,3 +2008,216 @@ button {
 }
 .btn--danger:hover { background: #c53030; }
 .btn--danger:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ── Skeleton ───────────────────────────────────────────────────────────────── */
+@keyframes shimmer {
+  0% { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+.skeleton-block {
+  background: linear-gradient(90deg, var(--surface-2) 25%, var(--surface) 50%, var(--surface-2) 75%);
+  background-size: 800px 100%;
+  animation: shimmer 1.4s infinite;
+  border-radius: 6px;
+  display: block;
+}
+
+/* ── Shared: filter tabs ────────────────────────────────────────────────────── */
+.filter-tabs-row { display: flex; flex-direction: column; gap: 8px; }
+.filter-tabs { display: flex; gap: 6px; flex-wrap: wrap; }
+.filter-tab {
+  padding: 5px 12px;
+  border-radius: 20px;
+  border: 1.5px solid var(--line);
+  background: var(--panel);
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.filter-tab:hover { border-color: var(--accent); color: var(--accent); }
+.filter-tab--active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+/* ── Shared: empty state ────────────────────────────────────────────────────── */
+.empty-state {
+  text-align: center;
+  padding: 48px 24px;
+  color: var(--muted);
+  font-size: 0.95rem;
+  line-height: 1.7;
+}
+.empty-state__text { color: var(--muted); font-size: 0.9rem; margin: 0; padding: 12px 0; }
+
+/* ── Ranking Page ───────────────────────────────────────────────────────────── */
+.ranking-page { display: flex; flex-direction: column; gap: 20px; }
+.ranking-page__header { display: flex; flex-direction: column; gap: 14px; }
+.ranking-page__title { font-size: 1.5rem; font-weight: 800; margin: 0; }
+
+.rank-list { display: flex; flex-direction: column; gap: 8px; }
+
+.rank-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--panel);
+  border: 1.5px solid var(--line);
+  border-radius: 14px;
+  padding: 12px 16px;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s, transform 0.1s;
+  width: 100%;
+  font: inherit;
+}
+.rank-item:hover { border-color: var(--accent); transform: translateY(-1px); }
+.rank-item--skeleton { cursor: default; pointer-events: none; min-height: 56px; }
+
+.rank-item__rank {
+  font-size: 1.1rem;
+  font-weight: 800;
+  width: 32px;
+  text-align: center;
+  flex-shrink: 0;
+  color: var(--muted);
+}
+.rank-item__info { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.rank-item__name { font-weight: 700; font-size: 0.95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rank-item__region { font-size: 0.75rem; color: var(--muted); }
+.rank-item__score { display: flex; flex-direction: column; align-items: flex-end; flex-shrink: 0; }
+.rank-item__score-val { font-size: 1.15rem; font-weight: 800; color: var(--accent); }
+.rank-item__score-label { font-size: 0.7rem; color: var(--muted); }
+
+.rank-hint { text-align: center; font-size: 0.78rem; color: var(--muted); margin: 4px 0 0; }
+
+/* ── My Apt Page ─────────────────────────────────────────────────────────────── */
+.my-apt-page { display: flex; flex-direction: column; gap: 20px; }
+.my-apt-page__header { display: flex; flex-direction: column; gap: 4px; }
+.my-apt-page__title { font-size: 1.5rem; font-weight: 800; margin: 0; }
+.my-apt-page__saved { margin: 0; font-size: 0.85rem; color: var(--muted); }
+
+.my-apt-page__search {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--panel);
+  border-radius: var(--radius);
+  padding: 16px;
+  box-shadow: var(--shadow-soft);
+}
+
+.my-apt-page__card {
+  background: var(--panel);
+  border-radius: var(--radius);
+  padding: 20px;
+  box-shadow: var(--shadow-soft);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.my-apt-card__header { display: flex; flex-direction: column; gap: 4px; }
+.my-apt-card__name { font-size: 1.3rem; font-weight: 800; margin: 0; }
+.my-apt-card__address { font-size: 0.85rem; color: var(--muted); margin: 0; }
+.my-apt-card__meta { display: flex; gap: 12px; font-size: 0.8rem; color: var(--muted); margin-top: 2px; }
+
+.my-apt-card__radar { display: flex; justify-content: center; }
+.radar-svg { width: 100%; max-width: 240px; }
+
+.my-apt-card__scores { display: flex; flex-direction: column; gap: 10px; }
+.my-apt-score-row { display: flex; align-items: center; gap: 10px; }
+.my-apt-score-row__label { width: 44px; font-size: 0.82rem; font-weight: 600; color: var(--muted); flex-shrink: 0; }
+.my-apt-score-row__bar-wrap { flex: 1; height: 8px; background: var(--surface-2); border-radius: 4px; overflow: hidden; }
+.my-apt-score-row__bar { height: 100%; background: var(--accent); border-radius: 4px; transition: width 0.4s ease; }
+.my-apt-score-row__val { width: 28px; text-align: right; font-size: 0.85rem; font-weight: 700; color: var(--text); }
+
+.score-grade {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.score-grade--a { background: #d1fae5; color: #065f46; }
+.score-grade--b { background: #dbeafe; color: #1e40af; }
+.score-grade--c { background: #fef9c3; color: #854d0e; }
+.score-grade--d { background: #fee2e2; color: #991b1b; }
+
+.my-apt-card__cta { width: 100%; padding: 14px; font-size: 1rem; }
+
+/* ── Trend Page ──────────────────────────────────────────────────────────────── */
+.trend-page { display: flex; flex-direction: column; gap: 28px; }
+.trend-page__title { font-size: 1.5rem; font-weight: 800; margin: 0; }
+
+.trend-section {
+  background: var(--panel);
+  border-radius: var(--radius);
+  padding: 20px;
+  box-shadow: var(--shadow-soft);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.trend-section__title { font-size: 1rem; font-weight: 700; margin: 0; }
+
+.trend-list { display: flex; flex-direction: column; gap: 8px; }
+
+.trend-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--surface);
+  text-decoration: none;
+  color: var(--text);
+  font-size: 0.88rem;
+  transition: background 0.15s;
+}
+.trend-item--battle:hover { background: var(--surface-2); }
+.trend-item--skeleton { pointer-events: none; min-height: 40px; background: transparent; padding: 4px 0; }
+
+.trend-item__rank { font-size: 0.8rem; font-weight: 700; color: var(--muted); width: 22px; flex-shrink: 0; text-align: center; }
+
+.trend-item__names { flex: 1; display: flex; align-items: center; gap: 5px; min-width: 0; flex-wrap: wrap; }
+.trend-item__apt { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 38%; }
+.trend-item__vs { font-size: 0.75rem; color: var(--muted); flex-shrink: 0; }
+
+.trend-item__meta { display: flex; flex-direction: column; align-items: flex-end; flex-shrink: 0; gap: 2px; }
+.trend-item__winner { font-size: 0.78rem; font-weight: 600; color: var(--accent); white-space: nowrap; }
+.trend-item__views { font-size: 0.75rem; color: var(--muted); }
+.trend-item__date { font-size: 0.72rem; color: var(--muted); }
+.trend-item__count { font-size: 0.82rem; font-weight: 700; color: var(--accent); flex-shrink: 0; }
+
+.trend-item__info { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.trend-item__apt-name { font-weight: 600; font-size: 0.88rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.trend-item__address { font-size: 0.75rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ── Content pages (Privacy, Terms, About, 404) ─────────────────────────────── */
+.content-page__title { font-size: clamp(1.5rem, 3vw, 2rem); font-weight: 800; margin: 0 0 4px; }
+.content-page__updated { font-size: 0.82rem; color: var(--muted); margin: 0 0 28px; }
+.content-page__section { margin-bottom: 32px; }
+.content-page__section h2 { font-size: 1.05rem; font-weight: 700; margin: 0 0 10px; color: var(--accent); }
+.content-page__section p { margin: 0 0 10px; line-height: 1.75; font-size: 0.93rem; color: var(--text); }
+.content-page__section ul { margin: 0 0 10px; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; }
+.content-page__section li { font-size: 0.93rem; line-height: 1.65; color: var(--text); }
+.content-page__section a { color: var(--accent); text-decoration: underline; }
+.content-page__section--hero { padding: 20px; background: var(--accent-soft); border-radius: 14px; }
+.content-page--center { text-align: center; padding: 64px 24px; }
+
+/* ── Site Footer ─────────────────────────────────────────────────────────────── */
+.site-footer__inner { display: flex; flex-direction: column; align-items: center; gap: 10px; width: 100%; }
+.site-footer__nav { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 16px; }
+.site-footer__link { font-size: 0.82rem; color: var(--muted); text-decoration: none; transition: color 0.15s; }
+.site-footer__link:hover { color: var(--accent); }
+.site-footer__copy { font-size: 0.75rem; color: var(--muted); margin: 0; text-align: center; }
+
+/* ── Empty state with CTA ────────────────────────────────────────────────────── */
+.empty-state .btn { margin-top: 12px; }
+
+/* ── Battle result loading/error ─────────────────────────────────────────────── */
+.battle-result__loading,
+.battle-result__error { display: flex; flex-direction: column; align-items: center; justify-content: center; }

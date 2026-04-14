@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 interface RankingItem {
   id: string;
@@ -6,107 +7,130 @@ interface RankingItem {
   address: string | null;
   sido: string | null;
   sigungu: string | null;
-  wins: number;
-  losses: number;
-  draws: number;
-  total: number;
-  winRate: number;
+  score: number | null;
 }
 
-const SIDO_LIST = ["서울특별시", "인천광역시", "경기도"];
+const MY_APT_KEY = "whatsinhere_my_apt";
 
-function winRateColor(rate: number): string {
-  if (rate >= 70) return "ranking-badge ranking-badge--green";
-  if (rate >= 50) return "ranking-badge ranking-badge--yellow";
-  return "ranking-badge ranking-badge--red";
+const REGION_OPTIONS = [
+  { label: "전체", value: "" },
+  { label: "서울", value: "서울특별시" },
+  { label: "경기", value: "경기도" },
+  { label: "인천", value: "인천광역시" },
+];
+
+const SCORE_OPTIONS = [
+  { label: "종합", value: "s_overall" },
+  { label: "교통", value: "s_transport" },
+  { label: "산책", value: "s_walk" },
+  { label: "가성비", value: "s_value" },
+  { label: "육아", value: "s_childcare" },
+  { label: "안심", value: "s_safety" },
+];
+
+const RANK_MEDALS = ["🥇", "🥈", "🥉"];
+
+function Skeleton() {
+  return (
+    <div className="rank-list">
+      {Array.from({ length: 10 }).map((_, i) => (
+        <div key={i} className="rank-item rank-item--skeleton">
+          <span className="rank-item__rank skeleton-block" style={{ width: 28 }} />
+          <span className="rank-item__info skeleton-block" style={{ flex: 1, height: 36 }} />
+          <span className="rank-item__score skeleton-block" style={{ width: 40 }} />
+        </div>
+      ))}
+    </div>
+  );
 }
 
 export function RankingPage() {
+  const navigate = useNavigate();
+  const [region, setRegion] = useState("");
+  const [by, setBy] = useState("s_overall");
   const [ranking, setRanking] = useState<RankingItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [sido, setSido] = useState("");
-  const [sigungu, setSigungu] = useState("");
-  const [sigungus, setSigungus] = useState<string[]>([]);
 
   useEffect(() => {
-    const params = new URLSearchParams();
-    if (sido) params.set("sido", sido);
-    if (sigungu) params.set("sigungu", sigungu);
-
     setLoading(true);
-    fetch(`/api/battles/ranking?${params.toString()}`)
+    const params = new URLSearchParams({ by, limit: "20" });
+    if (region) params.set("region", region);
+    fetch(`/api/ranking?${params}`)
       .then((r) => r.json())
-      .then((data) => setRanking((data as { ranking: RankingItem[] }).ranking ?? []))
+      .then((d) => setRanking((d as { ranking: RankingItem[] }).ranking ?? []))
       .catch(() => setRanking([]))
       .finally(() => setLoading(false));
-  }, [sido, sigungu]);
+  }, [region, by]);
 
-  async function onSido(value: string) {
-    setSido(value);
-    setSigungu("");
-    setSigungus([]);
-    if (!value) return;
-    try {
-      const res = await fetch(`/api/apartments/search?sido=${encodeURIComponent(value)}`);
-      const data = await res.json() as { items: string[] };
-      setSigungus(data.items ?? []);
-    } catch { /* ignore */ }
+  function selectApt(item: RankingItem) {
+    localStorage.setItem(MY_APT_KEY, JSON.stringify({ id: item.id, name: item.name }));
+    navigate("/battle");
   }
+
+  const byLabel = SCORE_OPTIONS.find((o) => o.value === by)?.label ?? "";
 
   return (
     <div className="ranking-page">
       <div className="ranking-page__header">
-        <h1 className="ranking-page__title">단지 전적 랭킹</h1>
-        <div className="ranking-page__filters">
-          <select
-            className="apt-selector__select"
-            value={sido}
-            onChange={(e) => onSido(e.target.value)}
-          >
-            <option value="">전체 시도</option>
-            {SIDO_LIST.map((s) => <option key={s} value={s}>{s}</option>)}
-          </select>
-          <select
-            className="apt-selector__select"
-            value={sigungu}
-            onChange={(e) => setSigungu(e.target.value)}
-            disabled={!sido}
-          >
-            <option value="">전체 시군구</option>
-            {sigungus.map((s) => <option key={s} value={s}>{s}</option>)}
-          </select>
+        <h1 className="ranking-page__title">단지 점수 랭킹</h1>
+
+        <div className="filter-tabs-row">
+          <div className="filter-tabs">
+            {REGION_OPTIONS.map((o) => (
+              <button
+                key={o.value}
+                className={`filter-tab ${region === o.value ? "filter-tab--active" : ""}`}
+                onClick={() => setRegion(o.value)}
+              >
+                {o.label}
+              </button>
+            ))}
+          </div>
+          <div className="filter-tabs">
+            {SCORE_OPTIONS.map((o) => (
+              <button
+                key={o.value}
+                className={`filter-tab ${by === o.value ? "filter-tab--active" : ""}`}
+                onClick={() => setBy(o.value)}
+              >
+                {o.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
       {loading ? (
-        <p className="ranking-page__loading">로딩 중...</p>
+        <Skeleton />
       ) : ranking.length === 0 ? (
-        <p className="ranking-page__empty">아직 대결 데이터가 없어요.<br />배틀 페이지에서 첫 대결을 시작해보세요!</p>
+        <div className="empty-state">
+          <p>해당 조건의 단지 데이터가 없어요</p>
+        </div>
       ) : (
-        <div className="ranking-table">
-          <div className="ranking-table__header">
-            <span>순위</span>
-            <span>단지명</span>
-            <span>전적</span>
-            <span>승률</span>
-          </div>
+        <div className="rank-list">
           {ranking.map((item, idx) => (
-            <div key={item.id} className="ranking-table__row">
-              <span className="ranking-table__rank">
-                {idx === 0 ? "🥇" : idx === 1 ? "🥈" : idx === 2 ? "🥉" : `${idx + 1}위`}
+            <button
+              key={item.id}
+              className="rank-item"
+              onClick={() => selectApt(item)}
+              title="내 단지로 설정하고 대결 시작"
+            >
+              <span className="rank-item__rank">
+                {idx < 3 ? RANK_MEDALS[idx] : `${idx + 1}`}
               </span>
-              <span className="ranking-table__name">
-                {item.name}
-                {item.sido && (
-                  <span className="ranking-table__region">{item.sido} {item.sigungu}</span>
+              <span className="rank-item__info">
+                <span className="rank-item__name">{item.name}</span>
+                {item.sigungu && (
+                  <span className="rank-item__region">{item.sigungu}</span>
                 )}
               </span>
-              <span className="ranking-table__record">
-                {item.total}전 {item.wins}승 {item.losses}패{item.draws > 0 ? ` ${item.draws}무` : ""}
+              <span className="rank-item__score">
+                <span className="rank-item__score-val">{Math.round(item.score ?? 0)}</span>
+                <span className="rank-item__score-label">{byLabel}</span>
               </span>
-              <span className={winRateColor(item.winRate)}>{item.winRate}%</span>
-            </div>
+            </button>
           ))}
+          <p className="rank-hint">단지를 탭하면 내 단지로 설정 후 대결 탭으로 이동해요</p>
         </div>
       )}
     </div>
