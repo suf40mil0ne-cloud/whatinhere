@@ -15,24 +15,41 @@ export function AboutPage() {
         </p>
       </section>
 
+      <section className="content-page__section vista-section">
+        <h2>🔬 단지戰 VISTA 알고리즘</h2>
+        <p>
+          VISTA 알고리즘은 교통·육아·안심·산책·가성비 5개 지표를
+          전국 절대값 기준으로 정량화한 단지 평가 시스템입니다.
+          공공데이터포털, NEIS, 경찰청 등 신뢰할 수 있는
+          공공 데이터를 기반으로 산정됩니다.
+        </p>
+        <div className="vista-grid">
+          <div className="vista-item"><span className="vista-letter">V</span><span className="vista-word">Value</span><span className="vista-label">가성비</span></div>
+          <div className="vista-item"><span className="vista-letter">I</span><span className="vista-word">Infrastructure</span><span className="vista-label">교통</span></div>
+          <div className="vista-item"><span className="vista-letter">S</span><span className="vista-word">Safety</span><span className="vista-label">안심</span></div>
+          <div className="vista-item"><span className="vista-letter">T</span><span className="vista-word">Together</span><span className="vista-label">육아</span></div>
+          <div className="vista-item"><span className="vista-letter">A</span><span className="vista-word">Amenity</span><span className="vista-label">산책</span></div>
+        </div>
+      </section>
+
       <section className="content-page__section">
         <h2>점수 산정 기준</h2>
         <p>모든 점수는 0~100점 절대 척도로 산출됩니다. (참고용이며 투자 판단 근거로 사용하지 마세요)</p>
         <ul>
           <li>
-            <strong>교통 (Transport)</strong>: 지하철역·버스정류장까지의 거리 및 노선 수를 기반으로 산정
+            <strong>교통 (Infrastructure)</strong>: VISTA 알고리즘 기반 · 지하철역·버스정류장까지의 거리 및 노선 수를 기반으로 산정
           </li>
           <li>
-            <strong>산책 (Walk)</strong>: 인근 공원·녹지 면적 및 접근성 기반 산정
+            <strong>산책 (Amenity)</strong>: VISTA 알고리즘 기반 · 인근 공원·녹지 면적 및 접근성 기반 산정
           </li>
           <li>
-            <strong>가성비 (Value)</strong>: 면적 대비 실거래가 등 부동산 가격 효율성 기반 산정
+            <strong>가성비 (Value)</strong>: VISTA 알고리즘 기반 · 면적 대비 실거래가 등 부동산 가격 효율성 기반 산정
           </li>
           <li>
-            <strong>육아 (Childcare)</strong>: 어린이집·유치원·초등학교 등 육아 인프라 밀도 기반 산정
+            <strong>육아 (Together)</strong>: VISTA 알고리즘 기반 · 어린이집·유치원·초등학교 등 육아 인프라 밀도 기반 산정
           </li>
           <li>
-            <strong>안심 (Safety)</strong>: 범죄 통계, 소방서·경찰서 접근성 등 기반 산정
+            <strong>안심 (Safety)</strong>: VISTA 알고리즘 기반 · 범죄 통계, 소방서·경찰서 접근성 등 기반 산정
           </li>
         </ul>
       </section>

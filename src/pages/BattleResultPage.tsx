@@ -307,6 +307,8 @@ export function BattleResultPage() {
         <Link to="/battle" className="btn btn--outline">새 대결 만들기</Link>
       </div>
 
+      <p className="battle-result__vista-note">VISTA 알고리즘으로 산정된 점수입니다</p>
+
       <div className="battle-result__comments">
         <h2 className="battle-result__comments-title">💬 댓글</h2>
 

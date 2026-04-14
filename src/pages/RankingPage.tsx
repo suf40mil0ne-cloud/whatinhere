@@ -73,6 +73,7 @@ export function RankingPage() {
     <div className="ranking-page">
       <div className="ranking-page__header">
         <h1 className="ranking-page__title">단지 점수 랭킹</h1>
+        <p className="ranking-page__subtitle">VISTA 알고리즘 기반 전국 단지 랭킹</p>
 
         <div className="filter-tabs-row">
           <div className="filter-tabs">

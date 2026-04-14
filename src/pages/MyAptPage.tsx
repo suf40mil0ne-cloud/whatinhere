@@ -22,12 +22,12 @@ interface AptDetail {
 
 interface AptItem { id: string; name: string; address: string | null }
 
-const SCORE_LABELS: Array<{ key: keyof AptScores; label: string }> = [
-  { key: "transport", label: "교통" },
-  { key: "walk",      label: "산책" },
-  { key: "value",     label: "가성비" },
-  { key: "childcare", label: "육아" },
-  { key: "safety",    label: "안심" },
+const SCORE_LABELS: Array<{ key: keyof AptScores; label: string; tooltip: string }> = [
+  { key: "transport", label: "교통",  tooltip: "VISTA 알고리즘 기반 · 가까운 지하철역·버스정류장까지의 거리와 주변 노선 수를 기준으로 계산해요." },
+  { key: "walk",      label: "산책",  tooltip: "VISTA 알고리즘 기반 · 인근 공원·녹지의 면적과 접근성을 기준으로 계산해요." },
+  { key: "value",     label: "가성비", tooltip: "VISTA 알고리즘 기반 · 면적 대비 실거래가를 전국 중위가격과 비교해 계산해요." },
+  { key: "childcare", label: "육아",  tooltip: "VISTA 알고리즘 기반 · 주변 어린이집·초등학교·학원 밀도를 기준으로 계산해요." },
+  { key: "safety",    label: "안심",  tooltip: "VISTA 알고리즘 기반 · 범죄 통계와 CCTV·어린이보호구역 등을 기준으로 계산해요." },
 ];
 
 function grade(score: number): string {
@@ -220,12 +220,15 @@ export function MyAptPage() {
           </div>
 
           <div className="my-apt-card__scores">
-            {SCORE_LABELS.map(({ key, label }) => {
+            {SCORE_LABELS.map(({ key, label, tooltip }) => {
               const val = detail.scores[key] ?? 0;
               const g = grade(val);
               return (
                 <div key={key} className="my-apt-score-row">
-                  <span className="my-apt-score-row__label">{label}</span>
+                  <span className="my-apt-score-row__label">
+                    {label}
+                    <span className="vista-tip" title={tooltip}>ℹ️</span>
+                  </span>
                   <div className="my-apt-score-row__bar-wrap">
                     <div className="my-apt-score-row__bar" style={{ width: `${val}%` }} />
                   </div>
