@@ -24,11 +24,9 @@ const FACTOR_EXPR = `MIN(1.0, MAX(0.7, 0.7 + (${S_SCALE_EXPR}) / 100.0 * 0.3))`;
 
 async function main() {
   const sql = [
-    "BEGIN TRANSACTION;",
     "UPDATE apt_complexes",
     `SET s_scale = ${S_SCALE_EXPR},`,
     `    overall_score_adjusted = ROUND((${RESOLVED_COMPONENT_EXPR}) * ${FACTOR_EXPR}, 2);`,
-    "COMMIT;",
     "",
   ].join("\n");
 

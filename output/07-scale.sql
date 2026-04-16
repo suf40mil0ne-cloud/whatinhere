@@ -1,4 +1,3 @@
-BEGIN TRANSACTION;
 UPDATE apt_complexes
 SET s_scale = CASE
   WHEN total_units IS NULL THEN 50
@@ -14,4 +13,3 @@ END,
   WHEN total_units IS NULL THEN 50
   ELSE MIN(100, MAX(0, ROUND((total_units - 50) * 100.0 / 950.0, 2)))
 END) / 100.0 * 0.3)), 2);
-COMMIT;
