@@ -48,6 +48,9 @@ export function SiteLayout({ children }: { children: React.ReactNode }) {
             <Link to="/trend" className={`top-nav__link ${isActive("/trend") ? "top-nav__link--active" : ""}`}>
               트렌드 🔥
             </Link>
+            <Link to="/comments" className={`top-nav__link ${isActive("/comments") ? "top-nav__link--active" : ""}`}>
+              논쟁 💬
+            </Link>
           </nav>
 
           <div className="site-header__auth">
@@ -99,6 +102,10 @@ export function SiteLayout({ children }: { children: React.ReactNode }) {
         <Link to="/trend" className={`mobile-bottom-nav__item ${isActive("/trend") ? "mobile-bottom-nav__item--active" : ""}`}>
           <span className="mobile-bottom-nav__icon">🔥</span>
           <span className="mobile-bottom-nav__label">트렌드</span>
+        </Link>
+        <Link to="/comments" className={`mobile-bottom-nav__item ${isActive("/comments") ? "mobile-bottom-nav__item--active" : ""}`}>
+          <span className="mobile-bottom-nav__icon">💬</span>
+          <span className="mobile-bottom-nav__label">논쟁</span>
         </Link>
       </nav>
     </div>

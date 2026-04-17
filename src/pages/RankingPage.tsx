@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { RadarChart, AptScoreBars, type AptScores } from "../components/AptStatsCard";
 
 interface RankingItem {
   id: string;
@@ -8,6 +9,15 @@ interface RankingItem {
   sido: string | null;
   sigungu: string | null;
   score: number | null;
+}
+
+interface AptDetail {
+  id: string;
+  name: string;
+  address: string | null;
+  builtYear: number | null;
+  totalUnits: number | null;
+  scores: AptScores;
 }
 
 const MY_APT_KEY = "whatsinhere_my_apt";
@@ -51,8 +61,14 @@ export function RankingPage() {
   const [ranking, setRanking] = useState<RankingItem[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [expandedDetail, setExpandedDetail] = useState<AptDetail | null>(null);
+  const [expandLoading, setExpandLoading] = useState(false);
+
   useEffect(() => {
     setLoading(true);
+    setExpandedId(null);
+    setExpandedDetail(null);
     const params = new URLSearchParams({ by, limit: "20" });
     if (region) params.set("region", region);
     fetch(`/api/ranking?${params}`)
@@ -62,7 +78,25 @@ export function RankingPage() {
       .finally(() => setLoading(false));
   }, [region, by]);
 
-  function selectApt(item: RankingItem) {
+  async function toggleExpand(item: RankingItem) {
+    if (expandedId === item.id) {
+      setExpandedId(null);
+      setExpandedDetail(null);
+      return;
+    }
+    setExpandedId(item.id);
+    setExpandedDetail(null);
+    setExpandLoading(true);
+    try {
+      const res = await fetch(`/api/apartments/${item.id}`);
+      const data = await res.json() as AptDetail;
+      setExpandedDetail(data);
+    } catch { /* ignore */ } finally {
+      setExpandLoading(false);
+    }
+  }
+
+  function startBattle(item: RankingItem) {
     localStorage.setItem(MY_APT_KEY, JSON.stringify({ id: item.id, name: item.name }));
     navigate("/battle");
   }
@@ -110,28 +144,61 @@ export function RankingPage() {
       ) : (
         <div className="rank-list">
           {ranking.map((item, idx) => (
-            <button
-              key={item.id}
-              className="rank-item"
-              onClick={() => selectApt(item)}
-              title="내 단지로 설정하고 대결 시작"
-            >
-              <span className="rank-item__rank">
-                {idx < 3 ? RANK_MEDALS[idx] : `${idx + 1}`}
-              </span>
-              <span className="rank-item__info">
-                <span className="rank-item__name">{item.name}</span>
-                {item.sigungu && (
-                  <span className="rank-item__region">{item.sigungu}</span>
-                )}
-              </span>
-              <span className="rank-item__score">
-                <span className="rank-item__score-val">{Math.round(item.score ?? 0)}</span>
-                <span className="rank-item__score-label">{byLabel}</span>
-              </span>
-            </button>
+            <div key={item.id} className="rank-item-wrap">
+              <button
+                className={`rank-item ${expandedId === item.id ? "rank-item--expanded" : ""}`}
+                onClick={() => void toggleExpand(item)}
+                title="탭해서 스탯 보기"
+              >
+                <span className="rank-item__rank">
+                  {idx < 3 ? RANK_MEDALS[idx] : `${idx + 1}`}
+                </span>
+                <span className="rank-item__info">
+                  <span className="rank-item__name">{item.name}</span>
+                  {item.sigungu && (
+                    <span className="rank-item__region">{item.sigungu}</span>
+                  )}
+                </span>
+                <span className="rank-item__score">
+                  <span className="rank-item__score-val">{Math.round(item.score ?? 0)}</span>
+                  <span className="rank-item__score-label">{byLabel}</span>
+                </span>
+                <span className="rank-item__chevron">
+                  {expandedId === item.id ? "▲" : "▼"}
+                </span>
+              </button>
+
+              {expandedId === item.id && (
+                <div className="rank-item__panel">
+                  {expandLoading || !expandedDetail ? (
+                    <div className="rank-item__panel-loading">
+                      {Array.from({ length: 5 }).map((_, i) => (
+                        <div key={i} className="skeleton-block" style={{ height: 18, marginBottom: 8, borderRadius: 6 }} />
+                      ))}
+                    </div>
+                  ) : (
+                    <>
+                      <div className="my-apt-card__radar">
+                        <RadarChart scores={expandedDetail.scores} />
+                      </div>
+                      <AptScoreBars scores={expandedDetail.scores} />
+                      <div className="rank-item__panel-meta">
+                        {expandedDetail.builtYear && <span>{expandedDetail.builtYear}년 준공</span>}
+                        {expandedDetail.totalUnits && <span>{expandedDetail.totalUnits.toLocaleString()}세대</span>}
+                      </div>
+                      <button
+                        className="btn btn--primary rank-item__panel-cta"
+                        onClick={() => startBattle(item)}
+                      >
+                        ⚔️ 이 단지로 대결하기
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
           ))}
-          <p className="rank-hint">단지를 탭하면 내 단지로 설정 후 대결 탭으로 이동해요</p>
+          <p className="rank-hint">단지를 탭하면 스탯을 확인할 수 있어요</p>
         </div>
       )}
     </div>

@@ -2090,11 +2090,33 @@ button {
 
 .rank-hint { text-align: center; font-size: 0.78rem; color: var(--muted); margin: 4px 0 0; }
 
+.rank-item-wrap { display: flex; flex-direction: column; }
+.rank-item--expanded { border-color: var(--accent); border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+.rank-item__chevron { font-size: 0.65rem; color: var(--muted); flex-shrink: 0; margin-left: 4px; }
+
+.rank-item__panel {
+  background: var(--panel);
+  border: 1.5px solid var(--accent);
+  border-top: none;
+  border-bottom-left-radius: var(--radius);
+  border-bottom-right-radius: var(--radius);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.rank-item__panel-loading { display: flex; flex-direction: column; gap: 0; }
+.rank-item__panel-meta { display: flex; gap: 12px; font-size: 0.8rem; color: var(--muted); }
+.rank-item__panel-cta { width: 100%; padding: 12px; font-size: 0.95rem; }
+
 /* ── My Apt Page ─────────────────────────────────────────────────────────────── */
 .my-apt-page { display: flex; flex-direction: column; gap: 20px; }
 .my-apt-page__header { display: flex; flex-direction: column; gap: 4px; }
 .my-apt-page__title { font-size: 1.5rem; font-weight: 800; margin: 0; }
+.my-apt-page__saved-row { display: flex; align-items: center; gap: 10px; }
 .my-apt-page__saved { margin: 0; font-size: 0.85rem; color: var(--muted); }
+.my-apt-page__clear { font-size: 0.78rem; padding: 2px 8px; color: var(--muted); border: 1px solid var(--surface-3); border-radius: 6px; background: none; cursor: pointer; }
+.my-apt-page__clear:hover { border-color: var(--accent); color: var(--accent); }
 
 .my-apt-page__search {
   display: flex;
@@ -2147,6 +2169,94 @@ button {
 .score-grade--d { background: #fee2e2; color: #991b1b; }
 
 .my-apt-card__cta { width: 100%; padding: 14px; font-size: 1rem; }
+
+/* ── Comments Feed Page ──────────────────────────────────────────────────────── */
+.cf-page { display: flex; flex-direction: column; gap: 16px; }
+.cf-page__header { display: flex; flex-direction: column; gap: 8px; }
+.cf-page__title { font-size: 1.5rem; font-weight: 800; margin: 0; }
+.cf-page__subtitle { margin: 0; font-size: 0.85rem; color: var(--muted); }
+
+.cf-list { display: flex; flex-direction: column; gap: 10px; }
+
+.cf-card {
+  background: var(--panel);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  box-shadow: var(--shadow-soft);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border: 1.5px solid transparent;
+  transition: border-color 0.15s;
+}
+.cf-card:hover { border-color: var(--accent); }
+.cf-card--skeleton { pointer-events: none; }
+
+.cf-card__battle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  text-decoration: none;
+  font-size: 0.82rem;
+  font-weight: 700;
+  flex-wrap: wrap;
+}
+.cf-card__apt { color: var(--text); }
+.cf-card__apt--a { }
+.cf-card__apt--b { }
+.cf-card__vs { font-size: 0.75rem; color: var(--muted); }
+.cf-card__winner {
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 10px;
+  margin-left: 2px;
+}
+.cf-card__winner--a, .cf-card__winner--b { background: var(--accent); color: #fff; }
+.cf-card__winner--draw { background: var(--surface-2); color: var(--muted); }
+
+.cf-card__text {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.55;
+  color: var(--text);
+  word-break: break-all;
+}
+
+.cf-card__footer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.75rem;
+  color: var(--muted);
+  flex-wrap: wrap;
+}
+.cf-card__nick { font-weight: 600; color: var(--text); }
+.cf-card__time { flex: 1; }
+.cf-card__like {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.78rem;
+  color: var(--muted);
+  padding: 2px 6px;
+  border-radius: 10px;
+  border: 1px solid var(--surface-3);
+  transition: color 0.15s, border-color 0.15s;
+}
+.cf-card__like:hover { color: var(--accent); border-color: var(--accent); }
+.cf-card__like--active { color: var(--accent); border-color: var(--accent); font-weight: 700; }
+.cf-card__like:disabled { cursor: default; }
+.cf-card__link {
+  text-decoration: none;
+  color: var(--accent);
+  font-weight: 600;
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+.cf-card__link:hover { text-decoration: underline; }
+
+.cf-more-btn { width: 100%; margin-top: 4px; }
 
 /* ── Trend Page ──────────────────────────────────────────────────────────────── */
 .trend-page { display: flex; flex-direction: column; gap: 28px; }
@@ -2237,6 +2347,19 @@ button {
 
 .vista-tip { font-size: 0.7rem; cursor: help; margin-left: 3px; opacity: 0.6; vertical-align: middle; }
 .vista-tip:hover { opacity: 1; }
+
+.battle-result__disputes {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--surface-2);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+.battle-result__disputes-icon { flex-shrink: 0; }
+.battle-result__disputes-text { flex: 1; }
 
 .battle-result__vista-note {
   text-align: center; font-size: 0.72rem; color: var(--muted);

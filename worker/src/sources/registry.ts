@@ -2,6 +2,7 @@ import type { SourceAdapter } from "../types";
 import { fetchBuildingBasic } from "./buildingBasicFetcher";
 import { fetchBuildingHub } from "./buildingHubFetcher";
 import { fetchDevelopmentPermits } from "./developmentPermitFetcher";
+import { fetchArchPmsHub } from "./archPmsHubFetcher";
 
 export const SOURCE_ADAPTERS: Record<string, SourceAdapter> = {
   "dev-permit-openapi": {
@@ -21,5 +22,11 @@ export const SOURCE_ADAPTERS: Record<string, SourceAdapter> = {
     name: "국토교통부 건축HUB 건축인허가정보",
     type: "openapi",
     fetch: fetchBuildingHub,
+  },
+  "arch-pms-hub": {
+    id: "arch-pms-hub",
+    name: "국토교통부 건축인허가 기본정보 (ArchPmsHub)",
+    type: "openapi",
+    fetch: fetchArchPmsHub,
   },
 };

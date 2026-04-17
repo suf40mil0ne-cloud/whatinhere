@@ -7,7 +7,7 @@ import { collectWalk } from "./cron/collectWalk";
 import { collectSafety } from "./cron/collectSafety";
 import { json, serverError } from "./api/http";
 import { kakaoLoginRedirect, kakaoCallback, getMe, logout, updateNickname } from "./api/auth";
-import { createBattle, getBattle, addBattleComment, likeBattleComment, addDispute, getRanking, getHot } from "./api/battles";
+import { createBattle, getBattle, addBattleComment, likeBattleComment, addDispute, getRanking, getHot, getCommentsFeed } from "./api/battles";
 import { getRanking as getScoreRanking } from "./api/ranking";
 import { getTrendHot, getTrendPopular, getTrendRecent } from "./api/trends";
 import type { Env } from "./types";
@@ -144,6 +144,9 @@ export default {
       }
       if (request.method === "GET" && path === "/api/battles/hot") {
         return withCors(request, await getHot(request, env));
+      }
+      if (request.method === "GET" && path === "/api/comments") {
+        return withCors(request, await getCommentsFeed(request, env));
       }
       if (request.method === "GET" && path.startsWith("/api/battles/") && !path.includes("/comments")) {
         const id = decodeURIComponent(path.replace("/api/battles/", ""));

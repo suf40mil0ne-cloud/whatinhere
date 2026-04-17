@@ -114,13 +114,15 @@ CREATE TABLE IF NOT EXISTS apt_complexes (
   district_code    TEXT,
   built_year       INTEGER,
   total_units      INTEGER,
-  avg_price_per_m2 INTEGER,
-  s_transport      INTEGER,
-  s_walk           INTEGER,
-  s_value          INTEGER,
-  s_childcare      INTEGER,
-  s_safety         INTEGER,
-  updated_at       TEXT DEFAULT (datetime('now'))
+  avg_price_per_m2       INTEGER,
+  s_transport            INTEGER,
+  s_walk                 INTEGER,
+  s_value                INTEGER,
+  s_childcare            INTEGER,
+  s_safety               INTEGER,
+  s_scale                REAL,
+  overall_score_adjusted REAL,
+  updated_at             TEXT DEFAULT (datetime('now'))
 );
 
 CREATE INDEX IF NOT EXISTS idx_apt_complexes_bbox ON apt_complexes(lat, lng);
@@ -158,7 +160,8 @@ INSERT OR IGNORE INTO source_registry (
   ('dev-permit-openapi', '국토교통부 도시계획 개발행위허가정보서비스', 'openapi', '공공데이터포털', 'https://apis.data.go.kr/1613000/UrbanPlanDevelopmentPermitService', 'daily', 'json', 1),
   ('building-basic-openapi', '전국건축인허가기본정보표준데이터', 'openapi', '공공데이터포털', 'https://apis.data.go.kr/1741000/StanBuildngPrmisnInfoService', 'daily', 'json', 1),
   ('building-hub-openapi', '국토교통부 건축HUB 건축인허가정보', 'openapi', '국토교통부', 'https://apis.data.go.kr/1613000/ArchHubBuildingPermitService', 'daily', 'json', 1),
-  ('local-csv-upload', '지자체 파일데이터 업로드', 'file', '지자체', 'file://local-upload', 'manual', 'csv/xlsx', 1);
+  ('local-csv-upload', '지자체 파일데이터 업로드', 'file', '지자체', 'file://local-upload', 'manual', 'csv/xlsx', 1),
+  ('arch-pms-hub', '국토교통부 건축인허가 기본정보 (ArchPmsHub)', 'openapi', '공공데이터포털', 'https://apis.data.go.kr/1613000/ArchPmsHubService/getApBasisOulnInfo', 'daily', 'json', 1);
 
 -- 유저
 CREATE TABLE IF NOT EXISTS users (

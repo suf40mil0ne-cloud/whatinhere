@@ -50,6 +50,7 @@ interface Academy {
   lat: number;
   lng: number;
   realm: string;
+  source: "exact" | "dong" | "sigungu";
 }
 
 const NEIS_API_KEY = process.env.NEIS_API_KEY ?? "9b61b187cc55411a90b99d802758e3a2";
@@ -327,92 +328,82 @@ async function fetchElementarySchools(districts: DistrictState[]): Promise<Eleme
   return schools;
 }
 
+/**
+ * 카카오 로컬 API (카테고리 검색 AC5=학원)를 이용해 각 행정동 중심 1500m 내
+ * 학원을 수집한다. 모든 결과에 실제 위경도가 포함되므로 NEIS 좌표 추정 문제가 없다.
+ *
+ * - 동 중심마다 최대 3페이지(=45건) 조회, place_id 기준 중복 제거
+ * - Kakao free-tier 기준 일 300,000 req 이내 (동 수 ≈ 1,200 × 3 = 3,600 req)
+ */
 async function fetchAcademies(districts: DistrictState[]): Promise<Academy[]> {
-  if (!NEIS_ACADEMY_API_KEY) {
-    warn("05-fetch-childcare: NEIS_ACADEMY_API_KEY missing, academy metrics will be zeroed");
+  const KAKAO_KEY = process.env.KAKAO_REST_API_KEY ?? "";
+  if (!KAKAO_KEY) {
+    warn("05-fetch-childcare: KAKAO_REST_API_KEY not set, academy metrics will be zeroed");
     return [];
   }
 
-  const { dongLookup, sigunguCenters } = buildDistrictLookups(districts);
-  const academies: Academy[] = [];
-  let skippedMissingCoords = 0;
-  const officeConfigs = [
-    { code: "B10", sido: "서울특별시" },
-    { code: "J10", sido: "경기도" },
-    { code: "E10", sido: "인천광역시" },
-  ] as const;
+  const KA_HEADER = "sdk/2.7.0 os/javascript lang/ko-KR device/PC origin/https://whatsinhere.pages.dev";
+  const seen = new Map<string, Academy>(); // place_id → Academy (중복 제거)
+  let reqCount = 0;
+  let errCount = 0;
 
-  try {
-    for (const office of officeConfigs) {
-      for (let pageIndex = 1; pageIndex <= 200; pageIndex += 1) {
-        const url = paramsToUrl("https://open.neis.go.kr/hub/acaInsTiInfo", {
-          KEY: NEIS_ACADEMY_API_KEY,
-          Type: "json",
-          ATPT_OFCDC_SC_CODE: office.code,
-          pIndex: pageIndex,
-          pSize: 1000,
+  for (const district of districts) {
+    if (district.center_lat == null || district.center_lng == null) continue;
+
+    // 동 중심 기준 최대 3페이지(=45건) × 반경 1500m
+    for (let page = 1; page <= 3; page++) {
+      try {
+        const url =
+          `https://dapi.kakao.com/v2/local/search/category.json` +
+          `?category_group_code=AC5` +
+          `&x=${district.center_lng}&y=${district.center_lat}` +
+          `&radius=1500&size=15&page=${page}&sort=distance`;
+
+        const res = await fetch(url, {
+          headers: { "Authorization": `KakaoAK ${KAKAO_KEY}`, "KA": KA_HEADER },
+          signal: AbortSignal.timeout(10000),
         });
-        const safeUrl = url.replace(NEIS_ACADEMY_API_KEY, "***");
-        const response = await fetch(url, { signal: AbortSignal.timeout(10000) });
-        const raw = await response.text();
-        const status = response.status;
-        let payload: any = null;
-        try {
-          payload = raw ? JSON.parse(raw) : null;
-        } catch (error) {
-          warn(`05-fetch-childcare: academy JSON parse failed url=${safeUrl} status=${status} preview=${preview(raw)} error=${error instanceof Error ? error.message : String(error)}`);
+        reqCount++;
+
+        if (!res.ok) {
+          if (page === 1) errCount++;
           break;
         }
-        const topKeys = payload && typeof payload === "object" ? Object.keys(payload) : [];
-        const root = payload?.acaInsTiInfo;
-        const headResult = root?.[0]?.head?.[1]?.RESULT;
-        const items: any[] = root?.[1]?.row ?? [];
-        if (pageIndex === 1) {
-          console.log("[debug] academy status:", status);
-          console.log("[debug] academy top keys:", topKeys);
-          console.log("[debug] academy first item:", JSON.stringify(items[0] ?? null));
-          info(`05-fetch-childcare: academy url=${safeUrl} status=${status} topKeys=${topKeys.join(",")} rowCount=${items.length} errorMessage=${headResult?.MESSAGE ?? ""}`);
+
+        const data = await res.json() as {
+          documents: Array<{ id: string; y: string; x: string; category_name: string }>;
+          meta: { is_end: boolean; total_count: number };
+        };
+
+        for (const doc of data.documents) {
+          if (seen.has(doc.id)) continue;
+          const lat = parseFloat(doc.y);
+          const lng = parseFloat(doc.x);
+          if (isNaN(lat) || isNaN(lng)) continue;
+          // category_name 예: "교육,학문 > 학원 > 수학학원" → realm = "수학학원"
+          const parts = (doc.category_name ?? "").split(" > ");
+          const realm = parts.length >= 3 ? parts[2] : (parts[parts.length - 1] ?? "기타");
+          seen.set(doc.id, { lat, lng, realm, source: "exact" });
         }
-        if (!response.ok) {
-          warn(`05-fetch-childcare: academy request failed url=${safeUrl} status=${status} preview=${preview(raw)}`);
-          break;
-        }
-        if (headResult?.CODE && headResult.CODE !== "INFO-000") {
-          warn(`05-fetch-childcare: academy API returned code=${headResult.CODE} message=${headResult.MESSAGE ?? ""} url=${safeUrl}`);
-          break;
-        }
-        if (!items.length) break;
-        for (const item of items) {
-          const statusName = text(item.REG_STTUS_NM) ?? "";
-          if (statusName.includes("폐") || statusName.includes("말소")) continue;
-          const lat = numeric(item.LA ?? item.la ?? item.latitude ?? item.lat);
-          const lng = numeric(item.LO ?? item.lo ?? item.longitude ?? item.lng);
-          if (lat != null && lng != null) {
-            academies.push({ lat, lng, realm: text(item.REALM_SC_NM) ?? "기타" });
-            continue;
-          }
-          const sigungu = normalizeRegionName(text(item.ADMST_ZONE_NM) ?? "");
-          const dong = extractDongFromAcademyAddress(text(item.FA_RDNDA), text(item.FA_RDNMA));
-          const exact = dong ? dongLookup.get(`${office.sido}:${sigungu}:${normalizeRegionName(dong)}`) : null;
-          if (exact) {
-            academies.push({ lat: exact.lat, lng: exact.lng, realm: text(item.REALM_SC_NM) ?? "기타" });
-            continue;
-          }
-          const sigunguCenter = sigunguCenters.get(`${office.sido}:${sigungu}`);
-          if (sigunguCenter) {
-            academies.push({ lat: sigunguCenter.lat, lng: sigunguCenter.lng, realm: text(item.REALM_SC_NM) ?? "기타" });
-            continue;
-          }
-          skippedMissingCoords += 1;
-        }
-        if (items.length < 1000) break;
+
+        if (data.meta.is_end) break;
+        await new Promise((r) => setTimeout(r, 80)); // page 간 딜레이
+      } catch (e) {
+        errCount++;
+        break;
       }
     }
-  } catch (error) {
-    warn(`05-fetch-childcare: academy API failed (${error instanceof Error ? error.message : String(error)}), using ${academies.length} partial results`);
+
+    await new Promise((r) => setTimeout(r, 50)); // 동 간 딜레이
+
+    if (reqCount % 200 === 0 && reqCount > 0) {
+      info(`05-fetch-childcare: Kakao academy progress — requests=${reqCount} unique=${seen.size} errors=${errCount}`);
+    }
   }
-  flushWarningSummary("05-fetch-childcare", "academies with missing coordinates", skippedMissingCoords);
-  return academies;
+
+  info(`05-fetch-childcare: Kakao academy done — requests=${reqCount} unique=${seen.size} errors=${errCount}`);
+  if (errCount > 0) warn(`05-fetch-childcare: ${errCount} Kakao requests failed`);
+  return [...seen.values()];
 }
 
 function applyChildcareScores(

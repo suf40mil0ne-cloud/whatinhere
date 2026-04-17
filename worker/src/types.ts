@@ -16,6 +16,7 @@ export interface Env {
   TAGO_API_KEY?: string;
   CCTV_API_KEY?: string;
   SAFETY_INDEX_API_KEY?: string;
+  ARCH_PMS_HUB_API_KEY?: string;
 }
 
 // kept for project pipeline compatibility
@@ -42,6 +43,9 @@ export interface SourceRecord {
   floorsAbove?: number | null;
   floorsBelow?: number | null;
   households?: number | null;
+  platArea?: number | null;
+  vlRat?: number | null;
+  bcRat?: number | null;
   contractor?: string;
   designer?: string;
   supervisor?: string;
@@ -197,6 +201,8 @@ export interface AptComplexRow {
   s_value: number | null;
   s_childcare: number | null;
   s_safety: number | null;
+  s_scale: number | null;
+  overall_score_adjusted: number | null;
   updated_at?: string | null;
 }
 
@@ -220,6 +226,8 @@ export interface ApiAptRecord {
   builtYear: number | null;
   totalUnits: number | null;
   avgPricePerM2: number | null;
+  sScale: number | null;
+  overallScoreAdjusted: number | null;
   scores: { transport: number; walk: number; value: number; childcare: number; safety: number };
   rawTransport: Record<string, unknown> | null;
   rawWalk: Record<string, unknown> | null;
@@ -337,6 +345,34 @@ export interface ApiBattle {
   createdAt: string;
   comments?: ApiBattleComment[];
   disputes?: ApiBattleDispute[];
+}
+
+// ── Comments Feed ─────────────────────────────────────────────────────────────
+export interface CommentFeedRow {
+  id: string;
+  battle_id: string;
+  comment: string;
+  likes: number;
+  created_at: string;
+  nickname: string;
+  profile_img: string | null;
+  apt_a_name: string;
+  apt_b_name: string;
+  winner: string | null;
+}
+
+export interface CommentFeedItem {
+  id: string;
+  battleId: string;
+  comment: string;
+  likes: number;
+  likedByMe: boolean;
+  createdAt: string;
+  nickname: string;
+  profileImg: string | null;
+  aptAName: string;
+  aptBName: string;
+  winner: string | null;
 }
 
 export interface AptRanking {

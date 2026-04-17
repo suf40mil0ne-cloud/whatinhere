@@ -13,6 +13,7 @@ import { AdminPage } from "./pages/AdminPage";
 import { PrivacyPage } from "./pages/PrivacyPage";
 import { TermsPage } from "./pages/TermsPage";
 import { AboutPage } from "./pages/AboutPage";
+import { CommentsPage } from "./pages/CommentsPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
 
 export function App() {
@@ -69,6 +70,14 @@ export function App() {
             element={
               <SiteLayout>
                 <TrendPage />
+              </SiteLayout>
+            }
+          />
+          <Route
+            path="/comments"
+            element={
+              <SiteLayout>
+                <CommentsPage />
               </SiteLayout>
             }
           />

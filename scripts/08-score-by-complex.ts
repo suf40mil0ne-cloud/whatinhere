@@ -24,7 +24,7 @@ interface SubwayStation extends PointRecord { transfer: boolean; }
 interface Park extends PointRecord { area: number; facilityScore: number; }
 interface ChildcareCenter extends PointRecord { spare: number; sigungu: string; }
 interface ElementarySchool extends PointRecord {}
-interface Academy extends PointRecord { realm: string; }
+interface Academy extends PointRecord { realm: string; source?: "exact" | "dong" | "sigungu"; }
 interface CctvPoint extends PointRecord { cameras: number; }
 interface ChildZonePoint extends PointRecord {}
 
@@ -100,12 +100,15 @@ async function main() {
   const nationalMedianPrice = await loadNationalPriceRef();
   const hasCrimeStats = crimeStats.size > 0;
 
+  // sigungu center로 fallback된 학원은 좌표 신뢰도가 낮아 per-apt 스코어링에서 제외
+  const academiesReliable = academies.filter((a) => (a as Academy).source !== "sigungu");
+
   const rows: AptRow[] = aptState
     .filter((apt) => apt.lat != null && apt.lng != null)
     .map((apt) => {
       const point = { lat: apt.lat, lng: apt.lng };
       const sggCenters = centers.filter((c) => c.sigungu === apt.sigungu);
-      const nearbyAcademies = academies.filter((a) => Math.abs(a.lat - point.lat) + Math.abs(a.lng - point.lng) < 0.02);
+      const nearbyAcademies = academiesReliable.filter((a) => Math.abs(a.lat - point.lat) + Math.abs(a.lng - point.lng) < 0.02);
       const academyRealms = new Set(
         nearbyAcademies
           .filter((academy) => countWithin(point, [academy], 1000) > 0)
@@ -129,7 +132,7 @@ async function main() {
         childcareCount1km: sggCenters.length ? countWithin(point, sggCenters, 1000) : 0,
         vehicleRatio: sggCenters.length ? round(vehicleCount / sggCenters.length, 4) : 0,
         elementaryDistanceM: schools.length ? nearestDistance(point, schools) : null,
-        academyCount1km: academies.length ? countWithin(point, academies, 1000) : 0,
+        academyCount1km: academiesReliable.length ? countWithin(point, academiesReliable, 1000) : 0,
         academyDiversityScore: academyRealms.size,
         cctvCount500m: hasCctv ? countWithin(point, cctvs, 500, (c) => (c as CctvPoint).cameras) : 0,
         cctvDistanceM: (() => { if (!hasCctv) return null; const d = nearestDistance(point, cctvs); return d != null && d <= 2000 ? d : null; })(),

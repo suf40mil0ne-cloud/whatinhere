@@ -24,6 +24,17 @@ async function main() {
     // 08-apt-scores.sql not yet generated — skip
   }
 
+  // Append scale factor scores (must run after 08-apt-scores.sql so s_* values are set)
+  const scaleScoresPath = path.join(OUTPUT_DIR, "07-scale.sql");
+  try {
+    const scaleSql = await fs.readFile(scaleScoresPath, "utf8");
+    if (scaleSql.trim()) {
+      districtSql = `${districtSql}\n${scaleSql}`;
+    }
+  } catch {
+    // 07-scale.sql not yet generated — skip
+  }
+
   await writeSqlFile("99-final.sql", districtSql);
   info(`99-merge-scores: wrote final upsert for ${districts.length} rows`);
 }

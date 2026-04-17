@@ -267,13 +267,23 @@ export function BattleResultPage() {
   const myWon = myIsA ? battle.winner === "a" : myIsB ? battle.winner === "b" : false;
   const opWon = myIsA ? battle.winner === "b" : myIsB ? battle.winner === "a" : false;
 
-  const draws = 5 - myWins - opWins;
+  const drawCount = keys.filter((k) => battle.scoreA[k] === battle.scoreB[k]).length;
+
+  const drawNote = drawCount > 0
+    ? <span style={{ display: "block", marginTop: 4, fontSize: "0.8em", opacity: 0.65, fontWeight: "normal" }}>({drawCount}개 항목 동점)</span>
+    : null;
+
+  const winnerName = battle.winner === "a" ? battle.aptAName : battle.aptBName;
 
   const verdict = !hasMyApt
-    ? (battle.winner === "draw" ? <strong>팽팽한 접전!</strong> : <>{battle.winner === "a" ? battle.aptAName : battle.aptBName} <strong>{Math.max(winsA, winsB)}:{Math.min(winsA, winsB)} 승리</strong></>)
-    : myWon ? <strong>우리 단지가 {myWins}:{opWins}로 이겼어요! 🎉</strong>
-    : opWon ? <strong>아쉽게 {myWins}:{opWins}로 졌어요 😢</strong>
-    : <strong>{myWins}:{opWins}{draws > 0 ? `:${draws}` : ""} 무승부예요!</strong>;
+    ? battle.winner === "draw"
+      ? <>{<strong>팽팽한 접전! 무승부</strong>}{drawNote}</>
+      : <>{winnerName} <strong>{Math.max(winsA, winsB)}:{Math.min(winsA, winsB)} 승리</strong>{drawNote}</>
+    : myWon
+      ? <><strong>우리 단지가 {myWins}:{opWins}로 이겼어요! 🎉</strong>{drawNote}</>
+      : opWon
+        ? <><strong>아쉽게 {myWins}:{opWins}로 졌어요 😢</strong>{drawNote}</>
+        : <><strong>무승부예요!</strong>{drawNote}</>;
 
   return (
     <div className="battle-result">
@@ -308,6 +318,19 @@ export function BattleResultPage() {
       </div>
 
       <p className="battle-result__vista-note">VISTA 알고리즘으로 산정된 점수입니다</p>
+
+      {battle.disputes.length > 0 && (() => {
+        const counts: Record<string, number> = {};
+        for (const d of battle.disputes) counts[d.category] = (counts[d.category] ?? 0) + 1;
+        const LABELS: Record<string, string> = { transport: "교통", walk: "산책", value: "가성비", childcare: "육아", safety: "안심" };
+        const parts = Object.entries(counts).map(([cat, n]) => `${LABELS[cat] ?? cat} ${n}건`);
+        return (
+          <div className="battle-result__disputes">
+            <span className="battle-result__disputes-icon">⚠️</span>
+            <span className="battle-result__disputes-text">{parts.join(" · ")} 딴지 접수됨</span>
+          </div>
+        );
+      })()}
 
       <div className="battle-result__comments">
         <h2 className="battle-result__comments-title">💬 댓글</h2>

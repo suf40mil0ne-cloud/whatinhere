@@ -1,4 +1,4 @@
-import type { AptCommentRow, AptComplexRow, ApiBattleComment, ApiBattleDispute, AptRanking, BattleDisputeRow, BattleCommentRow, BattleRow, DistrictScoreRow, NormalizedProject, UserRow } from "../types";
+import type { AptCommentRow, AptComplexRow, ApiBattleComment, ApiBattleDispute, AptRanking, BattleDisputeRow, BattleCommentRow, BattleRow, CommentFeedItem, CommentFeedRow, DistrictScoreRow, NormalizedProject, UserRow } from "../types";
 
 export interface ProjectQuery {
   swLng: number;
@@ -34,6 +34,8 @@ const APT_RESOLVED_COLUMNS = `
   COALESCE(NULLIF(a.s_value, 0), d.s_value) AS s_value,
   COALESCE(NULLIF(a.s_childcare, 0), d.s_childcare) AS s_childcare,
   COALESCE(NULLIF(a.s_safety, 0), d.s_safety) AS s_safety,
+  a.s_scale,
+  a.overall_score_adjusted,
   a.updated_at
 `;
 
@@ -502,6 +504,63 @@ export class Repository {
     }
   }
 
+  async getCommentsFeed(opts: {
+    sort: "recent" | "hot" | "active";
+    limit: number;
+    offset: number;
+    currentUserId?: string;
+  }): Promise<{ comments: CommentFeedItem[]; hasMore: boolean }> {
+    const orderBy =
+      opts.sort === "hot"    ? "bc.likes DESC, bc.created_at DESC" :
+      opts.sort === "active" ? "bcc.cnt DESC, bc.created_at DESC" :
+                               "bc.created_at DESC";
+
+    const activeJoin = opts.sort === "active"
+      ? `JOIN (SELECT battle_id, COUNT(*) as cnt FROM battle_comments GROUP BY battle_id) bcc ON bcc.battle_id = bc.battle_id`
+      : "";
+
+    const rows = await this.db.prepare(
+      `SELECT bc.id, bc.battle_id, bc.comment, bc.likes, bc.created_at,
+              u.nickname, u.profile_img,
+              b.apt_a_name, b.apt_b_name, b.winner
+       FROM battle_comments bc
+       JOIN users u ON u.id = bc.user_id
+       JOIN battles b ON b.id = bc.battle_id
+       ${activeJoin}
+       ORDER BY ${orderBy}
+       LIMIT ? OFFSET ?`
+    ).bind(opts.limit + 1, opts.offset).all<CommentFeedRow>();
+
+    const hasMore = rows.results.length > opts.limit;
+    const items = rows.results.slice(0, opts.limit);
+
+    const likedSet = new Set<string>();
+    if (opts.currentUserId && items.length > 0) {
+      const ids = items.map(r => `'${r.id}'`).join(",");
+      const liked = await this.db.prepare(
+        `SELECT comment_id FROM comment_likes WHERE user_id = ? AND comment_id IN (${ids})`
+      ).bind(opts.currentUserId).all<{ comment_id: string }>();
+      for (const l of liked.results) likedSet.add(l.comment_id);
+    }
+
+    return {
+      comments: items.map(r => ({
+        id: r.id,
+        battleId: r.battle_id,
+        comment: r.comment,
+        likes: r.likes,
+        likedByMe: likedSet.has(r.id),
+        createdAt: r.created_at,
+        nickname: r.nickname,
+        profileImg: r.profile_img,
+        aptAName: r.apt_a_name,
+        aptBName: r.apt_b_name,
+        winner: r.winner,
+      })),
+      hasMore,
+    };
+  }
+
   async addDispute(payload: { id: string; battleId: string; userId: string | null; category: string; reason: string }): Promise<void> {
     await this.db.prepare(
       `INSERT INTO battle_disputes (id, battle_id, user_id, category, reason) VALUES (?, ?, ?, ?, ?)`
@@ -622,8 +681,9 @@ export class Repository {
   }>> {
     const { region, scoreCol, limit } = opts;
     const rc = (col: string) => `COALESCE(NULLIF(a.${col},0), d.${col})`;
+    const computedOverall = `(${rc("s_transport")} + ${rc("s_walk")} + ${rc("s_value")} + ${rc("s_childcare")} + ${rc("s_safety")}) / 5.0`;
     const scoreExpr = scoreCol === "s_overall"
-      ? `(${rc("s_transport")} + ${rc("s_walk")} + ${rc("s_value")} + ${rc("s_childcare")} + ${rc("s_safety")}) / 5.0`
+      ? `COALESCE(a.overall_score_adjusted, ${computedOverall})`
       : rc(scoreCol);
 
     const where: string[] = [`(${scoreExpr}) IS NOT NULL`];

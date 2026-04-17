@@ -23,6 +23,13 @@ export function AboutPage() {
           공공데이터포털, NEIS, 경찰청 등 신뢰할 수 있는
           공공 데이터를 기반으로 산정됩니다.
         </p>
+        <p>
+          여기에 더해 대지면적·세대수·용적률·건폐율을 반영한
+          단지 규모 보정계수(Scale Factor)를 적용합니다.
+          소규모·나홀로 아파트는 입지 점수가 높더라도
+          실거주 환경을 고려해 최대 30%까지 하향 보정되며,
+          대단지일수록 보정 없이 점수가 그대로 반영됩니다.
+        </p>
         <div className="vista-grid">
           <div className="vista-item"><span className="vista-letter">V</span><span className="vista-word">Value</span><span className="vista-label">가성비</span></div>
           <div className="vista-item"><span className="vista-letter">I</span><span className="vista-word">Infrastructure</span><span className="vista-label">교통</span></div>

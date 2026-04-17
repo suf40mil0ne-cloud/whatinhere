@@ -140,6 +140,25 @@ export async function addDispute(request: Request, env: Env, battleId: string): 
   return json({ ok: true });
 }
 
+export async function getCommentsFeed(request: Request, env: Env): Promise<Response> {
+  const url = new URL(request.url);
+  const sort = (url.searchParams.get("sort") ?? "recent") as "recent" | "hot" | "active";
+  const limit = Math.min(parseInt(url.searchParams.get("limit") ?? "20", 10), 50);
+  const offset = parseInt(url.searchParams.get("offset") ?? "0", 10);
+
+  const token = extractToken(request) ?? undefined;
+  let currentUserId: string | undefined;
+  if (token) {
+    const repo2 = new Repository(env.DB);
+    const user = await repo2.getSessionUser(token);
+    if (user && new Date(user.expires_at) >= new Date()) currentUserId = user.id;
+  }
+
+  const repo = new Repository(env.DB);
+  const result = await repo.getCommentsFeed({ sort, limit, offset, currentUserId });
+  return json(result);
+}
+
 export async function getRanking(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url);
   const sido = url.searchParams.get("sido") ?? undefined;

@@ -33,6 +33,8 @@ function toApiRecord(row: AptRowWithRaw): ApiAptRecord {
     builtYear: row.built_year,
     totalUnits: row.total_units,
     avgPricePerM2: row.avg_price_per_m2,
+    sScale: row.s_scale ?? null,
+    overallScoreAdjusted: row.overall_score_adjusted ?? null,
     scores: readAptScores(row),
     rawTransport: parseJsonSafe(row.raw_transport),
     rawWalk: parseJsonSafe(row.raw_walk),
