@@ -51,7 +51,7 @@ async function fetchParks(): Promise<Park[]> {
         numOfRows: 1000,
         type: "json",
       });
-      const payload = await fetchJsonWithRetry(url, { timeoutMs: 30000 });
+      const payload = await fetchJsonWithRetry(url, { timeoutMs: 30000, legacyTls: true });
       const items = parseJsonItems(payload);
       if (!items.length) break;
       for (const item of items) {
