@@ -148,10 +148,10 @@ async function main() {
     // ── 교통 ───────────────────────────────────────────────────────────────────
     let sTransport: number | null = null;
     if (hasTransportRaw) {
-      const busDistScore    = linearScore(row.busStopDistanceM,  100,  800);
-      const subwayDistScore = linearScore(row.subwayDistanceM,   250, 2000);
-      const busCountScore   = linearScore(row.busStopCount500m,   10,    0);
-      const transferScore   = linearScore(row.transferCount1km,    2,    0);
+      const busDistScore    = linearScore(row.busStopDistanceM,  200, 1500);
+      const subwayDistScore = linearScore(row.subwayDistanceM,   500, 3000);
+      const busCountScore   = linearScore(row.busStopCount500m,    5,    0);
+      const transferScore   = linearScore(row.transferCount1km,    1,    0);
       if (!hasBus) {
         sTransport = round(subwayDistScore * 0.75 + transferScore * 0.25, 2);
       } else if (!hasSubway) {
@@ -166,10 +166,10 @@ async function main() {
     if (hasWalkRaw) {
       const households = Math.max(row.totalUnits, 1);
       sWalk = round(
-        linearScore(row.parkArea1km / households, 30,   0) * 0.45 +
-        linearScore(row.parkCount1km,              5,   0) * 0.20 +
-        linearScore(row.parkDistanceM,           100, 1000) * 0.20 +
-        linearScore(row.parkFacilityCount,         3,   0) * 0.15, 2,
+        linearScore(row.parkArea1km / households, 10,   0) * 0.45 +
+        linearScore(row.parkCount1km,              3,   0) * 0.20 +
+        linearScore(row.parkDistanceM,           300, 1500) * 0.20 +
+        linearScore(row.parkFacilityCount,         2,   0) * 0.15, 2,
       );
     }
 
@@ -190,9 +190,9 @@ async function main() {
     // ── 안심 ───────────────────────────────────────────────────────────────────
     let sSafety: number | null = null;
     if (hasSafetyRaw) {
-      const cctvCountScore = linearScore(row.cctvCount500m,   30,    0);
-      const cctvDistScore  = linearScore(row.cctvDistanceM,   50,  500);
-      const childZoneScore = linearScore(row.childZoneCount1km, 3,   0);
+      const cctvCountScore = linearScore(row.cctvCount500m,   10,    0);
+      const cctvDistScore  = linearScore(row.cctvDistanceM,  100, 1000);
+      const childZoneScore = linearScore(row.childZoneCount1km, 2,   0);
       const crimeRateScore = linearScore(row.crimeRate,      500, 3000);
       const components: Array<[number, number]> = [
         [childZoneScore, 0.15],
