@@ -681,7 +681,9 @@ export class Repository {
   }>> {
     const { region, scoreCol, limit } = opts;
     const rc = (col: string) => `COALESCE(NULLIF(a.${col},0), d.${col})`;
-    const computedOverall = `(${rc("s_transport")} + ${rc("s_walk")} + ${rc("s_value")} + ${rc("s_childcare")} + ${rc("s_safety")}) / 5.0`;
+    const scoreKeys = ["s_transport", "s_walk", "s_value", "s_childcare", "s_safety"] as const;
+    const nullAwareCount = scoreKeys.map(c => `CASE WHEN ${rc(c)} IS NOT NULL THEN 1 ELSE 0 END`).join(" + ");
+    const computedOverall = `(${scoreKeys.map(c => rc(c)).join(" + ")}) / NULLIF(${nullAwareCount}, 0)`;
     const scoreExpr = scoreCol === "s_overall"
       ? `COALESCE(a.overall_score_adjusted, ${computedOverall})`
       : rc(scoreCol);

@@ -5,12 +5,18 @@ import {
 
 const RESOLVED_COMPONENT_EXPR = [
   "(",
-  "  COALESCE(NULLIF(s_transport, 0), 0)",
-  "  + COALESCE(NULLIF(s_walk, 0), 0)",
-  "  + COALESCE(NULLIF(s_value, 0), 0)",
-  "  + COALESCE(NULLIF(s_childcare, 0), 0)",
-  "  + COALESCE(NULLIF(s_safety, 0), 0)",
-  ") / 5.0",
+  "  COALESCE(s_transport, 0)",
+  "  + COALESCE(s_walk, 0)",
+  "  + COALESCE(s_value, 0)",
+  "  + COALESCE(s_childcare, 0)",
+  "  + COALESCE(s_safety, 0)",
+  ") / NULLIF(",
+  "  (CASE WHEN s_transport IS NOT NULL THEN 1 ELSE 0 END",
+  "  + CASE WHEN s_walk IS NOT NULL THEN 1 ELSE 0 END",
+  "  + CASE WHEN s_value IS NOT NULL THEN 1 ELSE 0 END",
+  "  + CASE WHEN s_childcare IS NOT NULL THEN 1 ELSE 0 END",
+  "  + CASE WHEN s_safety IS NOT NULL THEN 1 ELSE 0 END),",
+  "0)",
 ].join("\n");
 
 const S_SCALE_EXPR = [
