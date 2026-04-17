@@ -59,7 +59,7 @@ async function geocodeStation(name: string): Promise<{ lat: number; lng: number 
     const payload = await fetchJsonWithRetry<{ documents?: Array<{ x?: string; y?: string }> }>(url, {
       headers: {
         Authorization: `KakaoAK ${KAKAO_REST_API_KEY}`,
-        KA: "sdk/1.0 os/node lang/ko origin/https://whatsinhere.pages.dev",
+        KA: "sdk/1.0 os/web origin/https://whatsinhere.pages.dev",
       },
       timeoutMs: 10000,
     });
