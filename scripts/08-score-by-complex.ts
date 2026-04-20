@@ -164,12 +164,11 @@ async function main() {
     // ── 산책 ───────────────────────────────────────────────────────────────────
     let sWalk: number | null = null;
     if (hasWalkRaw) {
-      const households = Math.max(row.totalUnits, 1);
       sWalk = round(
-        linearScore(row.parkArea1km / households, 10,   0) * 0.45 +
-        linearScore(row.parkCount1km,              3,   0) * 0.20 +
-        linearScore(row.parkDistanceM,           300, 1500) * 0.20 +
-        linearScore(row.parkFacilityCount,         2,   0) * 0.15, 2,
+        linearScore(row.parkArea1km,   100000, 0) * 0.45 +  // 10만㎡=100, 0=0
+        linearScore(row.parkCount1km,       3, 0) * 0.20 +
+        linearScore(row.parkDistanceM,    300, 1500) * 0.20 +
+        linearScore(row.parkFacilityCount,  2, 0) * 0.15, 2,
       );
     }
 
