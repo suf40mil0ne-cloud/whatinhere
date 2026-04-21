@@ -687,7 +687,9 @@ export class Repository {
     const computedOverall = `(${scoreKeys.map(c => rc(c)).join(" + ")}) / NULLIF(${nullAwareCount}, 0)`;
     const scoreExpr = scoreCol === "s_overall"
       ? `COALESCE(a.overall_score_adjusted, ${computedOverall})`
-      : `${rc(scoreCol)} * ${scaleFactor}`;
+      : scoreCol === "s_childcare"
+      ? `${rc(scoreCol)} * ${scaleFactor}`
+      : `${rc(scoreCol)}`;
 
     const where: string[] = [`(${scoreExpr}) IS NOT NULL`];
     const binds: (string | number)[] = [];
