@@ -1885,7 +1885,8 @@ button {
   /* Extra bottom padding for site-main to clear bottom nav */
   .site-main { padding: 20px 16px 90px; }
 
-  /* Header: top nav hidden (bottom nav handles navigation), hide auth nickname */
+  /* Header: static on mobile (bottom nav handles navigation; header should not follow scroll) */
+  .site-header { position: static; }
   .top-nav { display: none; }
   .auth-user__name { display: none; }
   .site-header__inner { padding: 0 14px; gap: 10px; }
