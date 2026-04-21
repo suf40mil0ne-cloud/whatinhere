@@ -1828,7 +1828,7 @@ button {
 
 /* ── Responsive ────────────────────────────────────────────────────────────── */
 @media (max-width: 640px) {
-  .battle-page__selectors { flex-direction: column; }
+  .battle-page__selectors { flex-direction: column; align-items: stretch; }
   .battle-page__vs { padding-top: 0; align-self: center; }
 
   .ranking-table__header,
@@ -1885,7 +1885,8 @@ button {
   /* Extra bottom padding for site-main to clear bottom nav */
   .site-main { padding: 20px 16px 90px; }
 
-  /* Header: hide auth nickname, shrink gap */
+  /* Header: top nav hidden (bottom nav handles navigation), hide auth nickname */
+  .top-nav { display: none; }
   .auth-user__name { display: none; }
   .site-header__inner { padding: 0 14px; gap: 10px; }
 
