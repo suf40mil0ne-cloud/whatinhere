@@ -76,7 +76,7 @@ async function searchAptNear(lat: number, lng: number): Promise<KakaoPlace[]> {
       if (!res.ok) break;
       const data = await res.json() as { documents?: KakaoPlace[]; meta?: { is_end?: boolean } };
       const docs = data.documents ?? [];
-      places.push(...docs.filter((d) => d.place_name.includes("아파트") || d.place_name.includes("단지") || d.place_name.includes("래미안") || d.place_name.includes("자이") || d.place_name.includes("푸르지오") || d.place_name.includes("힐스테이트") || d.place_name.includes("e편한세상") || d.place_name.includes("더샵") || d.place_name.includes("트리지움") || d.place_name.includes("롯데캐슬") || d.place_name.includes("SK")));
+      places.push(...docs.filter((d) => !d.place_name.includes("충전소") && (d.place_name.includes("아파트") || d.place_name.includes("단지") || d.place_name.includes("래미안") || d.place_name.includes("자이") || d.place_name.includes("푸르지오") || d.place_name.includes("힐스테이트") || d.place_name.includes("e편한세상") || d.place_name.includes("더샵") || d.place_name.includes("트리지움") || d.place_name.includes("롯데캐슬") || d.place_name.includes("SK"))));
       if (data.meta?.is_end) break;
     } catch (error) {
       warn(`07-fetch-apt-complexes: Kakao search failed near (${lat},${lng}): ${error instanceof Error ? error.message : String(error)}`);
