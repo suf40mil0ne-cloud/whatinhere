@@ -370,6 +370,25 @@ async function fetchElementarySchools(districts: DistrictState[]): Promise<Eleme
   return schools;
 }
 
+const ACADEMY_INCLUDE_KEYWORDS = [
+  "국어", "수학", "영어", "과학", "사회", "논술", "독서", "한자",
+  "음악", "미술", "체육", "태권도", "발레", "수영", "피아노",
+  "영재", "보습", "입시", "학습", "예능", "외국어", "코딩", "컴퓨터",
+  "바이올린", "첼로", "플루트", "기타", "드럼", "합창",
+  "축구", "농구", "야구", "유도", "검도", "줄넘기",
+];
+
+const ACADEMY_EXCLUDE_KEYWORDS = [
+  "애견", "미용", "요리", "요가", "필라테스", "골프", "당구",
+  "운전", "자격증", "직업", "평생교육", "성인", "헬스",
+  "웨딩", "꽃꽂이", "바리스타", "제과", "제빵", "네일",
+];
+
+function isEducationalAcademy(categoryName: string): boolean {
+  if (ACADEMY_EXCLUDE_KEYWORDS.some((kw) => categoryName.includes(kw))) return false;
+  return ACADEMY_INCLUDE_KEYWORDS.some((kw) => categoryName.includes(kw));
+}
+
 /**
  * 카카오 로컬 API (카테고리 검색 AC5=학원)를 이용해 각 아파트 단지 중심 1km 내
  * 학원을 수집한다. apt-complexes.state.json을 읽어 단지별로 검색하며,
@@ -432,6 +451,7 @@ async function fetchAcademies(): Promise<Academy[]> {
           // category_name 예: "교육,학문 > 학원 > 수학학원" → realm = "수학학원"
           const parts = (doc.category_name ?? "").split(" > ");
           const realm = parts.length >= 3 ? parts[2] : (parts[parts.length - 1] ?? "기타");
+          if (!isEducationalAcademy(doc.category_name ?? "")) continue;
           seen.set(doc.id, { lat, lng, realm, source: "exact" });
         }
 

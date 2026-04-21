@@ -219,10 +219,10 @@ function assignMetrics(districts: DistrictState[], buses: BusStop[], subways: Su
     if (!hasBus) {
       district.s_transport = round(subwayDistScore * 0.75 + transferScore * 0.25, 2);
     } else if (!hasSubwayInSigungu) {
-      district.s_transport = round(busDistScore * 0.75 + busCountScore * 0.25, 2);
+      district.s_transport = round((busDistScore * 0.75 + busCountScore * 0.25) * 0.75, 2);
     } else {
       district.s_transport = round(
-        busDistScore * 0.45 + subwayDistScore * 0.30 + busCountScore * 0.15 + transferScore * 0.10, 2
+        subwayDistScore * 0.60 + transferScore * 0.20 + busDistScore * 0.13 + busCountScore * 0.07, 2
       );
     }
   }
