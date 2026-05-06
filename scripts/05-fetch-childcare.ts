@@ -2,16 +2,13 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import {
   buildUpdateSql,
-  DATA_DIR,
   DistrictState,
   fetchJsonWithRetry,
-  fetchTextWithRetry,
   flushWarningSummary,
   info,
   linearScore,
   loadState,
   nearestDistance,
-  numeric,
   paramsToUrl,
   round,
   saveState,
@@ -20,7 +17,6 @@ import {
   warn,
   writeSqlFile,
   countWithin,
-  text,
   OUTPUT_DIR,
   ensureOutputDir,
 } from "./district-score-lib";
@@ -30,49 +26,15 @@ interface ChildcareCenter {
   lat: number;
   lng: number;
   spare: number;
-  vehicle: boolean;
   sigungu: string;
   name?: string;
 }
-
-// api.childcare.go.kr: HTTP-only, XML 응답
-// 외부 IP 차단으로 직접 호출 불가 → CHILDCARE_PROXY_URL(한국 리전 Vercel) 경유
-const CHILDCARE_PROXY_URL = process.env.CHILDCARE_PROXY_URL ?? "https://childcare-proxy.vercel.app/api/childcare";
-const CHILDCARE_API_PATH = "/mediate/rest/cpmsapi030/cpmsapi030/request";
-const CHILDCARE_API_KEY = process.env.CHILDCARE_API_KEY ?? "";
-
-// 수도권 시군구 arcode (법정코드 기준, API 실측 확인)
-// 구 있는 도시는 구 단위로 분리, 구 없는 도시는 시 단위 코드 사용
-const CHILDCARE_ARCODE_MAP: Record<string, string> = {
-  // 서울 25개구
-  "11110": "종로구",   "11140": "중구",     "11170": "용산구",   "11200": "성동구",   "11215": "광진구",
-  "11230": "동대문구", "11260": "중랑구",   "11290": "성북구",   "11305": "강북구",   "11320": "도봉구",
-  "11350": "노원구",   "11380": "은평구",   "11410": "서대문구", "11440": "마포구",   "11470": "양천구",
-  "11500": "강서구",   "11530": "구로구",   "11545": "금천구",   "11560": "영등포구", "11590": "동작구",
-  "11620": "관악구",   "11650": "서초구",   "11680": "강남구",   "11710": "송파구",   "11740": "강동구",
-  // 인천 10개구군
-  "28110": "중구",     "28140": "동구",     "28177": "미추홀구", "28185": "연수구",   "28200": "남동구",
-  "28237": "부평구",   "28245": "계양구",   "28260": "서구",     "28710": "강화군",   "28720": "옹진군",
-  // 경기 – 구 있는 도시는 구 단위
-  "41111": "수원시장안구", "41113": "수원시권선구", "41115": "수원시팔달구", "41117": "수원시영통구",
-  "41131": "성남시수정구", "41133": "성남시중원구", "41135": "성남시분당구",
-  "41171": "안양시만안구", "41173": "안양시동안구",
-  "41271": "안산시상록구", "41273": "안산시단원구",
-  "41281": "고양시덕양구", "41285": "고양시일산동구", "41287": "고양시일산서구",
-  "41461": "용인시처인구", "41463": "용인시기흥구", "41465": "용인시수지구",
-  // 경기 – 단일 코드 도시
-  "41190": "부천시",   "41210": "광명시",   "41220": "평택시",   "41250": "동두천시",
-  "41290": "과천시",   "41310": "구리시",   "41360": "남양주시", "41370": "오산시",
-  "41390": "시흥시",   "41410": "군포시",   "41430": "의왕시",   "41450": "하남시",
-  "41460": "용인시",   "41480": "파주시",   "41500": "이천시",   "41550": "안성시",
-  "41570": "김포시",   "41590": "화성시",   "41610": "광주시",   "41630": "양주시",
-  "41650": "포천시",   "41800": "연천군",   "41820": "가평군",   "41830": "양평군",
-};
 
 interface ElementarySchool {
   lat: number;
   lng: number;
   sido: string;
+  source?: "neis" | "kakao";
 }
 
 interface Academy {
@@ -82,7 +44,38 @@ interface Academy {
   source: "exact" | "dong" | "sigungu";
 }
 
+interface Mall {
+  lat: number;
+  lng: number;
+}
+
+interface Pediatric {
+  lat: number;
+  lng: number;
+}
+
+interface Library {
+  lat: number;
+  lng: number;
+}
+
 const NEIS_API_KEY = process.env.NEIS_API_KEY ?? "9b61b187cc55411a90b99d802758e3a2";
+const KA_HEADER = "sdk/1.0 os/web origin/https://whatsinhere.pages.dev";
+const KAKAO_REQUEST_DELAY_MS = 50;
+const GRID_CELL_SIZE_M = 500;
+const PEDIATRIC_QUERY_RADIUS_M = 1400;
+const MALL_LIBRARY_QUERY_RADIUS_M = 2400;
+
+let _kakaoRLQueue = Promise.resolve();
+
+async function waitForKakaoRateLimit(): Promise<void> {
+  const prev = _kakaoRLQueue;
+  let release!: () => void;
+  _kakaoRLQueue = new Promise<void>((res) => { release = res; });
+  await prev;
+  await new Promise((r) => setTimeout(r, KAKAO_REQUEST_DELAY_MS));
+  release();
+}
 
 async function loadJson<T>(filename: string): Promise<T | null> {
   try {
@@ -93,232 +86,123 @@ async function loadJson<T>(filename: string): Promise<T | null> {
   }
 }
 
-function preview(textValue: string): string {
-  return textValue.replace(/\s+/g, " ").trim().slice(0, 300);
+// "경기 성남시 분당구 ..." → "성남시분당구", "서울 강남구 ..." → "강남구"
+function extractSigunguFromAddress(address: string): string {
+  const parts = address.split(" ");
+  const part1 = parts[1] ?? "";
+  const part2 = parts[2] ?? "";
+  if (part1.endsWith("시") && part2.endsWith("구")) return part1 + part2;
+  return part1;
 }
 
-function splitCSVLine(line: string): string[] {
-  const fields: string[] = [];
-  let current = "";
-  let inQuotes = false;
-  for (let i = 0; i < line.length; i++) {
-    const char = line[i];
-    if (inQuotes) {
-      if (char === '"' && line[i + 1] === '"') { current += '"'; i++; }
-      else if (char === '"') { inQuotes = false; }
-      else { current += char; }
-    } else {
-      if (char === '"') { inQuotes = true; }
-      else if (char === ',') { fields.push(current); current = ""; }
-      else { current += char; }
+function metersPerLngDegree(lat: number): number {
+  return 111320 * Math.cos((lat * Math.PI) / 180);
+}
+
+function buildGridKey(lat: number, lng: number, cellSizeM: number): string {
+  const gx = Math.floor((lng * metersPerLngDegree(lat)) / cellSizeM);
+  const gy = Math.floor((lat * 111320) / cellSizeM);
+  return `${gx},${gy}`;
+}
+
+function buildGridCenters(aptState: AptComplexState[], cellSizeM: number): Array<{ key: string; lat: number; lng: number }> {
+  const buckets = new Map<string, { latSum: number; lngSum: number; count: number }>();
+  for (const complex of aptState) {
+    if (complex.lat == null || complex.lng == null) continue;
+    const key = buildGridKey(complex.lat, complex.lng, cellSizeM);
+    const bucket = buckets.get(key) ?? { latSum: 0, lngSum: 0, count: 0 };
+    bucket.latSum += complex.lat;
+    bucket.lngSum += complex.lng;
+    bucket.count += 1;
+    buckets.set(key, bucket);
+  }
+  return [...buckets.entries()].map(([key, bucket]) => ({
+    key,
+    lat: round(bucket.latSum / bucket.count, 7),
+    lng: round(bucket.lngSum / bucket.count, 7),
+  }));
+}
+
+async function kakaoFetch(url: string, key: string, retries = 2): Promise<Response> {
+  const headers = { "Authorization": `KakaoAK ${key}`, "KA": KA_HEADER };
+  let lastErr: Error = new Error("unknown");
+  for (let i = 0; i <= retries; i++) {
+    try {
+      await waitForKakaoRateLimit();
+      const res = await fetch(url, { headers, signal: AbortSignal.timeout(10000) });
+      if (res.ok || (res.status !== 429 && res.status < 500)) return res;
+      lastErr = new Error(`HTTP ${res.status}`);
+      if (i < retries) await new Promise((r) => setTimeout(r, 300 * (i + 1)));
+    } catch (e) {
+      lastErr = e instanceof Error ? e : new Error(String(e));
+      if (i < retries) await new Promise((r) => setTimeout(r, 200 * (i + 1)));
     }
   }
-  fields.push(current);
-  return fields;
+  throw lastErr;
 }
 
-function parseCSV(text: string): Record<string, string>[] {
-  const lines = text.split(/\r?\n/);
-  if (lines.length < 2) return [];
-  const headers = splitCSVLine(lines[0]);
-  const result: Record<string, string>[] = [];
-  for (let i = 1; i < lines.length; i++) {
-    const line = lines[i].trim();
-    if (!line) continue;
-    const values = splitCSVLine(line);
-    const row: Record<string, string> = {};
-    for (let j = 0; j < headers.length; j++) row[headers[j]] = values[j] ?? "";
-    result.push(row);
-  }
-  return result;
-}
-
-function normalizeRegionName(value: string): string {
-  return value.replace(/\s+/g, "").trim();
-}
-
-
-function extractDongFromAcademyAddress(...parts: Array<string | null | undefined>): string | null {
-  const full = parts.filter(Boolean).join(" ");
-  const match = full.match(/([가-힣0-9]+동)/);
-  return match?.[1] ?? null;
-}
-
-function buildDistrictLookups(districts: DistrictState[]) {
-  const dongLookup = new Map<string, { lat: number; lng: number }>();
-  const sigunguCenters = new Map<string, { lat: number; lng: number; count: number }>();
-  for (const district of districts) {
-    if (district.center_lat == null || district.center_lng == null) continue;
-    dongLookup.set(`${district.sido}:${normalizeRegionName(district.sigungu)}:${normalizeRegionName(district.dong)}`, {
-      lat: district.center_lat,
-      lng: district.center_lng,
-    });
-    const sigunguKey = `${district.sido}:${normalizeRegionName(district.sigungu)}`;
-    const current = sigunguCenters.get(sigunguKey) ?? { lat: 0, lng: 0, count: 0 };
-    current.lat += district.center_lat;
-    current.lng += district.center_lng;
-    current.count += 1;
-    sigunguCenters.set(sigunguKey, current);
-  }
-  return {
-    dongLookup,
-    sigunguCenters: new Map(
-      [...sigunguCenters.entries()].map(([key, value]) => [key, { lat: value.lat / value.count, lng: value.lng / value.count }])
-    ),
-  };
-}
-
-/** XML 태그 한 개의 내용 추출 (CDATA 포함) */
-function xmlTag(xml: string, tag: string): string | null {
-  const re = new RegExp(`<${tag}[^>]*>(?:<!\\[CDATA\\[)?([^<\\]]*?)(?:\\]\\]>)?<\\/${tag}>`, "s");
-  const m = xml.match(re);
-  return m?.[1]?.trim() ?? null;
-}
-
-/** XML <item>…</item> 블록 전체 목록 추출 */
-function xmlItems(xml: string): string[] {
-  return [...xml.matchAll(/<item>([\s\S]*?)<\/item>/g)].map((m) => m[1]);
-}
-
-function looksLikeChildcareSchema(xml: string): boolean {
-  // API 키 오류 시 컬럼 번호(1~62)로만 채워진 스키마 응답 반환
-  // la 필드가 정수 한 두 자리면 실제 좌표가 아님
-  const la = xmlTag(xml, "la");
-  return la != null && /^\d{1,2}$/.test(la.trim());
-}
-
-async function fetchChildcareCentersFromProxy(): Promise<ChildcareCenter[] | null> {
-  if (!CHILDCARE_API_KEY) {
-    warn("05-fetch-childcare: CHILDCARE_API_KEY not set, skipping API");
-    return null;
+async function fetchChildcareCentersFromKakao(aptState: AptComplexState[]): Promise<ChildcareCenter[]> {
+  const KAKAO_KEY = process.env.KAKAO_REST_API_KEY ?? "";
+  if (!KAKAO_KEY) {
+    warn("05-fetch-childcare: KAKAO_REST_API_KEY not set, childcare metrics will be zeroed");
+    return [];
   }
 
-  const centers: ChildcareCenter[] = [];
-  let totalRequests = 0;
-  let schemaArcodes = 0;
-  let skippedCoords = 0;
-  let skippedStatus = 0;
-  let quotaExceeded = false;
+  const seen = new Map<string, ChildcareCenter>(); // place_id → center (중복 제거)
+  let reqCount = 0;
+  let errCount = 0;
 
-  for (const [arcode, sigungu] of Object.entries(CHILDCARE_ARCODE_MAP)) {
-    if (quotaExceeded) break;
+  for (const complex of aptState) {
+    if (complex.lat == null || complex.lng == null) continue;
 
-    for (let pageNo = 1; pageNo <= 50; pageNo += 1) {
-      const url = paramsToUrl(CHILDCARE_PROXY_URL, {
-        path: CHILDCARE_API_PATH,
-        key: CHILDCARE_API_KEY,
-        arcode,
-        pageNo,
-        numOfRows: 100,
-      });
+    for (const categoryCode of ["PS3", "SC4"] as const) {
+      for (let page = 1; page <= 3; page++) {
+        const url =
+          `https://dapi.kakao.com/v2/local/search/category.json` +
+          `?category_group_code=${categoryCode}` +
+          `&x=${complex.lng}&y=${complex.lat}` +
+          `&radius=1000&size=15&page=${page}&sort=distance`;
+        try {
+          const res = await kakaoFetch(url, KAKAO_KEY);
+          reqCount++;
+          if (!res.ok) { if (page === 1) errCount++; break; }
 
-      let xml: string;
-      try {
-        xml = await fetchTextWithRetry(url, { timeoutMs: 20000 });
-        totalRequests++;
-      } catch (error) {
-        warn(`05-fetch-childcare: proxy request failed arcode=${arcode} page=${pageNo} (${error instanceof Error ? error.message : String(error)})`);
-        break;
+          const data = await res.json() as {
+            documents: Array<{ id: string; y: string; x: string; place_name: string; address_name: string }>;
+            meta: { is_end: boolean };
+          };
+
+          for (const doc of data.documents) {
+            if (seen.has(doc.id)) continue;
+            const lat = parseFloat(doc.y);
+            const lng = parseFloat(doc.x);
+            if (isNaN(lat) || isNaN(lng)) continue;
+            const sigungu = extractSigunguFromAddress(doc.address_name ?? "");
+            seen.set(doc.id, { lat, lng, spare: 0, sigungu, name: doc.place_name });
+          }
+
+          if (data.meta.is_end) break;
+        } catch (e) {
+          errCount++;
+          break;
+        }
       }
+    }
 
-      // 일일 한도 초과 (INFO-300)
-      if (xml.includes("INFO-300")) {
-        warn(`05-fetch-childcare: API 일일 요청 한도 초과 (arcode=${arcode} page=${pageNo} requests=${totalRequests}) — 내일 재실행 필요`);
-        quotaExceeded = true;
-        break;
-      }
+    await new Promise((r) => setTimeout(r, 50));
 
-      // 스키마 응답 감지 (API 키 오류 시 컬럼 번호만 반환)
-      if (pageNo === 1 && looksLikeChildcareSchema(xml)) {
-        schemaArcodes++;
-        break;
-      }
-
-      const items = xmlItems(xml);
-      if (!items.length) break;
-
-      for (const item of items) {
-        const status = xmlTag(item, "crstatusname") ?? "";
-        if (status && !status.includes("정상") && !status.includes("운영")) { skippedStatus++; continue; }
-        const lat = numeric(xmlTag(item, "la"));
-        const lng = numeric(xmlTag(item, "lo"));
-        if (lat == null || lng == null) { skippedCoords++; continue; }
-        const capa = numeric(xmlTag(item, "crcapat")) ?? 0;
-        const current = numeric(xmlTag(item, "crchcnt")) ?? 0;
-        const vehicle = (xmlTag(item, "crcargbname") ?? "").includes("통학");
-        const name = xmlTag(item, "crname") ?? "";
-        // API 응답의 sigunname을 우선 사용 (정확한 매칭을 위해)
-        const centerSigungu = xmlTag(item, "sigunname") ?? sigungu;
-        centers.push({ lat, lng, spare: Math.max(capa - current, 0), vehicle, sigungu: centerSigungu, name });
-      }
-
-      if (items.length < 100) break;
+    if (reqCount > 0 && reqCount % 500 === 0) {
+      info(`05-fetch-childcare: Kakao childcare progress — requests=${reqCount} unique=${seen.size} errors=${errCount}`);
     }
   }
 
-  if (schemaArcodes > 0) {
-    warn(`05-fetch-childcare: API returned schema responses for ${schemaArcodes}/${Object.keys(CHILDCARE_ARCODE_MAP).length} arcodes — CHILDCARE_API_KEY가 만료되었거나 유효하지 않음`);
-  }
-
-  flushWarningSummary("05-fetch-childcare", "API centers with missing coordinates", skippedCoords);
-  info(`05-fetch-childcare proxy: requests=${totalRequests} centers=${centers.length} schemaArcodes=${schemaArcodes} skippedStatus=${skippedStatus}`);
-  return centers.length > 0 ? centers : null;
+  info(`05-fetch-childcare: Kakao childcare done — requests=${reqCount} unique=${seen.size} errors=${errCount}`);
+  if (errCount > 0) warn(`05-fetch-childcare: ${errCount} Kakao childcare requests failed`);
+  return [...seen.values()];
 }
 
-async function fetchChildcareCentersFromCsv(): Promise<ChildcareCenter[]> {
-  await fs.mkdir(DATA_DIR, { recursive: true });
-  const csvPath = path.join(DATA_DIR, "childcare.csv");
-
-  let csvText: string;
-  try {
-    csvText = await fs.readFile(csvPath, "utf-8");
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
-      warn("05-fetch-childcare: data/childcare.csv not found, childcare-center metrics will be zeroed");
-      return [];
-    }
-    throw error;
-  }
-
-  const rows = parseCSV(csvText);
-  const centers: ChildcareCenter[] = [];
-  let skippedStatus = 0;
-  let skippedMissingCoords = 0;
-
-  for (const row of rows) {
-    const status = row["운영현황"] ?? "";
-    if (!status.includes("정상")) { skippedStatus++; continue; }
-    const lat = numeric(row["위도"]);
-    const lng = numeric(row["경도"]);
-    if (lat == null || lng == null) { skippedMissingCoords++; continue; }
-    const capa = numeric(row["정원수"] ?? row["정원"]) ?? 0;
-    const current = numeric(row["현원수"] ?? row["현원"]) ?? 0;
-    const sigungu = row["시군구명"] ?? "";
-    const name = row["시설명"] ?? "";
-    centers.push({ lat, lng, spare: Math.max(capa - current, 0), vehicle: false, sigungu, name });
-  }
-
-  flushWarningSummary("05-fetch-childcare", "childcare centers with missing coordinates", skippedMissingCoords);
-  info(`05-fetch-childcare: loaded ${centers.length} childcare centers from CSV (skipped ${skippedStatus} non-정상)`);
-  return centers;
-}
-
-async function fetchChildcareCenters(_districts: DistrictState[]): Promise<ChildcareCenter[]> {
-  info(`05-fetch-childcare: 어린이집 데이터 수집 (proxy=${CHILDCARE_PROXY_URL})`);
-  const proxyCenters = await fetchChildcareCentersFromProxy();
-  if (proxyCenters !== null) {
-    return proxyCenters;
-  }
-  warn("05-fetch-childcare: 프록시 API 실패, CSV fallback 시도 (data/childcare.csv)");
-  return fetchChildcareCentersFromCsv();
-}
-
-async function fetchElementarySchools(districts: DistrictState[]): Promise<ElementarySchool[]> {
-  const dongLookup = new Map<string, { lat: number; lng: number; sido: string }>();
-  for (const d of districts) {
-    if (d.center_lat == null || d.center_lng == null) continue;
-    dongLookup.set(`${normalizeRegionName(d.sigungu)}:${normalizeRegionName(d.dong)}`, { lat: d.center_lat, lng: d.center_lng, sido: d.sido });
-  }
+async function fetchElementarySchools(): Promise<ElementarySchool[]> {
+  const KAKAO_KEY = process.env.KAKAO_REST_API_KEY ?? "";
 
   const officeConfigs = [
     { code: "B10", sido: "서울특별시" },
@@ -326,8 +210,9 @@ async function fetchElementarySchools(districts: DistrictState[]): Promise<Eleme
     { code: "E10", sido: "인천광역시" },
   ] as const;
 
-  const schools: ElementarySchool[] = [];
-  let skippedMissingCoords = 0;
+  interface RawSchool { name: string; sido: string; la: number | null; lo: number | null; }
+  const rawSchools: RawSchool[] = [];
+
   try {
     for (const office of officeConfigs) {
       for (let pIndex = 1; pIndex <= 20; pIndex += 1) {
@@ -343,30 +228,70 @@ async function fetchElementarySchools(districts: DistrictState[]): Promise<Eleme
         if (!items.length) break;
         for (const item of items) {
           if ((item.SCHUL_KND_SC_NM ?? "") !== "초등학교") continue;
-          const detail: string = item.ORG_RDNDA ?? "";
-          const dongMatch = detail.match(/[（(]([가-힣0-9]+동)/);
-          const dong = dongMatch?.[1];
-          const rdnma: string = item.ORG_RDNMA ?? "";
-          const sigungu = normalizeRegionName(rdnma.trim().split(/\s+/)[1] ?? "");
-          if (dong && sigungu) {
-            const coord = dongLookup.get(`${sigungu}:${normalizeRegionName(dong)}`);
-            if (coord) {
-              schools.push({ lat: coord.lat, lng: coord.lng, sido: coord.sido });
-              continue;
-            }
-          }
-          skippedMissingCoords += 1;
+          const la = parseFloat(item.LA ?? "");
+          const lo = parseFloat(item.LO ?? "");
+          rawSchools.push({
+            name: item.SCHUL_NM ?? "",
+            sido: office.sido,
+            la: (!isNaN(la) && la !== 0) ? la : null,
+            lo: (!isNaN(lo) && lo !== 0) ? lo : null,
+          });
         }
         if (items.length < 1000) break;
       }
     }
   } catch (error) {
-    warn(`05-fetch-childcare: school API failed (${error instanceof Error ? error.message : String(error)}), using ${schools.length} partial results`);
+    warn(`05-fetch-childcare: NEIS school API failed (${error instanceof Error ? error.message : String(error)})`);
   }
+
+  const schools: ElementarySchool[] = [];
+  let neisCount = 0;
+  let kakaoCount = 0;
+  let skippedCount = 0;
+  let kakaoReqCount = 0;
+
+  for (const raw of rawSchools) {
+    if (raw.la !== null && raw.lo !== null) {
+      schools.push({ lat: raw.la, lng: raw.lo, sido: raw.sido, source: "neis" });
+      neisCount++;
+      continue;
+    }
+
+    // 카카오 키워드 검색으로 실좌표 보완 (centroid fallback 없앰)
+    if (!KAKAO_KEY) { skippedCount++; continue; }
+    try {
+      const query = encodeURIComponent(`${raw.name} ${raw.sido}`);
+      const url = `https://dapi.kakao.com/v2/local/search/keyword.json?query=${query}&category_group_code=SC4&size=1`;
+      const res = await kakaoFetch(url, KAKAO_KEY);
+      kakaoReqCount++;
+
+      if (res.ok) {
+        const data = await res.json() as { documents: Array<{ x: string; y: string }> };
+        const doc = data.documents[0];
+        if (doc) {
+          const lat = parseFloat(doc.y);
+          const lng = parseFloat(doc.x);
+          if (!isNaN(lat) && !isNaN(lng)) {
+            schools.push({ lat, lng, sido: raw.sido, source: "kakao" });
+            kakaoCount++;
+            await new Promise((r) => setTimeout(r, 50));
+            continue;
+          }
+        }
+      }
+    } catch (e) { /* no-op */ }
+    skippedCount++;
+
+    if (kakaoReqCount > 0 && kakaoReqCount % 500 === 0) {
+      info(`05-fetch-childcare: school Kakao progress — requests=${kakaoReqCount} found=${kakaoCount}`);
+    }
+  }
+
+  info(`05-fetch-childcare: schools — neis=${neisCount} kakao=${kakaoCount} skipped=${skippedCount} total=${schools.length}`);
+  flushWarningSummary("05-fetch-childcare", "elementary schools with unresolved coordinates", skippedCount);
   if (schools.length === 0) {
     warn("05-fetch-childcare: school API returned no elementary school rows for capital-area office codes");
   }
-  flushWarningSummary("05-fetch-childcare", "elementary schools with unresolved coordinates", skippedMissingCoords);
   return schools;
 }
 
@@ -410,7 +335,6 @@ async function fetchAcademies(): Promise<Academy[]> {
     return [];
   }
 
-  const KA_HEADER = "sdk/1.0 os/web origin/https://whatsinhere.pages.dev";
   const seen = new Map<string, Academy>(); // place_id → Academy (중복 제거)
   let reqCount = 0;
   let errCount = 0;
@@ -427,10 +351,7 @@ async function fetchAcademies(): Promise<Academy[]> {
           `&x=${complex.lng}&y=${complex.lat}` +
           `&radius=1000&size=15&page=${page}&sort=distance`;
 
-        const res = await fetch(url, {
-          headers: { "Authorization": `KakaoAK ${KAKAO_KEY}`, "KA": KA_HEADER },
-          signal: AbortSignal.timeout(10000),
-        });
+        const res = await kakaoFetch(url, KAKAO_KEY);
         reqCount++;
 
         if (!res.ok) {
@@ -474,21 +395,133 @@ async function fetchAcademies(): Promise<Academy[]> {
   return [...seen.values()];
 }
 
+const MALL_EXCLUDE_TERMS = [
+  "이마트24", "롯데슈퍼", "홈플러스 익스프레스", "편의점", "슈퍼마켓", "익스프레스",
+];
+const LIBRARY_INCLUDE_TERMS = ["어린이", "공공", "시립", "구립", "군립"];
+const LIBRARY_EXCLUDE_TERMS = ["학교", "대학", "사립", "전문"];
+
+function isPublicLibrary(placeName: string): boolean {
+  if (!placeName.includes("도서관")) return false;
+  if (LIBRARY_EXCLUDE_TERMS.some((term) => placeName.includes(term))) return false;
+  if (LIBRARY_INCLUDE_TERMS.some((term) => placeName.includes(term))) return true;
+  return placeName.endsWith("도서관");
+}
+
+async function fetchMallsPediatricsLibraries(aptState: AptComplexState[]): Promise<{
+  malls: Mall[];
+  pediatrics: Pediatric[];
+  libraries: Library[];
+}> {
+  const KAKAO_KEY = process.env.KAKAO_REST_API_KEY ?? "";
+  if (!KAKAO_KEY) {
+    warn("05-fetch-childcare: KAKAO_REST_API_KEY not set, mall/pediatric/library metrics will be zeroed");
+    return { malls: [], pediatrics: [], libraries: [] };
+  }
+
+  const seenMalls = new Map<string, Mall>();
+  const seenPediatrics = new Map<string, Pediatric>();
+  const seenLibraries = new Map<string, Library>();
+  const gridCenters = buildGridCenters(aptState, GRID_CELL_SIZE_M);
+  let reqCount = 0;
+  let errCount = 0;
+  let nextProgressLogAt = 500;
+
+  type CallTag = "mall" | "pediatric" | "library";
+
+  for (const grid of gridCenters) {
+    const coord = `&x=${grid.lng}&y=${grid.lat}`;
+
+    const pending: Promise<{ tag: CallTag; res: Response }>[] = [
+      // MT1, CS2 각 2페이지 (4호출) — 브랜드 키워드 검색 대신 카테고리 검색
+      ...["MT1", "CS2"].flatMap((code) =>
+        [1, 2].map((page) =>
+          kakaoFetch(
+            `https://dapi.kakao.com/v2/local/search/category.json?category_group_code=${code}${coord}&radius=${MALL_LIBRARY_QUERY_RADIUS_M}&size=15&page=${page}`,
+            KAKAO_KEY
+          ).then((res) => ({ tag: "mall" as const, res }))
+        )
+      ),
+      // HP8 소아과 2페이지 (2호출)
+      ...[1, 2].map((page) =>
+        kakaoFetch(
+          `https://dapi.kakao.com/v2/local/search/category.json?category_group_code=HP8${coord}&radius=${PEDIATRIC_QUERY_RADIUS_M}&size=15&page=${page}&sort=distance`,
+          KAKAO_KEY
+        ).then((res) => ({ tag: "pediatric" as const, res }))
+      ),
+      // 도서관 키워드 (1호출)
+      kakaoFetch(
+        `https://dapi.kakao.com/v2/local/search/keyword.json?query=${encodeURIComponent("도서관")}${coord}&radius=${MALL_LIBRARY_QUERY_RADIUS_M}&size=15`,
+        KAKAO_KEY
+      ).then((res) => ({ tag: "library" as const, res })),
+    ];
+
+    const settled = await Promise.allSettled(pending);
+    reqCount += pending.length;
+
+    for (const result of settled) {
+      if (result.status === "rejected") { errCount++; continue; }
+      const { tag, res } = result.value;
+      if (!res.ok) { errCount++; continue; }
+      try {
+        const data = await res.json() as {
+          documents: Array<{ id: string; y: string; x: string; place_name: string; category_name?: string }>;
+        };
+        for (const doc of data.documents) {
+          const dlat = parseFloat(doc.y);
+          const dlng = parseFloat(doc.x);
+          if (isNaN(dlat) || isNaN(dlng)) continue;
+          if (tag === "mall") {
+            if (seenMalls.has(doc.id)) continue;
+            if (MALL_EXCLUDE_TERMS.some((t) => doc.place_name.includes(t))) continue;
+            seenMalls.set(doc.id, { lat: dlat, lng: dlng });
+          } else if (tag === "pediatric") {
+            if (seenPediatrics.has(doc.id)) continue;
+            if (!doc.place_name.includes("소아") && !(doc.category_name ?? "").includes("소아")) continue;
+            seenPediatrics.set(doc.id, { lat: dlat, lng: dlng });
+          } else {
+            if (seenLibraries.has(doc.id)) continue;
+            if (!isPublicLibrary(doc.place_name)) continue;
+            seenLibraries.set(doc.id, { lat: dlat, lng: dlng });
+          }
+        }
+      } catch { errCount++; }
+    }
+
+    await new Promise((r) => setTimeout(r, KAKAO_REQUEST_DELAY_MS));
+    if (reqCount >= nextProgressLogAt) {
+      info(`05-fetch-childcare: mall/pediatric/library progress — requests=${reqCount} malls=${seenMalls.size} pediatrics=${seenPediatrics.size} libraries=${seenLibraries.size} errors=${errCount}`);
+      nextProgressLogAt += 500;
+    }
+  }
+
+  info(`05-fetch-childcare: mall/pediatric/library done — grids=${gridCenters.length} requests=${reqCount} malls=${seenMalls.size} pediatrics=${seenPediatrics.size} libraries=${seenLibraries.size} errors=${errCount}`);
+  if (errCount > 0) warn(`05-fetch-childcare: ${errCount} mall/pediatric/library requests failed`);
+  return {
+    malls: [...seenMalls.values()],
+    pediatrics: [...seenPediatrics.values()],
+    libraries: [...seenLibraries.values()],
+  };
+}
+
 function applyChildcareScores(
   districts: DistrictState[],
   centers: ChildcareCenter[],
   schools: ElementarySchool[],
-  academies: Academy[]
+  academies: Academy[],
+  malls: Mall[],
+  pediatrics: Pediatric[],
+  libraries: Library[]
 ) {
   for (const district of districts) {
     if (district.center_lat == null || district.center_lng == null) continue;
     const point = { lat: district.center_lat, lng: district.center_lng };
     const sigunguCenters = centers.filter((row) => row.sigungu === district.sigungu);
 
-    const childcareCount = sigunguCenters.length ? countWithin(point, sigunguCenters, 1000) : 0;
-    const elementaryDistanceM = schools.length ? nearestDistance(point, schools.filter((row) => row.sido === district.sido)) : null;
-    const vehicleCount = sigunguCenters.filter((row) => row.vehicle).length;
-    const vehicleRatio = sigunguCenters.length ? round(vehicleCount / sigunguCenters.length, 4) : 0;
+    const childcareCount = countWithin(point, sigunguCenters, 1000);
+    const elementaryDistanceM = schools.length
+      ? nearestDistance(point, schools.filter((row) => row.sido === district.sido))
+      : null;
 
     const nearbyAcademies = academies.filter((a) => {
       const d = Math.abs(a.lat - (district.center_lat ?? 0)) + Math.abs(a.lng - (district.center_lng ?? 0));
@@ -501,67 +534,93 @@ function applyChildcareScores(
         .map((a) => a.realm)
     );
     const academyDiversityScore = uniqueRealms.size;
+    const mallCount2km = malls.length ? countWithin(point, malls, 2000) : 0;
+    const pediatricCount1km = pediatrics.length ? countWithin(point, pediatrics, 1000) : 0;
+    const libraryExists2km = libraries.length ? (countWithin(point, libraries, 2000) > 0 ? 1 : 0) : 0;
 
     district.raw_childcare = {
       childcareCount,
       elementaryDistanceM,
       academyCount1km,
       academyDiversityScore,
-      vehicleRatio,
+      mallCount2km,
+      pediatricCount1km,
+      libraryExists2km,
     };
 
     const households = Math.max(district.households ?? 0, 1);
     const centerPerHousehold = round(childcareCount / households, 6);
 
-    // absolute scoring (centers available)
-    const centerScore   = linearScore(centerPerHousehold,    0.01,    0);  // 100세대당1개=100
-    const schoolScore   = linearScore(elementaryDistanceM,   300,  1500);  // 300m=100, 1500m=0
-    const acaCountScore = linearScore(academyCount1km,        20,     0);  // 20개=100
-    const acaDivScore   = linearScore(academyDiversityScore,   5,     0);  // 5분야=100
-    const vehicleScore  = linearScore(vehicleRatio,          0.8,     0);  // 80%=100
+    const centerScore   = linearScore(centerPerHousehold,  0.01,     0);
+    const schoolScore   = linearScore(elementaryDistanceM,  400,  1500);
+    const acaCountScore = linearScore(academyCount1km,      150,     0);
+    const acaDivScore   = linearScore(academyDiversityScore,  5,     0);
 
-    if (centers.length === 0) {
-      district.s_childcare = round(
-        schoolScore * 0.45 + acaCountScore * 0.35 + acaDivScore * 0.20, 2
-      );
-    } else {
-      district.s_childcare = round(
-        centerScore * 0.25 + schoolScore * 0.25 + acaCountScore * 0.20 +
-        acaDivScore * 0.15 + vehicleScore * 0.15, 2
-      );
-    }
+    district.s_childcare = round(
+      centerScore * 0.30 + schoolScore * 0.30 + acaCountScore * 0.25 + acaDivScore * 0.15, 2
+    );
   }
 }
 
+async function testKakaoApi(): Promise<void> {
+  const KAKAO_KEY = process.env.KAKAO_REST_API_KEY ?? "";
+  if (!KAKAO_KEY) { warn("05-fetch-childcare: KAKAO_REST_API_KEY not set"); return; }
+  const lat = 37.5007;
+  const lng = 127.0369;
+  const tests: Array<{ name: string; url: string }> = [
+    { name: "mall (MT1)",       url: `https://dapi.kakao.com/v2/local/search/category.json?category_group_code=MT1&x=${lng}&y=${lat}&radius=${MALL_LIBRARY_QUERY_RADIUS_M}&size=5` },
+    { name: "pediatric (HP8)", url: `https://dapi.kakao.com/v2/local/search/category.json?category_group_code=HP8&x=${lng}&y=${lat}&radius=${PEDIATRIC_QUERY_RADIUS_M}&size=5` },
+    { name: "library",         url: `https://dapi.kakao.com/v2/local/search/keyword.json?query=${encodeURIComponent("도서관")}&x=${lng}&y=${lat}&radius=${MALL_LIBRARY_QUERY_RADIUS_M}&size=5` },
+    { name: "academy (AC5)",   url: `https://dapi.kakao.com/v2/local/search/category.json?category_group_code=AC5&x=${lng}&y=${lat}&radius=1000&size=5` },
+    { name: "childcare (PS3)", url: `https://dapi.kakao.com/v2/local/search/category.json?category_group_code=PS3&x=${lng}&y=${lat}&radius=1000&size=5` },
+  ];
+  info("05-fetch-childcare: --- KAKAO API TEST (역삼동 37.5007,127.0369) ---");
+  for (const t of tests) {
+    try {
+      const res = await kakaoFetch(t.url, KAKAO_KEY);
+      if (res.ok) {
+        const data = await res.json() as { documents: unknown[]; meta: { total_count: number } };
+        info(`  [OK] ${t.name}: total=${data.meta.total_count} first_batch=${data.documents.length}건`);
+      } else {
+        warn(`  [FAIL] ${t.name}: HTTP ${res.status}`);
+      }
+    } catch (e) {
+      warn(`  [ERROR] ${t.name}: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
+  info("05-fetch-childcare: --- TEST END ---");
+}
+
 async function main() {
+  if (process.argv.includes("--test")) { await testKakaoApi(); return; }
+
   const districts = await loadState();
   if (!districts.length) throw new Error("Run 00-fetch-districts.ts first");
-  const [centers, schools, academies] = await Promise.all([
-    fetchChildcareCenters(districts),
-    fetchElementarySchools(districts),
+
+  const aptState = await loadJson<AptComplexState[]>("apt-complexes.state.json");
+  if (!aptState || aptState.length === 0) {
+    warn("05-fetch-childcare: apt-complexes.state.json not found or empty — childcare centers will be zeroed");
+  }
+
+  const [centers, schools, academies, { malls, pediatrics, libraries }] = await Promise.all([
+    fetchChildcareCentersFromKakao(aptState ?? []),
+    fetchElementarySchools(),
     fetchAcademies(),
+    fetchMallsPediatricsLibraries(aptState ?? []),
   ]);
-  applyChildcareScores(districts, centers, schools, academies);
+
+  applyChildcareScores(districts, centers, schools, academies, malls, pediatrics, libraries);
   updateOverallScores(districts);
   await saveState(districts);
   await writeSqlFile("05-childcare.sql", buildUpdateSql(districts, ["s_childcare", "raw_childcare"]));
   await ensureOutputDir();
-  await fs.writeFile(path.join(OUTPUT_DIR, "childcare-raw.json"), JSON.stringify({ centers, schools, academies }, null, 2));
-  info(`05-fetch-childcare: centers=${centers.length}, schools=${schools.length}, academies=${academies.length}`);
-  if (centers.length === 0) warn("05-fetch-childcare: childcare centers dataset is empty — place data/childcare.csv in the project root");
+  await fs.writeFile(
+    path.join(OUTPUT_DIR, "childcare-raw.json"),
+    JSON.stringify({ centers, schools, academies, malls, pediatrics, libraries }, null, 2)
+  );
+  info(`05-fetch-childcare: centers=${centers.length}, schools=${schools.length}, academies=${academies.length}, malls=${malls.length}, pediatrics=${pediatrics.length}, libraries=${libraries.length}`);
+  if (centers.length === 0) warn("05-fetch-childcare: childcare centers dataset is empty");
   if (academies.length === 0) warn("05-fetch-childcare: academy dataset is empty after fetch");
-
-  // 샘플 좌표 테스트
-  const testPoints = [
-    { lat: 37.5007, lng: 127.0369, label: "송파구 단지" },
-    { lat: 37.54487, lng: 126.83967, label: "부천시 단지" },
-  ];
-  for (const tp of testPoints) {
-    const testRadius = 1000;
-    const nearbycenters = centers.filter((c) => toMeters(tp.lat, tp.lng, c.lat, c.lng) <= testRadius);
-    const nearbyAcademies = academies.filter((a) => toMeters(tp.lat, tp.lng, a.lat, a.lng) <= testRadius);
-    info(`[test] ${tp.label} (${tp.lat}, ${tp.lng}) 기준 ${testRadius}m 내 어린이집: ${nearbycenters.length}개, 학원: ${nearbyAcademies.length}개`);
-  }
 }
 
 main().catch((error) => {

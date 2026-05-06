@@ -1,10 +1,28 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { buildUpsertSql, info, loadState, updateOverallScores, writeSqlFile, OUTPUT_DIR } from "./district-score-lib";
+import { buildUpsertSql, DistrictState, info, linearScore, loadNationalPriceRef, loadState, round, updateOverallScores, writeSqlFile, OUTPUT_DIR } from "./district-score-lib";
+
+function computeValueScores(districts: DistrictState[], nationalMedianPrice: number | null): void {
+  for (const district of districts) {
+    const price = district.raw_value?.pricePerSqmMedian ?? null;
+    let priceScore: number;
+    if (price == null || nationalMedianPrice == null || nationalMedianPrice <= 0) {
+      priceScore = 50;
+    } else {
+      const ratio = price / nationalMedianPrice;
+      priceScore = linearScore(ratio, 0.5, 1.8);
+    }
+    const otherAvg = (district.s_transport + district.s_walk + district.s_childcare + district.s_safety) / 4;
+    district.s_value = round(priceScore * 0.50 + otherAvg * 0.50, 2);
+  }
+}
 
 async function main() {
   const districts = await loadState();
   if (!districts.length) throw new Error("No district state found. Run 00~07 scripts first.");
+  const nationalMedianPrice = await loadNationalPriceRef();
+  if (nationalMedianPrice != null) info(`99-merge-scores: 전국m²중위가격 기준=${round(nationalMedianPrice, 0)}만원/m²`);
+  computeValueScores(districts, nationalMedianPrice);
   updateOverallScores(districts);
 
   // Final deployment SQL must be generated from the resolved in-memory state only.

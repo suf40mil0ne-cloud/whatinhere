@@ -44,11 +44,11 @@ interface CurlProbeResult {
   errorMessage: string | null;
 }
 
-const CCTV_API_KEY = process.env.CCTV_API_KEY;
 const SAFETY_INDEX_API_KEY = process.env.SAFETY_INDEX_API_KEY;
 const SERVICE_KEY = process.env.DATA_GO_KR_SERVICE_KEY ?? DEFAULT_SERVICE_KEY;
-const CCTV_API_BASE_URL = "https://www.safetydata.go.kr/V2/api/DSSP-IF-20011";
-const SAFETY_INDEX_API_BASE_URL = "https://www.safetydata.go.kr/V2/api/DSSP-IF-00421";
+const CCTV_API_BASE_URL = "https://safety-proxy.vercel.app/api/cctv-admin";
+const ALLOWED_CCTV_PURPOSES = new Set(["생활방범", "어린이보호", "방범"]);
+const SAFETY_INDEX_API_BASE_URL = "https://safety-proxy.vercel.app/api/safety-index";
 
 const GRADE_SCORE: Record<number, number> = { 1: 100, 2: 80, 3: 60, 4: 40, 5: 20 };
 
@@ -139,58 +139,75 @@ async function runCurlProbe(url: string, args: string[]): Promise<CurlProbeResul
 }
 
 async function fetchCctv(): Promise<CctvPoint[]> {
-  if (!CCTV_API_KEY) {
-    warn("06-fetch-safety: CCTV_API_KEY missing, CCTV metrics will be zeroed");
-    return [];
-  }
-
   const rows: CctvPoint[] = [];
   let skippedMissingCoords = 0;
-  let totalFetched = 0;
-  let totalCount = Infinity;
-  const probeUrl = paramsToUrl(CCTV_API_BASE_URL, { serviceKey: CCTV_API_KEY, pageIndex: 1, pageSize: 3 });
-  const probe = await runCurlProbe(probeUrl, ["-k", "--tlsv1.2", "--max-time", "20"]);
+  const probeUrl = paramsToUrl(CCTV_API_BASE_URL, { page: 1, numOfRows: 3 });
+  const probe = await runCurlProbe(probeUrl, ["--max-time", "20"]);
   if (!probe.ok) {
-    warn(`06-fetch-safety: CCTV V2 API (공통기반_CCTV_정보_기본) host/protocol probe failed errorCode=${probe.errorCode ?? "n/a"} stderr=${preview(probe.stderr)} message=${probe.errorMessage ?? "unknown"} note=host_or_tls_issue_before_permission_check`);
+    warn(`06-fetch-safety: CCTV admin API probe failed errorCode=${probe.errorCode ?? "n/a"} stderr=${preview(probe.stderr)} message=${probe.errorMessage ?? "unknown"}`);
     return rows;
   }
-  info(`06-fetch-safety: CCTV probe status=${probe.status ?? "n/a"} content-type=${probe.contentType ?? "unknown"} body=${preview(probe.body)}`);
+  info(`06-fetch-safety: CCTV admin probe status=${probe.status ?? "n/a"} content-type=${probe.contentType ?? "unknown"} body=${preview(probe.body)}`);
   if ((probe.status != null && probe.status >= 400) || looksLikePermissionIssue(probe.body)) {
-    warn(`06-fetch-safety: CCTV V2 API (공통기반_CCTV_정보_기본) appears to reject or gate this key status=${probe.status ?? "n/a"} content-type=${probe.contentType ?? "unknown"} body=${preview(probe.body)} note=permission_or_application_issue`);
+    warn(`06-fetch-safety: CCTV admin API rejected status=${probe.status ?? "n/a"} body=${preview(probe.body)}`);
     return rows;
   }
+
+  const CONCURRENCY = 8;
+  const PAGE_SIZE = 100;
+
+  function processItems(payload: unknown): void {
+    for (const item of parseJsonItems(payload)) {
+      const purpose = text(item.INSTL_PRPS_SE_NM) ?? "";
+      if (!ALLOWED_CCTV_PURPOSES.has(purpose)) continue;
+      const lat = numeric(item.WGS84_LAT);
+      const lng = numeric(item.WGS84_LOT);
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) { skippedMissingCoords += 1; continue; }
+      if (lat < 36.9 || lat > 38.3 || lng < 126.0 || lng > 128.5) continue;
+      rows.push({ lat, lng, cameras: numeric(item.CAM_CNTOM) ?? 1 });
+    }
+  }
+
   try {
-    for (let pageIndex = 1; totalFetched < totalCount; pageIndex += 1) {
-      const url = paramsToUrl(CCTV_API_BASE_URL, {
-        serviceKey: CCTV_API_KEY,
-        pageIndex,
-        pageSize: 1000,
-      });
-      const payload = await fetchJsonWithRetry(url, { timeoutMs: 15000, legacyTls: true }) as Record<string, unknown>;
-      if (typeof payload?.totalCount === "number" && pageIndex === 1) totalCount = payload.totalCount;
-      const items = parseJsonItems(payload);
-      if (!items.length) break;
-      totalFetched += items.length;
-      for (const item of items) {
-        const cameraType = text(item.CAMERA_TYPE ?? item.cameraType) ?? "";
-        const instlPurpose = text(item.INSTL_PURPOSE ?? item.instlPurpose) ?? "";
-        const hasFilterFields = (item.CAMERA_TYPE ?? item.cameraType ?? item.INSTL_PURPOSE ?? item.instlPurpose) != null;
-        if (hasFilterFields && cameraType !== "방범용" && instlPurpose !== "범죄예방") continue;
-        const lat = numeric(item.INSTL_YCRD ?? item.latitude ?? item.lat);
-        const lng = numeric(item.INSTL_XCRD ?? item.longitude ?? item.lng);
-        if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
-          skippedMissingCoords += 1;
+    const firstUrl = paramsToUrl(CCTV_API_BASE_URL, { page: 1, numOfRows: PAGE_SIZE });
+    const firstPayload = await fetchJsonWithRetry(firstUrl, { timeoutMs: 30000 }) as Record<string, unknown>;
+    const apiBody = (firstPayload as any)?.response?.body;
+    const totalCount: number = typeof apiBody?.totalCount === "number" ? apiBody.totalCount : 0;
+    processItems(firstPayload);
+
+    if (totalCount <= 0) {
+      warn(`06-fetch-safety: CCTV admin API returned totalCount=${totalCount}, skipping remaining pages`);
+      return rows;
+    }
+
+    const totalPages = Math.ceil(totalCount / PAGE_SIZE);
+    info(`06-fetch-safety: CCTV admin totalCount=${totalCount} totalPages=${totalPages} concurrency=${CONCURRENCY}`);
+
+    const remainingPages = Array.from({ length: totalPages - 1 }, (_, i) => i + 2);
+    for (let i = 0; i < remainingPages.length; i += CONCURRENCY) {
+      const batch = remainingPages.slice(i, i + CONCURRENCY);
+      const results = await Promise.allSettled(batch.map((page) => {
+        const url = paramsToUrl(CCTV_API_BASE_URL, { page, numOfRows: PAGE_SIZE });
+        return fetchJsonWithRetry(url, { timeoutMs: 30000 }) as Promise<Record<string, unknown>>;
+      }));
+      for (const result of results) {
+        if (result.status === "rejected") {
+          if (isAuthFailure(result.reason)) throw result.reason;
+          warn(`06-fetch-safety: CCTV admin batch page failed message=${result.reason instanceof Error ? result.reason.message : String(result.reason)}`);
           continue;
         }
-        rows.push({ lat, lng, cameras: numeric(item.CAMERA_COUNT ?? item.cameraCount) ?? 1 });
+        processItems(result.value);
+      }
+      if ((i / CONCURRENCY) % 50 === 49) {
+        info(`06-fetch-safety: CCTV admin progress page=${batch[batch.length - 1]}/${totalPages} collected=${rows.length}`);
       }
     }
   } catch (error) {
     if (isAuthFailure(error)) {
-      throw new Error(`06-fetch-safety: CCTV_API_KEY rejected by CCTV API (${error instanceof Error ? error.message : String(error)})`);
+      throw new Error(`06-fetch-safety: CCTV admin API rejected auth (${error instanceof Error ? error.message : String(error)})`);
     }
     warn(
-      `06-fetch-safety: CCTV API failed message=${error instanceof Error ? error.message : String(error)} errorCode=${errorCodeOf(error) ?? "n/a"} cause=${errorCauseOf(error) ?? "n/a"} using=${rows.length}`
+      `06-fetch-safety: CCTV admin API failed message=${error instanceof Error ? error.message : String(error)} errorCode=${errorCodeOf(error) ?? "n/a"} cause=${errorCauseOf(error) ?? "n/a"} using=${rows.length}`
     );
   }
   flushWarningSummary("06-fetch-safety", "CCTV rows with missing coordinates", skippedMissingCoords);
@@ -305,7 +322,7 @@ async function fetchSafetyIndex(): Promise<Map<string, number>> {
         pageIndex,
         pageSize: 100,
       });
-      const payload = await fetchJsonWithRetry(url, { timeoutMs: 15000, legacyTls: true });
+      const payload = await fetchJsonWithRetry(url, { timeoutMs: 30000 });
       const items = parseJsonItems(payload);
       if (!items.length) break;
       for (const item of items) {
@@ -376,9 +393,18 @@ function applySafetyScores(
 async function main() {
   const districts = await loadState();
   if (!districts.length) throw new Error("Run 00-fetch-districts.ts first");
-  const [safetyIndex, cctvs, childZones, crimeStats] = await Promise.all([
+  let [safetyIndex, cctvs, childZones, crimeStats] = await Promise.all([
     fetchSafetyIndex(), fetchCctv(), fetchChildZones(), loadCrimeStats(),
   ]);
+  // child zone API 부분 실패(페이지 중단) 시 캐시 우선 사용 (수집 코드 불변, main에서만 fallback) // FIXED
+  try {
+    const cached = JSON.parse(await fs.readFile(path.join(OUTPUT_DIR, "safety-raw.json"), "utf8")) as { childZones?: ChildZonePoint[] };
+    const cachedZones = cached.childZones ?? [];
+    if (cachedZones.length > childZones.length) {
+      childZones = cachedZones;
+      info(`06-fetch-safety: child zone API partial (got ${childZones.length < cachedZones.length ? childZones.length : 0}), using cached ${cachedZones.length} zones from safety-raw.json`); // FIXED
+    }
+  } catch { /* no cache, use whatever was fetched */ }
   if (!cctvs.length && !childZones.length && safetyIndex.size === 0) {
     throw new Error("06-fetch-safety: no safety source data fetched; refusing to overwrite existing scores");
   }

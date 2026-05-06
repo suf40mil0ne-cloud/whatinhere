@@ -28,7 +28,76 @@ import {
 } from "./district-score-lib";
 
 interface BusStop extends PointRecord {}
-interface SubwayStation extends PointRecord { transfer: boolean; }
+interface SubwayStation extends PointRecord { transfer: boolean; routes: string[]; }
+
+// ─── Scoring helpers ─────────────────────────────────────────────────────────
+
+type ScoreSegment = [number, number, number, number]; // [d0, d1, s0, s1]
+
+// 구간별 비선형 — 100점 구간을 좁혀 거리 차별화 극대화
+const SUBWAY_SEGMENTS: ScoreSegment[] = [
+  [0,    150,  100, 100],  // ~150m: 100점
+  [150,  300,  100,  80],  // 150~300m
+  [300,  500,   80,  60],  // 300~500m
+  [500,  700,   60,  40],  // 500~700m
+  [700,  1000,  40,  20],  // 700~1000m
+  [1000, 1500,  20,   5],  // 1000~1500m
+  [1500, 2500,   5,   0],  // 1500~2500m
+];
+
+const BUS_SEGMENTS: ScoreSegment[] = [
+  [0,    50,  100, 100],   // ~50m: 100점
+  [50,  150,  100,  80],   // 50~150m
+  [150, 250,   80,  60],   // 150~250m
+  [250, 400,   60,  40],   // 250~400m
+  [400, 600,   40,  20],   // 400~600m
+  [600, 900,   20,   5],   // 600~900m
+  [900, 1400,   5,   0],   // 900~1400m
+];
+
+function segmentedScore(distance: number | null, segments: ScoreSegment[]): number {
+  if (distance == null) return 0;
+  for (const [d0, d1, s0, s1] of segments) {
+    if (distance <= d1) {
+      if (d0 === d1) return s0;
+      const t = (distance - d0) / (d1 - d0);
+      return s0 + (s1 - s0) * t;
+    }
+  }
+  return 0;
+}
+
+// C급 특정 패턴을 먼저 체크해 "인천1호선"→A급, "인천2호선"→S급 오분류 방지
+function lineGradeForRoute(r: string): number {
+  if (["인천1호선", "인천2호선", "경의중앙", "공항", "수인분당"].some((n) => r.includes(n))) return 0.9;
+  if (["2호선", "9호선", "신분당"].some((n) => r.includes(n))) return 1.5;
+  if (["1호선", "3호선", "4호선", "7호선"].some((n) => r.includes(n))) return 1.3;
+  if (["5호선", "6호선", "8호선"].some((n) => r.includes(n))) return 1.1;
+  return 0.7;
+}
+
+function subwayLineGrade(routes: string[]): number {
+  if (!routes.length) return 1.1;
+  return routes.reduce((best, r) => Math.max(best, lineGradeForRoute(r)), 0.7);
+}
+
+// flat-earth approximation — only used to identify which station is nearest
+function nearestSubwayInfo(
+  point: { lat: number; lng: number },
+  subways: SubwayStation[],
+): { distanceM: number; grade: number } | null {
+  if (!subways.length) return null;
+  let nearest: SubwayStation | null = null;
+  let minDist = Number.POSITIVE_INFINITY;
+  const cosLat = Math.cos((point.lat * Math.PI) / 180);
+  for (const s of subways) {
+    const dlat = (s.lat - point.lat) * 111320;
+    const dlng = (s.lng - point.lng) * 111320 * cosLat;
+    const d = Math.sqrt(dlat * dlat + dlng * dlng);
+    if (d < minDist) { minDist = d; nearest = s; }
+  }
+  return nearest ? { distanceM: minDist, grade: subwayLineGrade(nearest.routes) } : null;
+}
 
 const KAKAO_REST_API_KEY = process.env.KAKAO_REST_API_KEY;
 const SERVICE_KEY = process.env.DATA_GO_KR_SERVICE_KEY ?? DEFAULT_SERVICE_KEY;
@@ -164,7 +233,7 @@ async function fetchSubwayStations(): Promise<SubwayStation[]> {
   for (const [name, routes] of routeByName.entries()) {
     const coord = await geocodeStation(name);
     if (!coord) continue;
-    stations.push({ ...coord, transfer: routes.size > 1 });
+    stations.push({ ...coord, transfer: routes.size > 1, routes: [...routes] });
   }
   return stations;
 }
@@ -206,21 +275,36 @@ function assignMetrics(districts: DistrictState[], buses: BusStop[], subways: Su
   for (const district of districts) {
     const raw = district.raw_transport;
     if (!raw) { district.s_transport = 0; continue; }
+    if (district.center_lat == null || district.center_lng == null) { district.s_transport = 0; continue; }
 
+    const point = { lat: district.center_lat, lng: district.center_lng };
     const hasBus = buses.length > 0;
     const hasSubwayInSigungu = (subwayBySigungu.get(district.sigungu)?.length ?? 0) > 0;
 
-    // absolute scoring: best → worst thresholds
-    const busDistScore    = linearScore(raw.busStopDistanceM,        100,  800);  // 100m=100, 800m=0
-    const subwayDistScore = linearScore(raw.subwayStationDistanceM,  250, 2000);  // 250m=100, 2000m=0
-    const busCountScore   = linearScore(raw.busStopCount500m,         10,    0);  // 10개=100, 0개=0
-    const transferScore   = linearScore(raw.subwayTransferCount1km,    2,    0);  // 2개=100, 0개=0
+    // subway: 등급을 점수에 곱하지 않고 유효 거리를 줄여 전체 구간 차별화 유지
+    // S급(1.5) 역 400m → 유효 267m처럼 처리, D급(0.7) 역 400m → 유효 571m
+    const subwayInfo  = hasSubwayInSigungu ? nearestSubwayInfo(point, subways) : null;
+    const subwayGrade = subwayInfo?.grade ?? 1.0;
+    const effectiveSubwayDist = raw.subwayStationDistanceM != null
+      ? raw.subwayStationDistanceM / subwayGrade
+      : null;
+    const subwayDistScore = segmentedScore(effectiveSubwayDist, SUBWAY_SEGMENTS);
+
+    // bus: routeType 정보 없음 → 유효 거리 그대로(등급 1.0)
+    const busDistScore = segmentedScore(raw.busStopDistanceM, BUS_SEGMENTS);
+
+    // count-based scores (unchanged)
+    const busCountScore = linearScore(raw.busStopCount500m,       10, 0); // 10개=100, 0개=0
+    const transferScore = linearScore(raw.subwayTransferCount1km,  2, 0); // 2개=100, 0개=0
 
     if (!hasBus) {
+      // 지하철만
       district.s_transport = round(subwayDistScore * 0.75 + transferScore * 0.25, 2);
     } else if (!hasSubwayInSigungu) {
+      // 버스만
       district.s_transport = round((busDistScore * 0.75 + busCountScore * 0.25) * 0.75, 2);
     } else {
+      // 버스 + 지하철
       district.s_transport = round(
         subwayDistScore * 0.60 + transferScore * 0.20 + busDistScore * 0.13 + busCountScore * 0.07, 2
       );

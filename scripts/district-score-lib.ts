@@ -57,7 +57,9 @@ export interface RawChildcare {
   elementaryDistanceM: number | null;
   academyCount1km: number | null;
   academyDiversityScore: number | null;
-  vehicleRatio: number | null;
+  mallCount2km: number | null;
+  pediatricCount1km: number | null;
+  libraryExists2km: number | null;
 }
 
 export interface RawSafety {

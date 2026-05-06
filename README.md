@@ -63,6 +63,7 @@
 │     ├─ types.ts
 │     └─ utils/{hash.ts,id.ts}
 ├─ wrangler.toml
+├─ wrangler.pages.toml
 ├─ vite.config.ts
 ├─ tsconfig.json
 ├─ .env.example
@@ -176,6 +177,9 @@ Vite 클라이언트 코드에서는 `process.env.NEXT_PUBLIC_*` 또는 `KAKAO_M
   - `VITE_KAKAO_MAP_JS_KEY`
   - `VITE_API_BASE_URL`
 
+루트에는 Worker용 `wrangler.toml`과 Pages용 `wrangler.pages.toml`을 분리해서 둔다.
+현재 프론트는 `/api/*`를 같은 도메인에서 호출하고, `functions/api/[[path]].ts`가 `worker/src/index.ts`를 연결하므로 기능을 바꾸지 않고도 배포 설정만 분리할 수 있다.
+
 Cloudflare Pages에서는 `Production`과 `Preview` 환경 모두에 `VITE_KAKAO_MAP_JS_KEY`를 넣는 편이 안전하다.
 값을 바꾼 뒤에는 재배포가 필요하며, 문제가 남아 있으면 `Clear build cache` 후 다시 배포한다.
 
@@ -195,6 +199,13 @@ VITE_KAKAO_MAP_JS_KEY=your_kakao_javascript_key_here
 - `wrangler.toml`에서 D1 binding 설정
 - 배포
 ```bash
+npm run deploy:worker
+```
+
+### 권장 배포 순서
+```bash
+npm run build
+npm run deploy:web
 npm run deploy:worker
 ```
 
