@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { RadarChart, AptScoreBars, type AptScores } from "../components/AptStatsCard";
+import { ExternalLinks } from "../components/ExternalLinks";
 
 const MY_APT_KEY = "whatsinhere_my_apt";
 
@@ -139,7 +140,10 @@ export function MyAptPage() {
       {detail && !detailLoading && (
         <div className="my-apt-page__card">
           <div className="my-apt-card__header">
-            <h2 className="my-apt-card__name">{detail.name}</h2>
+            <h2 className="my-apt-card__name">
+              {detail.name}
+              <ExternalLinks name={detail.name} />
+            </h2>
             {detail.address && <p className="my-apt-card__address">{detail.address}</p>}
             <div className="my-apt-card__meta">
               {detail.builtYear && <span>{detail.builtYear}년 준공</span>}

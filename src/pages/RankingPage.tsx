@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { RadarChart, AptScoreBars, type AptScores } from "../components/AptStatsCard";
+import { ExternalLinks } from "../components/ExternalLinks";
 
 interface RankingItem {
   id: string;
@@ -154,7 +155,10 @@ export function RankingPage() {
                   {idx < 3 ? RANK_MEDALS[idx] : `${idx + 1}`}
                 </span>
                 <span className="rank-item__info">
-                  <span className="rank-item__name">{item.name}</span>
+                  <span className="rank-item__name">
+                    {item.name}
+                    <ExternalLinks name={item.name} />
+                  </span>
                   {item.sigungu && (
                     <span className="rank-item__region">{item.sigungu}</span>
                   )}
