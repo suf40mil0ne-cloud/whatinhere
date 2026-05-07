@@ -47,6 +47,8 @@ interface Academy {
 interface Mall {
   lat: number;
   lng: number;
+  name: string;
+  category: "MT1" | "CS2";
 }
 
 interface Pediatric {
@@ -396,7 +398,14 @@ async function fetchAcademies(): Promise<Academy[]> {
 }
 
 const MALL_EXCLUDE_TERMS = [
-  "이마트24", "롯데슈퍼", "홈플러스 익스프레스", "편의점", "슈퍼마켓", "익스프레스",
+  // 소형 편의점/슈퍼마켓 체인
+  "이마트24", "이마트에브리데이",
+  "롯데슈퍼", "롯데프레시",
+  "홈플러스 익스프레스", "홈플러스익스프레스",
+  "GS슈퍼마켓", "GS더프레시",
+  "노브랜드",
+  // 일반 키워드
+  "편의점", "슈퍼마켓", "익스프레스",
 ];
 const LIBRARY_INCLUDE_TERMS = ["어린이", "공공", "시립", "구립", "군립"];
 const LIBRARY_EXCLUDE_TERMS = ["학교", "대학", "사립", "전문"];
@@ -425,6 +434,7 @@ async function fetchMallsPediatricsLibraries(aptState: AptComplexState[]): Promi
   const gridCenters = buildGridCenters(aptState, GRID_CELL_SIZE_M);
   let reqCount = 0;
   let errCount = 0;
+  let excludedMallCount = 0;
   let nextProgressLogAt = 500;
 
   type CallTag = "mall" | "pediatric" | "library";
@@ -433,14 +443,12 @@ async function fetchMallsPediatricsLibraries(aptState: AptComplexState[]): Promi
     const coord = `&x=${grid.lng}&y=${grid.lat}`;
 
     const pending: Promise<{ tag: CallTag; res: Response }>[] = [
-      // MT1, CS2 각 2페이지 (4호출) — 브랜드 키워드 검색 대신 카테고리 검색
-      ...["MT1", "CS2"].flatMap((code) =>
-        [1, 2].map((page) =>
-          kakaoFetch(
-            `https://dapi.kakao.com/v2/local/search/category.json?category_group_code=${code}${coord}&radius=${MALL_LIBRARY_QUERY_RADIUS_M}&size=15&page=${page}`,
-            KAKAO_KEY
-          ).then((res) => ({ tag: "mall" as const, res }))
-        )
+      // MT1만 사용 — CS2(편의점)는 문화센터 없는 소형매장이므로 제외
+      ...[1, 2].map((page) =>
+        kakaoFetch(
+          `https://dapi.kakao.com/v2/local/search/category.json?category_group_code=MT1${coord}&radius=${MALL_LIBRARY_QUERY_RADIUS_M}&size=15&page=${page}`,
+          KAKAO_KEY
+        ).then((res) => ({ tag: "mall" as const, res }))
       ),
       // HP8 소아과 2페이지 (2호출)
       ...[1, 2].map((page) =>
@@ -465,7 +473,7 @@ async function fetchMallsPediatricsLibraries(aptState: AptComplexState[]): Promi
       if (!res.ok) { errCount++; continue; }
       try {
         const data = await res.json() as {
-          documents: Array<{ id: string; y: string; x: string; place_name: string; category_name?: string }>;
+          documents: Array<{ id: string; y: string; x: string; place_name: string; category_name?: string; category_group_code?: string }>;
         };
         for (const doc of data.documents) {
           const dlat = parseFloat(doc.y);
@@ -473,8 +481,8 @@ async function fetchMallsPediatricsLibraries(aptState: AptComplexState[]): Promi
           if (isNaN(dlat) || isNaN(dlng)) continue;
           if (tag === "mall") {
             if (seenMalls.has(doc.id)) continue;
-            if (MALL_EXCLUDE_TERMS.some((t) => doc.place_name.includes(t))) continue;
-            seenMalls.set(doc.id, { lat: dlat, lng: dlng });
+            if (MALL_EXCLUDE_TERMS.some((t) => doc.place_name.includes(t))) { excludedMallCount++; continue; }
+            seenMalls.set(doc.id, { lat: dlat, lng: dlng, name: doc.place_name, category: (doc.category_group_code ?? "MT1") as "MT1" | "CS2" });
           } else if (tag === "pediatric") {
             if (seenPediatrics.has(doc.id)) continue;
             if (!doc.place_name.includes("소아") && !(doc.category_name ?? "").includes("소아")) continue;
@@ -490,12 +498,14 @@ async function fetchMallsPediatricsLibraries(aptState: AptComplexState[]): Promi
 
     await new Promise((r) => setTimeout(r, KAKAO_REQUEST_DELAY_MS));
     if (reqCount >= nextProgressLogAt) {
-      info(`05-fetch-childcare: mall/pediatric/library progress — requests=${reqCount} malls=${seenMalls.size} pediatrics=${seenPediatrics.size} libraries=${seenLibraries.size} errors=${errCount}`);
+      info(`05-fetch-childcare: mall/pediatric/library progress — requests=${reqCount} malls=${seenMalls.size} pediatrics=${seenPediatrics.size} libraries=${seenLibraries.size} excluded=${excludedMallCount} errors=${errCount}`);
       nextProgressLogAt += 500;
     }
   }
 
-  info(`05-fetch-childcare: mall/pediatric/library done — grids=${gridCenters.length} requests=${reqCount} malls=${seenMalls.size} pediatrics=${seenPediatrics.size} libraries=${seenLibraries.size} errors=${errCount}`);
+  const mt1Count = [...seenMalls.values()].filter((m) => m.category === "MT1").length;
+  const cs2Count = [...seenMalls.values()].filter((m) => m.category === "CS2").length;
+  info(`05-fetch-childcare: mall/pediatric/library done — grids=${gridCenters.length} requests=${reqCount} malls=${seenMalls.size} (MT1=${mt1Count} CS2=${cs2Count} 제외=${excludedMallCount}) pediatrics=${seenPediatrics.size} libraries=${seenLibraries.size} errors=${errCount}`);
   if (errCount > 0) warn(`05-fetch-childcare: ${errCount} mall/pediatric/library requests failed`);
   return {
     malls: [...seenMalls.values()],
@@ -589,6 +599,39 @@ async function testKakaoApi(): Promise<void> {
     }
   }
   info("05-fetch-childcare: --- TEST END ---");
+
+  info("05-fetch-childcare: --- MALL SAMPLE (역삼동) ---");
+  const mallSamples: Array<{ name: string; category: string; filtered: boolean }> = [];
+  for (const code of ["MT1", "CS2"]) {
+    for (let page = 1; page <= 2; page++) {
+      try {
+        const url = `https://dapi.kakao.com/v2/local/search/category.json?category_group_code=${code}&x=${lng}&y=${lat}&radius=${MALL_LIBRARY_QUERY_RADIUS_M}&size=15&page=${page}`;
+        const res = await kakaoFetch(url, KAKAO_KEY);
+        if (res.ok) {
+          const data = await res.json() as { documents: Array<{ place_name: string; category_group_code?: string }>; meta: { is_end: boolean } };
+          for (const doc of data.documents) {
+            const filtered = MALL_EXCLUDE_TERMS.some((t) => doc.place_name.includes(t));
+            mallSamples.push({ name: doc.place_name, category: doc.category_group_code ?? code, filtered });
+          }
+          if (data.meta.is_end) break;
+        }
+      } catch (e) {
+        warn(`  [ERROR] mall ${code} p${page}: ${e instanceof Error ? e.message : String(e)}`);
+      }
+    }
+  }
+  const shown = mallSamples.slice(0, 20);
+  for (const s of shown) {
+    info(`  ${s.filtered ? "[제외]" : "[포함]"} [${s.category}] ${s.name}`);
+  }
+  const includedNames = ["이마트24", "롯데슈퍼", "홈플러스 익스프레스", "GS슈퍼마켓", "이마트에브리데이"];
+  const leaked = mallSamples.filter((s) => !s.filtered && includedNames.some((kw) => s.name.includes(kw)));
+  if (leaked.length > 0) {
+    warn(`  [경고] 소형 매장 필터 누락: ${leaked.map((s) => s.name).join(", ")}`);
+  } else {
+    info("  [OK] 소형 매장 필터 정상 작동 (이마트24/롯데슈퍼/홈플러스익스프레스/GS슈퍼마켓/이마트에브리데이 제외 확인)");
+  }
+  info("05-fetch-childcare: --- MALL SAMPLE END ---");
 }
 
 async function main() {
