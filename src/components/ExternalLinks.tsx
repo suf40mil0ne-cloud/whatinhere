@@ -1,28 +1,30 @@
 import { useState } from "react";
 
+function gFavicon(domain: string) {
+  return `https://www.google.com/s2/favicons?domain=${domain}&sz=32`;
+}
+
 const LINKS = [
   {
     key: "naver",
     label: "네이버부동산에서 보기",
-    href: (name: string) => `https://land.naver.com/search/search.naver?query=${encodeURIComponent(name)}`,
-    favicon: "https://land.naver.com/favicon.ico",
+    href: (name: string) => `https://new.land.naver.com/search?query=${encodeURIComponent(name)}`,
+    favicon: gFavicon("land.naver.com"),
     fallback: "N",
   },
   {
     key: "hogangnono",
     label: "호갱노노에서 보기",
     href: (name: string) => `https://hogangnono.com/search?q=${encodeURIComponent(name)}`,
-    favicon: "https://hogangnono.com/favicon.ico",
+    favicon: gFavicon("hogangnono.com"),
     fallback: "호",
   },
-  {
-    key: "kb",
-    label: "KB부동산에서 보기",
-    href: (name: string) => `https://kbland.kr/map?SearchWord=${encodeURIComponent(name)}`,
-    favicon: "https://kbland.kr/favicon.ico",
-    fallback: "KB",
-  },
 ];
+
+const RICHGO_FAVICON = gFavicon("richgo.ai");
+
+// Module-level: shared across all component instances, persists for the page lifetime
+const richgoCache = new Map<string, string | null>();
 
 function FaviconIcon({ src, fallback }: { src: string; fallback: string }) {
   const [failed, setFailed] = useState(false);
@@ -39,6 +41,41 @@ function FaviconIcon({ src, fallback }: { src: string; fallback: string }) {
 }
 
 export function ExternalLinks({ name }: { name: string }) {
+  const [richgoLoading, setRichgoLoading] = useState(false);
+
+  async function handleRichgoClick(e: React.MouseEvent) {
+    e.preventDefault();
+    if (richgoLoading) return;
+
+    if (richgoCache.has(name)) {
+      const danjiId = richgoCache.get(name) ?? null;
+      window.open(
+        danjiId ? `https://m.richgo.ai/danji/${danjiId}` : "https://m.richgo.ai/pc",
+        "_blank",
+        "noopener,noreferrer",
+      );
+      return;
+    }
+
+    setRichgoLoading(true);
+    try {
+      const res = await fetch(`/api/richgo-search?name=${encodeURIComponent(name)}`);
+      const data = await res.json() as { danjiId: string | null };
+      const danjiId = data.danjiId ?? null;
+      richgoCache.set(name, danjiId);
+      window.open(
+        danjiId ? `https://m.richgo.ai/danji/${danjiId}` : "https://m.richgo.ai/pc",
+        "_blank",
+        "noopener,noreferrer",
+      );
+    } catch {
+      richgoCache.set(name, null);
+      window.open("https://m.richgo.ai/pc", "_blank", "noopener,noreferrer");
+    } finally {
+      setRichgoLoading(false);
+    }
+  }
+
   return (
     <span className="ext-links" onClick={(e) => e.stopPropagation()}>
       {LINKS.map(({ key, label, href, favicon, fallback }) => (
@@ -54,6 +91,18 @@ export function ExternalLinks({ name }: { name: string }) {
           <FaviconIcon src={favicon} fallback={fallback} />
         </a>
       ))}
+      <button
+        type="button"
+        className="ext-link"
+        title="리치고에서 보기"
+        aria-label="리치고에서 보기"
+        onClick={handleRichgoClick}
+        disabled={richgoLoading}
+      >
+        {richgoLoading
+          ? <span className="ext-link__spinner" />
+          : <FaviconIcon src={RICHGO_FAVICON} fallback="리" />}
+      </button>
     </span>
   );
 }

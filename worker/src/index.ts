@@ -10,6 +10,7 @@ import { kakaoLoginRedirect, kakaoCallback, getMe, logout, updateNickname } from
 import { createBattle, getBattle, addBattleComment, likeBattleComment, addDispute, getRanking, getHot, getCommentsFeed } from "./api/battles";
 import { getRanking as getScoreRanking } from "./api/ranking";
 import { getTrendHot, getTrendPopular, getTrendRecent } from "./api/trends";
+import { richgoSearch } from "./api/richgo";
 import type { Env } from "./types";
 
 function withCors(request: Request, response: Response): Response {
@@ -95,6 +96,9 @@ export default {
         return withCors(request, await runCollectSafety(request, env));
       }
 
+      if (request.method === "GET" && path === "/api/richgo-search") {
+        return withCors(request, await richgoSearch(request));
+      }
       if (request.method === "GET" && path === "/api/ranking") {
         return withCors(request, await getScoreRanking(request, env));
       }
