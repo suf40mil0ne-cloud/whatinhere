@@ -4,7 +4,7 @@ const LINKS = [
   {
     key: "naver",
     label: "네이버에서 검색",
-    href: (name: string) => `https://search.naver.com/search.naver?query=${encodeURIComponent(name)}+아파트`,
+    href: (name: string) => `https://search.naver.com/search.naver?query=${encodeURIComponent(name)}`,
     favicon: "https://www.naver.com/favicon.ico",
     fallback: "N",
   },
@@ -14,13 +14,6 @@ const LINKS = [
     href: (name: string) => `https://hogangnono.com/search?q=${encodeURIComponent(name)}`,
     favicon: "https://hogangnono.com/favicon.ico",
     fallback: "호",
-  },
-  {
-    key: "richgo",
-    label: "리치고에서 검색",
-    href: (name: string) => `https://search.naver.com/search.naver?query=${encodeURIComponent(name)}+리치고`,
-    favicon: "https://m.richgo.ai/favicon.ico",
-    fallback: "리",
   },
 ];
 
