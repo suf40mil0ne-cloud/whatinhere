@@ -363,12 +363,11 @@ async function main() {
       if (nationalMedianPrice == null || nationalMedianPrice <= 0) {
         priceScore = 50;
       } else {
-        priceScore = linearScore(row.avgPricePerM2 / nationalMedianPrice, 0.7, 2.0);
+        priceScore = linearScore(row.avgPricePerM2 / nationalMedianPrice, 0.5, 4.0);
       }
-      const otherAvg = ((sTransport ?? 0) + (sWalk ?? 0) + (sChildcare ?? 0) + (sSafety ?? 0)) / 4;
-      sValue = round(priceScore * 0.50 + otherAvg * 0.50, 2);
-    } else if (row.districtCode != null) {
-      sValue = districtValueMap.get(row.districtCode) ?? null;
+      const parts = [sTransport, sWalk, sChildcare, sSafety].filter((v) => v != null) as number[];
+      const otherAvg = parts.length ? parts.reduce((a, b) => a + b, 0) / parts.length : 0;
+      sValue = round(priceScore * 0.70 + otherAvg * 0.30, 2);
     }
 
     const setClauses: string[] = [];

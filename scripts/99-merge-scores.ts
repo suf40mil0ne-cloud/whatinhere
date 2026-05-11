@@ -10,10 +10,10 @@ function computeValueScores(districts: DistrictState[], nationalMedianPrice: num
       priceScore = 50;
     } else {
       const ratio = price / nationalMedianPrice;
-      priceScore = linearScore(ratio, 0.5, 1.8);
+      priceScore = linearScore(ratio, 0.5, 4.0);
     }
     const otherAvg = (district.s_transport + district.s_walk + district.s_childcare + district.s_safety) / 4;
-    district.s_value = round(priceScore * 0.50 + otherAvg * 0.50, 2);
+    district.s_value = round(priceScore * 0.70 + otherAvg * 0.30, 2);
   }
 }
 
