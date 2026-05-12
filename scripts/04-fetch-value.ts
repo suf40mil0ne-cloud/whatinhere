@@ -1,3 +1,6 @@
+import fs from "node:fs/promises";
+import path from "node:path";
+import type { AptComplexState } from "./07-fetch-apt-complexes";
 import {
   buildUpdateSql,
   DEFAULT_SERVICE_KEY,
@@ -7,8 +10,12 @@ import {
   loadState,
   median,
   numeric,
+  OUTPUT_DIR,
   paramsToUrl,
+  quote,
+  round,
   saveState,
+  sqlValue,
   warn,
   writeSqlFile,
   xmlItems,
@@ -21,6 +28,7 @@ const PAGE_SIZE = 1000;
 interface TradeRow {
   lawdCd: string;
   dong: string;
+  aptNm: string;
   unitPrice: number;
 }
 
@@ -154,7 +162,7 @@ async function fetchTrades(lawdCds: string[]): Promise<TradeRow[]> {
             const amount = numeric(xmlTag(item, "dealAmount"));
             const dong = lastRegionToken(xmlTag(item, "umdNm") ?? xmlTag(item, "umdNmNm") ?? xmlTag(item, "법정동") ?? "");
             if (!dong || area == null || amount == null || area <= 0) continue;
-            rows.push({ lawdCd, dong, unitPrice: amount / area });
+            rows.push({ lawdCd, dong, aptNm: xmlTag(item, "aptNm")?.trim() ?? "", unitPrice: amount / area });
           }
           if (!items.length) break;
           if (items.length < PAGE_SIZE) break;
@@ -192,6 +200,100 @@ function assignValues(districts: DistrictState[], trades: TradeRow[]) {
   // s_value는 99-merge-scores.ts에서 모든 점수 확정 후 계산
 }
 
+function normalizeAptName(name: string): string {
+  return name
+    .replace(/\s+/g, "")
+    .replace(/아파트$/, "")
+    .replace(/\(.*?\)/g, "")
+    .replace(/[·•·]/g, "")      // 중점 류 특수문자
+    .replace(/제(\d)/g, "$1")   // 제2단지 → 2단지
+    .toLowerCase();
+}
+
+async function assignAptPrices(districts: DistrictState[], trades: TradeRow[]): Promise<void> {
+  let aptState: AptComplexState[];
+  try {
+    const raw = await fs.readFile(path.join(OUTPUT_DIR, "apt-complexes.state.json"), "utf8");
+    aptState = JSON.parse(raw) as AptComplexState[];
+  } catch {
+    warn("04-fetch-value: apt-complexes.state.json not found, skipping apt price assignment");
+    return;
+  }
+  if (!aptState.length) return;
+
+  const districtByCode = new Map(districts.map((d) => [d.code, d]));
+
+  // dong을 키에서 제외: district.dong=행정동, API umdNm=법정동이라 거의 항상 불일치.
+  // lawdCd(시군구) 범위로만 좁히고 단지명으로 매칭.
+  const aptTrades = new Map<string, number[]>();
+  for (const row of trades) {
+    if (!row.aptNm) continue;
+    const normName = normalizeAptName(row.aptNm);
+    if (!normName) continue;
+    const key = `${row.lawdCd}:${normName}`;
+    const arr = aptTrades.get(key) ?? [];
+    arr.push(row.unitPrice);
+    aptTrades.set(key, arr);
+  }
+
+  const sqlLines = ["BEGIN TRANSACTION;"];
+  const priceState: Array<{ id: string; avgPricePerM2: number }> = [];
+  let matched = 0;
+  const unmatched: string[] = [];
+
+  for (const apt of aptState) {
+    const district = apt.districtCode ? districtByCode.get(apt.districtCode) : null;
+    if (!district) { unmatched.push(apt.name); continue; }
+    const lawdCd = CAPITAL_LAWD_CODES[`${district.sido}:${district.sigungu}`];
+    if (!lawdCd) { unmatched.push(apt.name); continue; }
+
+    const normName = normalizeAptName(apt.name);
+    const sigunguPrefix = `${lawdCd}:`;
+
+    // 1순위: 정규화된 이름 완전 일치
+    let prices = aptTrades.get(`${sigunguPrefix}${normName}`);
+
+    // 2순위: 포함 관계 (단지 번호 없는 API 응답, 표기 차이 대응)
+    if (!prices) {
+      let bestKey: string | null = null;
+      let bestLen = 0;
+      for (const key of aptTrades.keys()) {
+        if (!key.startsWith(sigunguPrefix)) continue;
+        const keyName = key.slice(sigunguPrefix.length);
+        const contained = keyName.includes(normName) || normName.includes(keyName);
+        if (contained && keyName.length > bestLen) {
+          bestKey = key;
+          bestLen = keyName.length;
+        }
+      }
+      if (bestKey) prices = aptTrades.get(bestKey);
+    }
+
+    if (prices && prices.length > 0) {
+      const med = median(prices);
+      if (med != null) {
+        const price = round(med, 2);
+        sqlLines.push(`UPDATE apt_complexes SET avg_price_per_m2 = ${sqlValue(price)} WHERE id = ${quote(apt.id)};`);
+        priceState.push({ id: apt.id, avgPricePerM2: price });
+        matched++;
+        continue;
+      }
+    }
+    unmatched.push(apt.name);
+  }
+
+  sqlLines.push("COMMIT;");
+  await writeSqlFile("04-apt-prices.sql", `${sqlLines.join("\n")}\n`);
+  await fs.writeFile(path.join(OUTPUT_DIR, "04-apt-prices.state.json"), JSON.stringify(priceState), "utf8");
+
+  const total = aptState.length;
+  const rate = total > 0 ? ((matched / total) * 100).toFixed(1) : "0.0";
+  info(`04-fetch-value: apt complexes total=${total}, matched=${matched}, rate=${rate}%`);
+  if (unmatched.length > 0) {
+    info(`04-fetch-value: unmatched sample: ${unmatched.slice(0, 10).join(", ")}`);
+  }
+}
+
 async function main() {
   const districts = await loadState();
   if (!districts.length) throw new Error("Run 00-fetch-districts.ts first");
@@ -202,6 +304,7 @@ async function main() {
   await saveState(districts);
   await writeSqlFile("04-value.sql", buildUpdateSql(districts, ["raw_value"]));
   info(`04-fetch-value: trades=${trades.length}`);
+  await assignAptPrices(districts, trades);
 }
 
 main().catch((error) => {

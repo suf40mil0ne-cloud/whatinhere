@@ -120,6 +120,9 @@ async function main() {
     return;
   }
 
+  const aptPricesRaw = await loadJson<Array<{ id: string; avgPricePerM2: number }>>("04-apt-prices.state.json");
+  const aptPriceMap = new Map<string, number>(aptPricesRaw?.map((p) => [p.id, p.avgPricePerM2]) ?? []);
+
   const transportRaw = await loadJson<{ buses: BusStop[]; subways: SubwayStation[] }>("transport-raw.json");
   const walkRaw = await loadJson<{ parks: Park[] }>("walk-raw.json");
   const childcareRaw = await loadJson<{ centers: ChildcareCenter[]; schools: ElementarySchool[]; academies: Academy[]; malls: Mall[]; pediatrics: Pediatric[]; libraries: Library[] }>("childcare-raw.json");
@@ -206,7 +209,7 @@ async function main() {
         districtCode: apt.districtCode ?? null,
         sigungu: apt.sigungu,
         totalUnits: apt.totalUnits ?? 1,
-        avgPricePerM2: apt.avgPricePerM2 ?? null,
+        avgPricePerM2: aptPriceMap.get(apt.id) ?? null,
         busStopCount500m: hasBus ? countWithin(point, buses, 500) : 0,
         busStopDistanceM: hasBus ? nearestDistance(point, buses) : null,
         subwayDistanceM: hasSubway ? nearestDistance(point, subways) : null,
