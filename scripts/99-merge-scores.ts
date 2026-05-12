@@ -1,6 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { buildUpsertSql, DistrictState, info, linearScore, loadNationalPriceRef, loadState, round, updateOverallScores, writeSqlFile, OUTPUT_DIR } from "./district-score-lib";
+import { buildUpsertSql, DistrictState, info, linearScore, loadState, round, updateOverallScores, writeSqlFile, OUTPUT_DIR } from "./district-score-lib";
 
 function computeValueScores(districts: DistrictState[], nationalMedianPrice: number | null): void {
   for (const district of districts) {
@@ -10,18 +10,32 @@ function computeValueScores(districts: DistrictState[], nationalMedianPrice: num
       priceScore = 50;
     } else {
       const ratio = price / nationalMedianPrice;
-      priceScore = linearScore(ratio, 0.5, 4.0);
+      priceScore = linearScore(ratio, 0.3, 3.0);
     }
     const otherAvg = (district.s_transport + district.s_walk + district.s_childcare + district.s_safety) / 4;
     district.s_value = round(priceScore * 0.70 + otherAvg * 0.30, 2);
   }
 }
 
+async function loadMetroMedianPrice(): Promise<number | null> {
+  const aptPricesPath = path.join(OUTPUT_DIR, "04-apt-prices.state.json");
+  let raw: string;
+  try {
+    raw = await fs.readFile(aptPricesPath, "utf8");
+  } catch {
+    return null;
+  }
+  const priceState = JSON.parse(raw) as Array<{ id: string; avgPricePerM2: number }>;
+  const prices = priceState.map((p) => p.avgPricePerM2).filter((v) => v != null && v > 0).sort((a, b) => a - b);
+  if (!prices.length) return null;
+  return prices[Math.floor(prices.length / 2)];
+}
+
 async function main() {
   const districts = await loadState();
   if (!districts.length) throw new Error("No district state found. Run 00~07 scripts first.");
-  const nationalMedianPrice = await loadNationalPriceRef();
-  if (nationalMedianPrice != null) info(`99-merge-scores: 전국m²중위가격 기준=${round(nationalMedianPrice, 0)}만원/m²`);
+  const nationalMedianPrice = await loadMetroMedianPrice();
+  if (nationalMedianPrice != null) info(`99-merge-scores: 수도권 실거래 중위가격=${round(nationalMedianPrice, 0)}만원/m²`);
   computeValueScores(districts, nationalMedianPrice);
   updateOverallScores(districts);
 

@@ -4,7 +4,6 @@ import {
   info,
   linearScore,
   loadCrimeStats,
-  loadNationalPriceRef,
   loadState,
   nearestDistance,
   countWithin,
@@ -180,7 +179,19 @@ async function main() {
   }
 
   const crimeStats = await loadCrimeStats();
-  const nationalMedianPrice = await loadNationalPriceRef();
+  const aptPricesPathForRef = path.join(OUTPUT_DIR, "04-apt-prices.state.json");
+  let nationalMedianPrice: number | null = null;
+  try {
+    const aptPricesRawRef = await fs.readFile(aptPricesPathForRef, "utf8");
+    const aptPricesRef = JSON.parse(aptPricesRawRef) as Array<{ id: string; avgPricePerM2: number }>;
+    const sortedPrices = aptPricesRef.map((p) => p.avgPricePerM2).filter((v) => v != null && v > 0).sort((a, b) => a - b);
+    if (sortedPrices.length) {
+      nationalMedianPrice = sortedPrices[Math.floor(sortedPrices.length / 2)];
+      info(`08-score-by-complex: 수도권 실거래 중위가격=${round(nationalMedianPrice, 0)}만원/m²`);
+    }
+  } catch {
+    // 04-apt-prices.state.json 없으면 null 유지
+  }
   const hasCrimeStats = crimeStats.size > 0;
 
   const districtState = await loadState();
@@ -366,7 +377,7 @@ async function main() {
       if (nationalMedianPrice == null || nationalMedianPrice <= 0) {
         priceScore = 50;
       } else {
-        priceScore = linearScore(row.avgPricePerM2 / nationalMedianPrice, 0.5, 4.0);
+        priceScore = linearScore(row.avgPricePerM2 / nationalMedianPrice, 0.3, 3.0);
       }
       const parts = [sTransport, sWalk, sChildcare, sSafety].filter((v) => v != null) as number[];
       const otherAvg = parts.length ? parts.reduce((a, b) => a + b, 0) / parts.length : 0;
