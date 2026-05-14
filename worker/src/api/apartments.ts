@@ -33,6 +33,7 @@ function toApiRecord(row: AptRowWithRaw): ApiAptRecord {
     builtYear: row.built_year,
     totalUnits: row.total_units,
     avgPricePerM2: row.avg_price_per_m2,
+    priceSource: row.price_source ?? null,
     sScale: row.s_scale ?? null,
     overallScoreAdjusted: row.overall_score_adjusted ?? null,
     scores: readAptScores(row),
@@ -114,6 +115,12 @@ export async function likeComment(_request: Request, env: Env, commentId: string
   const repo = new Repository(env.DB);
   await repo.likeComment(commentId);
   return json({ ok: true });
+}
+
+export async function getNearbyApts(_request: Request, env: Env, aptId: string): Promise<Response> {
+  const repo = new Repository(env.DB);
+  const nearby = await repo.getNearbyApts(aptId);
+  return json({ nearby });
 }
 
 export async function searchApts(request: Request, env: Env): Promise<Response> {

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { RadarChart, AptScoreBars, type AptScores } from "../components/AptStatsCard";
 import { ExternalLinks } from "../components/ExternalLinks";
 
@@ -190,12 +190,17 @@ export function RankingPage() {
                         {expandedDetail.builtYear && <span>{expandedDetail.builtYear}년 준공</span>}
                         {expandedDetail.totalUnits && <span>{expandedDetail.totalUnits.toLocaleString()}세대</span>}
                       </div>
-                      <button
-                        className="btn btn--primary rank-item__panel-cta"
-                        onClick={() => startBattle(item)}
-                      >
-                        ⚔️ 이 단지로 대결하기
-                      </button>
+                      <div className="rank-item__panel-actions">
+                        <Link to={`/apt/${item.id}`} className="btn btn--outline rank-item__panel-cta">
+                          상세 보기
+                        </Link>
+                        <button
+                          className="btn btn--primary rank-item__panel-cta"
+                          onClick={() => startBattle(item)}
+                        >
+                          ⚔️ 이 단지로 대결하기
+                        </button>
+                      </div>
                     </>
                   )}
                 </div>

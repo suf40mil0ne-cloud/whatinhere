@@ -1,6 +1,6 @@
 import { listProjects, getProject, searchProject } from "./api/projects";
 import { listDistricts, getDistrict, voteDistrict } from "./api/districts";
-import { listApts, getApt, createComment, likeComment, searchApts } from "./api/apartments";
+import { listApts, getApt, getNearbyApts, createComment, likeComment, searchApts } from "./api/apartments";
 import { syncAll, syncOne, resetBattles, getAdminStats, runCollectTransport, runCollectWalk, runCollectSafety, runTestFetch, runTestWalk, runTestSafety, runTestChildcare, testJoin } from "./api/admin";
 import { collectTransport } from "./cron/collectTransport";
 import { collectWalk } from "./cron/collectWalk";
@@ -174,6 +174,10 @@ export default {
       }
       if (request.method === "GET" && path === "/api/apartments/search") {
         return withCors(request, await searchApts(request, env));
+      }
+      if (request.method === "GET" && /^\/api\/apartments\/[^/]+\/nearby$/.test(path)) {
+        const id = decodeURIComponent(path.replace("/api/apartments/", "").replace("/nearby", ""));
+        return withCors(request, await getNearbyApts(request, env, id));
       }
       if (request.method === "GET" && path.startsWith("/api/apartments/") && !path.includes("/comments")) {
         const id = decodeURIComponent(path.replace("/api/apartments/", ""));

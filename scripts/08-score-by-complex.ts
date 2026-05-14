@@ -122,6 +122,9 @@ async function main() {
   const aptPricesRaw = await loadJson<Array<{ id: string; avgPricePerM2: number }>>("04-apt-prices.state.json");
   const aptPriceMap = new Map<string, number>(aptPricesRaw?.map((p) => [p.id, p.avgPricePerM2]) ?? []);
 
+  const sggPricesRaw = await loadJson<Record<string, number>>("04-sgg-prices.state.json");
+  const sggPriceMap = new Map<string, number>(Object.entries(sggPricesRaw ?? {}));
+
   const transportRaw = await loadJson<{ buses: BusStop[]; subways: SubwayStation[] }>("transport-raw.json");
   const walkRaw = await loadJson<{ parks: Park[] }>("walk-raw.json");
   const childcareRaw = await loadJson<{ centers: ChildcareCenter[]; schools: ElementarySchool[]; academies: Academy[]; malls: Mall[]; pediatrics: Pediatric[]; libraries: Library[] }>("childcare-raw.json");
@@ -176,6 +179,7 @@ async function main() {
     childZoneCount1km: number;
     safetyIndexScore: number;
     crimeRate: number | null;
+    priceSource: 'apt' | 'sgg' | null;
   }
 
   const crimeStats = await loadCrimeStats();
@@ -215,12 +219,15 @@ async function main() {
           .filter((academy) => countWithin(point, [academy], 1000) > 0)
           .map((academy) => academy.realm)
       );
+      const aptPrice = aptPriceMap.get(apt.id) ?? null;
+      const sggPrice = sggPriceMap.get(apt.sigungu) ?? null;
       return {
         id: apt.id,
         districtCode: apt.districtCode ?? null,
         sigungu: apt.sigungu,
         totalUnits: apt.totalUnits ?? 1,
-        avgPricePerM2: aptPriceMap.get(apt.id) ?? null,
+        avgPricePerM2: aptPrice ?? sggPrice ?? null,
+        priceSource: aptPrice != null ? 'apt' : sggPrice != null ? 'sgg' : null,
         busStopCount500m: hasBus ? countWithin(point, buses, 500) : 0,
         busStopDistanceM: hasBus ? nearestDistance(point, buses) : null,
         subwayDistanceM: hasSubway ? nearestDistance(point, subways) : null,
@@ -390,7 +397,8 @@ async function main() {
     if (sChildcare !== null) setClauses.push(`s_childcare=${sqlValue(sChildcare)}`);
     if (sSafety !== null) setClauses.push(`s_safety=${sqlValue(sSafety)}`);
     setClauses.push(`s_value=${sqlValue(sValue)}`);
-    if (setClauses.length === 0) continue;
+    if (row.avgPricePerM2 != null) setClauses.push(`avg_price_per_m2=${sqlValue(row.avgPricePerM2)}`);
+    setClauses.push(`price_source=${row.priceSource != null ? quote(row.priceSource) : 'NULL'}`);
     setClauses.push("updated_at=CURRENT_TIMESTAMP");
     lines.push(`UPDATE apt_complexes SET ${setClauses.join(", ")} WHERE id=${quote(row.id)};`);
   }

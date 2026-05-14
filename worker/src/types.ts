@@ -196,6 +196,7 @@ export interface AptComplexRow {
   built_year: number | null;
   total_units: number | null;
   avg_price_per_m2: number | null;
+  price_source: string | null;
   s_transport: number | null;
   s_walk: number | null;
   s_value: number | null;
@@ -226,6 +227,7 @@ export interface ApiAptRecord {
   builtYear: number | null;
   totalUnits: number | null;
   avgPricePerM2: number | null;
+  priceSource: string | null;
   sScale: number | null;
   overallScoreAdjusted: number | null;
   scores: { transport: number; walk: number; value: number; childcare: number; safety: number };

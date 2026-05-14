@@ -294,6 +294,29 @@ async function assignAptPrices(districts: DistrictState[], trades: TradeRow[]): 
   }
 }
 
+async function saveSggPrices(districts: DistrictState[], trades: TradeRow[]): Promise<void> {
+  const lawdToSigungu = new Map<string, string>();
+  for (const [key, lawdCd] of Object.entries(CAPITAL_LAWD_CODES)) {
+    if (!lawdToSigungu.has(lawdCd)) lawdToSigungu.set(lawdCd, key.split(":")[1]);
+  }
+
+  const lawdMedian = new Map<string, number>();
+  for (const lawdCd of [...new Set(trades.map((r) => r.lawdCd))]) {
+    const prices = trades.filter((r) => r.lawdCd === lawdCd).map((r) => r.unitPrice);
+    const med = median(prices);
+    if (med != null) lawdMedian.set(lawdCd, med);
+  }
+
+  const sggPrices: Record<string, number> = {};
+  for (const [lawdCd, sigungu] of lawdToSigungu) {
+    const med = lawdMedian.get(lawdCd);
+    if (med != null) sggPrices[sigungu] = round(med, 2);
+  }
+
+  await fs.writeFile(path.join(OUTPUT_DIR, "04-sgg-prices.state.json"), JSON.stringify(sggPrices), "utf8");
+  info(`04-fetch-value: sgg prices saved for ${Object.keys(sggPrices).length} sigungu(s)`);
+}
+
 async function main() {
   const districts = await loadState();
   if (!districts.length) throw new Error("Run 00-fetch-districts.ts first");
@@ -305,6 +328,7 @@ async function main() {
   await writeSqlFile("04-value.sql", buildUpdateSql(districts, ["raw_value"]));
   info(`04-fetch-value: trades=${trades.length}`);
   await assignAptPrices(districts, trades);
+  await saveSggPrices(districts, trades);
 }
 
 main().catch((error) => {

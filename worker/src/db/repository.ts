@@ -29,9 +29,10 @@ const APT_RESOLVED_COLUMNS = `
   a.built_year,
   a.total_units,
   a.avg_price_per_m2,
+  a.price_source,
   COALESCE(NULLIF(a.s_transport, 0), d.s_transport) AS s_transport,
   COALESCE(NULLIF(a.s_walk, 0), d.s_walk) AS s_walk,
-  a.s_value AS s_value,
+  COALESCE(NULLIF(a.s_value, 0), d.s_value) AS s_value,
   COALESCE(NULLIF(a.s_childcare, 0), d.s_childcare) AS s_childcare,
   COALESCE(NULLIF(a.s_safety, 0), d.s_safety) AS s_safety,
   a.s_scale,
@@ -666,6 +667,33 @@ export class Repository {
     return rows.results;
   }
 
+  async getNearbyApts(aptId: string): Promise<Array<{
+    id: string; name: string; address: string | null; overall_score: number | null;
+  }>> {
+    const rc = (col: string) => `COALESCE(NULLIF(a2.${col},0), d2.${col})`;
+    const scoreKeys = ["s_transport", "s_walk", "s_value", "s_childcare", "s_safety"] as const;
+    const nullCount = scoreKeys.map((c) => `CASE WHEN ${rc(c)} IS NOT NULL THEN 1 ELSE 0 END`).join(" + ");
+    const computedOverall = `(${scoreKeys.map((c) => rc(c)).join(" + ")}) / NULLIF(${nullCount}, 0)`;
+    const scoreExpr = `COALESCE(a2.overall_score_adjusted, ${computedOverall})`;
+
+    const rows = await this.db.prepare(`
+      SELECT a2.id, a2.name, a2.address,
+        (${scoreExpr}) AS overall_score
+      FROM apt_complexes a2
+      LEFT JOIN district_scores d2 ON d2.code = a2.district_code
+      WHERE d2.sigungu = (
+        SELECT d.sigungu FROM apt_complexes a
+        LEFT JOIN district_scores d ON d.code = a.district_code
+        WHERE a.id = ?
+      )
+      AND a2.id != ?
+      ORDER BY COALESCE((${scoreExpr}), 0) DESC
+      LIMIT 5
+    `).bind(aptId, aptId).all<{ id: string; name: string; address: string | null; overall_score: number | null }>();
+
+    return rows.results;
+  }
+
   // ── Ranking ──────────────────────────────────────────────────────────────────
 
   async getRankingByScore(opts: {
@@ -700,7 +728,7 @@ export class Repository {
       SELECT a.id, a.name, a.address, d.sido, d.sigungu,
         ${rc("s_transport")} AS s_transport,
         ${rc("s_walk")} AS s_walk,
-        a.s_value AS s_value,
+        ${rc("s_value")} AS s_value,
         ${rc("s_childcare")} AS s_childcare,
         ${rc("s_safety")} AS s_safety,
         (${scoreExpr}) AS score

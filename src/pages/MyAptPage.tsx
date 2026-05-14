@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { RadarChart, AptScoreBars, type AptScores } from "../components/AptStatsCard";
 import { ExternalLinks } from "../components/ExternalLinks";
 
@@ -157,9 +157,14 @@ export function MyAptPage() {
 
           <AptScoreBars scores={detail.scores} />
 
-          <button className="btn btn--primary my-apt-card__cta" onClick={startBattle}>
-            ⚔️ 이 단지로 대결하기
-          </button>
+          <div className="my-apt-card__actions">
+            <Link to={`/apt/${aptId}`} className="btn btn--outline my-apt-card__cta">
+              상세 보기
+            </Link>
+            <button className="btn btn--primary my-apt-card__cta" onClick={startBattle}>
+              ⚔️ 이 단지로 대결하기
+            </button>
+          </div>
         </div>
       )}
 

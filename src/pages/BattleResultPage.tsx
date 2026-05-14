@@ -291,7 +291,7 @@ export function BattleResultPage() {
 
       <div className="battle-result__header">
         <div className="battle-result__apt">
-          <span className="battle-result__apt-name">{battle.aptAName}</span>
+          <Link to={`/apt/${battle.aptAId}`} className="battle-result__apt-name battle-result__apt-name--link">{battle.aptAName}</Link>
           {myIsA && <span className="battle-result__my-badge">우리 단지</span>}
           {battle.winner === "a" && <span className="battle-result__crown">🏆</span>}
         </div>
@@ -299,7 +299,7 @@ export function BattleResultPage() {
         <div className="battle-result__apt battle-result__apt--b">
           {battle.winner === "b" && <span className="battle-result__crown">🏆</span>}
           {myIsB && <span className="battle-result__my-badge">우리 단지</span>}
-          <span className="battle-result__apt-name">{battle.aptBName}</span>
+          <Link to={`/apt/${battle.aptBId}`} className="battle-result__apt-name battle-result__apt-name--link">{battle.aptBName}</Link>
         </div>
       </div>
 

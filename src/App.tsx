@@ -14,6 +14,7 @@ import { PrivacyPage } from "./pages/PrivacyPage";
 import { TermsPage } from "./pages/TermsPage";
 import { AboutPage } from "./pages/AboutPage";
 import { CommentsPage } from "./pages/CommentsPage";
+import { AptDetailPage } from "./pages/AptDetailPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
 
 export function App() {
@@ -86,6 +87,15 @@ export function App() {
             element={
               <SiteLayout>
                 <HotPage />
+              </SiteLayout>
+            }
+          />
+
+          <Route
+            path="/apt/:aptId"
+            element={
+              <SiteLayout>
+                <AptDetailPage />
               </SiteLayout>
             }
           />

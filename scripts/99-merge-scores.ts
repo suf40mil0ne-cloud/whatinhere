@@ -2,6 +2,44 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { buildUpsertSql, DistrictState, info, linearScore, loadState, round, updateOverallScores, writeSqlFile, OUTPUT_DIR } from "./district-score-lib";
 
+function parseValueTokens(s: string): string[] {
+  const tokens: string[] = [];
+  let i = 0;
+  while (i < s.length) {
+    while (i < s.length && s[i] === " ") i++;
+    if (i >= s.length) break;
+    let token: string;
+    if (s[i] === "'") {
+      const start = i++;
+      while (i < s.length && s[i] !== "'") i++;
+      i++;
+      token = s.slice(start, i);
+    } else {
+      const start = i;
+      while (i < s.length && s[i] !== "," && s[i] !== " ") i++;
+      token = s.slice(start, i);
+    }
+    tokens.push(token);
+    while (i < s.length && (s[i] === " " || s[i] === ",")) i++;
+  }
+  return tokens;
+}
+
+function stripAptComplexesCols(sql: string, colsToStrip: string[]): string {
+  const COLS = ["id", "name", "address", "lat", "lng", "district_code", "built_year", "total_units", "avg_price_per_m2", "s_transport", "s_walk", "s_value", "s_childcare", "s_safety", "price_source"];
+  const stripSet = new Set(colsToStrip);
+  const stripIdxs = new Set(COLS.map((c, i) => (stripSet.has(c) ? i : -1)).filter((i) => i >= 0));
+  const keptCols = COLS.filter((_, i) => !stripIdxs.has(i)).join(", ");
+  return sql.replace(
+    /^INSERT OR REPLACE INTO apt_complexes \([^)]+\) VALUES \((.+)\);$/gm,
+    (_, valStr) => {
+      const vals = parseValueTokens(valStr);
+      const keptVals = vals.filter((_, i) => !stripIdxs.has(i)).join(", ");
+      return `INSERT OR REPLACE INTO apt_complexes (${keptCols}) VALUES (${keptVals});`;
+    }
+  );
+}
+
 function computeValueScores(districts: DistrictState[], nationalMedianPrice: number | null): void {
   for (const district of districts) {
     const price = district.raw_value?.pricePerSqmMedian ?? null;
@@ -44,6 +82,18 @@ async function main() {
   // here because a transient source outage can otherwise zero out existing DB scores
   // before the preserving upsert runs.
   let districtSql = buildUpsertSql(districts);
+
+  // Prepend apt complex base rows stripped of score columns (08-apt-scores.sql sets those)
+  const aptComplexesPath = path.join(OUTPUT_DIR, "07-apt-complexes.sql");
+  try {
+    const aptComplexesSql = await fs.readFile(aptComplexesPath, "utf8");
+    if (aptComplexesSql.trim()) {
+      const stripped = stripAptComplexesCols(aptComplexesSql, ["avg_price_per_m2", "s_value", "price_source"]);
+      districtSql = `${districtSql}\n${stripped}`;
+    }
+  } catch {
+    // 07-apt-complexes.sql not yet generated — skip
+  }
 
   // Append apt complex scores if available
   const aptScoresPath = path.join(OUTPUT_DIR, "08-apt-scores.sql");
