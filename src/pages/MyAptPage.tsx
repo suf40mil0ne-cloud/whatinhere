@@ -142,7 +142,7 @@ export function MyAptPage() {
           <div className="my-apt-card__header">
             <h2 className="my-apt-card__name">
               {detail.name}
-              <ExternalLinks name={detail.name} />
+              <ExternalLinks name={detail.name} address={detail.address} />
             </h2>
             {detail.address && <p className="my-apt-card__address">{detail.address}</p>}
             <div className="my-apt-card__meta">

@@ -157,10 +157,10 @@ export function RankingPage() {
                 <span className="rank-item__info">
                   <span className="rank-item__name">
                     {item.name}
-                    <ExternalLinks name={item.name} />
+                    <ExternalLinks name={item.name} address={item.address} />
                   </span>
-                  {item.sigungu && (
-                    <span className="rank-item__region">{item.sigungu}</span>
+                  {(item.address || item.sigungu) && (
+                    <span className="rank-item__region">{item.address || item.sigungu}</span>
                   )}
                 </span>
                 <span className="rank-item__score">

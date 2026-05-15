@@ -201,13 +201,25 @@ function assignValues(districts: DistrictState[], trades: TradeRow[]) {
 }
 
 function normalizeAptName(name: string): string {
-  return name
+  let n = name
     .replace(/\s+/g, "")
     .replace(/아파트$/, "")
     .replace(/\(.*?\)/g, "")
-    .replace(/[·•·]/g, "")      // 중점 류 특수문자
-    .replace(/제(\d)/g, "$1")   // 제2단지 → 2단지
+    .replace(/[·•·ㆍ]/g, "")
+    .replace(/제(\d)/g, "$1")
     .toLowerCase();
+  // 로마자 → 아라비아 숫자 (긴 것부터 순서대로, 단어 경계 기준)
+  n = n.replace(/\biv\b/g, "4").replace(/\biii\b/g, "3").replace(/\bii\b/g, "2").replace(/\bi\b/g, "1");
+  return n;
+}
+
+// "N차" ↔ "N단지" 대체 이름 반환 (없으면 null)
+function swapChaUnit(normName: string): string | null {
+  const toDanji = normName.replace(/(\d+)차(?!\d)/g, "$1단지");
+  if (toDanji !== normName) return toDanji;
+  const toCha = normName.replace(/(\d+)단지(?!\d)/g, "$1차");
+  if (toCha !== normName) return toCha;
+  return null;
 }
 
 async function assignAptPrices(districts: DistrictState[], trades: TradeRow[]): Promise<void> {
@@ -242,6 +254,9 @@ async function assignAptPrices(districts: DistrictState[], trades: TradeRow[]): 
   const unmatched: string[] = [];
 
   for (const apt of aptState) {
+    // 예정·미입주 단지는 실거래가 없으므로 스킵
+    if (/예정/.test(apt.name)) continue;
+
     const district = apt.districtCode ? districtByCode.get(apt.districtCode) : null;
     if (!district) { unmatched.push(apt.name); continue; }
     const lawdCd = CAPITAL_LAWD_CODES[`${district.sido}:${district.sigungu}`];
@@ -250,23 +265,33 @@ async function assignAptPrices(districts: DistrictState[], trades: TradeRow[]): 
     const normName = normalizeAptName(apt.name);
     const sigunguPrefix = `${lawdCd}:`;
 
-    // 1순위: 정규화된 이름 완전 일치
-    let prices = aptTrades.get(`${sigunguPrefix}${normName}`);
-
-    // 2순위: 포함 관계 (단지 번호 없는 API 응답, 표기 차이 대응)
-    if (!prices) {
+    function findByContainment(searchName: string): number[] | undefined {
       let bestKey: string | null = null;
       let bestLen = 0;
       for (const key of aptTrades.keys()) {
         if (!key.startsWith(sigunguPrefix)) continue;
         const keyName = key.slice(sigunguPrefix.length);
-        const contained = keyName.includes(normName) || normName.includes(keyName);
-        if (contained && keyName.length > bestLen) {
+        if ((keyName.includes(searchName) || searchName.includes(keyName)) && keyName.length > bestLen) {
           bestKey = key;
           bestLen = keyName.length;
         }
       }
-      if (bestKey) prices = aptTrades.get(bestKey);
+      return bestKey ? aptTrades.get(bestKey) : undefined;
+    }
+
+    // 1순위: 정규화된 이름 완전 일치
+    let prices = aptTrades.get(`${sigunguPrefix}${normName}`);
+
+    // 2순위: 포함 관계
+    if (!prices) prices = findByContainment(normName);
+
+    // 3순위: 차↔단지 변환 후 재시도
+    if (!prices) {
+      const altName = swapChaUnit(normName);
+      if (altName) {
+        prices = aptTrades.get(`${sigunguPrefix}${altName}`);
+        if (!prices) prices = findByContainment(altName);
+      }
     }
 
     if (prices && prices.length > 0) {

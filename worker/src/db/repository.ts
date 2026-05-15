@@ -1,4 +1,4 @@
-import type { AptCommentRow, AptComplexRow, ApiBattleComment, ApiBattleDispute, AptRanking, BattleDisputeRow, BattleCommentRow, BattleRow, CommentFeedItem, CommentFeedRow, DistrictScoreRow, NormalizedProject, UserRow } from "../types";
+import type { AptCommentRow, AptComplexRow, AptUserCommentRow, ApiBattleComment, ApiBattleDispute, AptRanking, BattleDisputeRow, BattleCommentRow, BattleRow, CommentFeedItem, CommentFeedRow, DistrictScoreRow, NormalizedProject, UserRow } from "../types";
 
 export interface ProjectQuery {
   swLng: number;
@@ -692,6 +692,66 @@ export class Repository {
     `).bind(aptId, aptId).all<{ id: string; name: string; address: string | null; overall_score: number | null }>();
 
     return rows.results;
+  }
+
+  // ── Apt User Comments ────────────────────────────────────────────────────────
+
+  async listAptUserComments(aptId: string): Promise<AptUserCommentRow[]> {
+    const rows = await this.db
+      .prepare(`SELECT * FROM apt_user_comments WHERE apt_id = ? AND is_hidden = 0 ORDER BY created_at DESC LIMIT 50`)
+      .bind(aptId)
+      .all<AptUserCommentRow>();
+    return rows.results;
+  }
+
+  async insertAptUserComment(payload: { id: string; aptId: string; userId: string; userName: string; userPhoto: string | null; content: string }): Promise<void> {
+    await this.db
+      .prepare(`INSERT INTO apt_user_comments (id, apt_id, user_id, user_name, user_photo, content) VALUES (?, ?, ?, ?, ?, ?)`)
+      .bind(payload.id, payload.aptId, payload.userId, payload.userName, payload.userPhoto ?? null, payload.content)
+      .run();
+  }
+
+  async deleteAptUserComment(commentId: string, userId: string): Promise<boolean> {
+    const result = await this.db
+      .prepare(`DELETE FROM apt_user_comments WHERE id = ? AND user_id = ?`)
+      .bind(commentId, userId)
+      .run();
+    return (result.meta.changes ?? 0) > 0;
+  }
+
+  async countAptUserCommentsByUserToday(userId: string): Promise<number> {
+    const row = await this.db
+      .prepare(`SELECT COUNT(*) AS cnt FROM apt_user_comments WHERE user_id = ? AND date(created_at) = date('now')`)
+      .bind(userId)
+      .first<{ cnt: number }>();
+    return Number(row?.cnt ?? 0);
+  }
+
+  async countAptUserCommentsByApt(aptId: string): Promise<number> {
+    const row = await this.db
+      .prepare(`SELECT COUNT(*) AS cnt FROM apt_user_comments WHERE apt_id = ? AND is_hidden = 0`)
+      .bind(aptId)
+      .first<{ cnt: number }>();
+    return Number(row?.cnt ?? 0);
+  }
+
+  async hasUserReportedComment(commentId: string, userId: string): Promise<boolean> {
+    const row = await this.db
+      .prepare(`SELECT id FROM apt_user_comment_reports WHERE comment_id = ? AND user_id = ? LIMIT 1`)
+      .bind(commentId, userId)
+      .first();
+    return !!row;
+  }
+
+  async insertAptCommentReport(payload: { id: string; commentId: string; userId: string; reason: string }): Promise<void> {
+    await this.db
+      .prepare(`INSERT INTO apt_user_comment_reports (id, comment_id, user_id, reason) VALUES (?, ?, ?, ?)`)
+      .bind(payload.id, payload.commentId, payload.userId, payload.reason)
+      .run();
+    await this.db
+      .prepare(`UPDATE apt_user_comments SET report_count = report_count + 1, is_hidden = CASE WHEN report_count + 1 >= 5 THEN 1 ELSE is_hidden END WHERE id = ?`)
+      .bind(payload.commentId)
+      .run();
   }
 
   // ── Ranking ──────────────────────────────────────────────────────────────────

@@ -389,3 +389,26 @@ export interface AptRanking {
   total: number;
   winRate: number;
 }
+
+// ── Apt User Comments ─────────────────────────────────────────────────────────
+export interface AptUserCommentRow {
+  id: string;
+  apt_id: string;
+  user_id: string;
+  user_name: string;
+  user_photo: string | null;
+  content: string;
+  report_count: number;
+  is_hidden: number;
+  created_at: string;
+}
+
+export interface ApiAptUserComment {
+  id: string;
+  aptId: string;
+  userId: string;
+  userName: string;
+  userPhoto: string | null;
+  content: string;
+  createdAt: string;
+}

@@ -1,6 +1,7 @@
 import { listProjects, getProject, searchProject } from "./api/projects";
 import { listDistricts, getDistrict, voteDistrict } from "./api/districts";
 import { listApts, getApt, getNearbyApts, createComment, likeComment, searchApts } from "./api/apartments";
+import { getAptUserComments, postAptUserComment, deleteAptUserComment, reportAptUserComment } from "./api/aptUserComments";
 import { syncAll, syncOne, resetBattles, getAdminStats, runCollectTransport, runCollectWalk, runCollectSafety, runTestFetch, runTestWalk, runTestSafety, runTestChildcare, testJoin } from "./api/admin";
 import { collectTransport } from "./cron/collectTransport";
 import { collectWalk } from "./cron/collectWalk";
@@ -23,7 +24,7 @@ function withCors(request: Request, response: Response): Response {
     headers.set("vary", "Origin");
   }
 
-  headers.set("access-control-allow-methods", "GET,POST,OPTIONS");
+  headers.set("access-control-allow-methods", "GET,POST,DELETE,OPTIONS");
   headers.set("access-control-allow-headers", "content-type,authorization");
   return new Response(response.body, { status: response.status, headers });
 }
@@ -179,7 +180,7 @@ export default {
         const id = decodeURIComponent(path.replace("/api/apartments/", "").replace("/nearby", ""));
         return withCors(request, await getNearbyApts(request, env, id));
       }
-      if (request.method === "GET" && path.startsWith("/api/apartments/") && !path.includes("/comments")) {
+      if (request.method === "GET" && path.startsWith("/api/apartments/") && !path.includes("/comments") && !path.includes("/user-comments")) {
         const id = decodeURIComponent(path.replace("/api/apartments/", ""));
         return withCors(request, await getApt(request, env, id));
       }
@@ -190,6 +191,28 @@ export default {
       if (request.method === "POST" && /^\/api\/apartments\/[^/]+\/comments\/[^/]+\/like$/.test(path)) {
         const commentId = decodeURIComponent(path.split("/").at(-2) ?? "");
         return withCors(request, await likeComment(request, env, commentId));
+      }
+
+      // ── Apt User Comments (카카오 로그인 기반 댓글) ──────────────────────────
+      if (request.method === "GET" && /^\/api\/apartments\/[^/]+\/user-comments$/.test(path)) {
+        const aptId = decodeURIComponent(path.replace("/api/apartments/", "").replace("/user-comments", ""));
+        return withCors(request, await getAptUserComments(request, env, aptId));
+      }
+      if (request.method === "POST" && /^\/api\/apartments\/[^/]+\/user-comments$/.test(path)) {
+        const aptId = decodeURIComponent(path.replace("/api/apartments/", "").replace("/user-comments", ""));
+        return withCors(request, await postAptUserComment(request, env, aptId));
+      }
+      if (request.method === "DELETE" && /^\/api\/apartments\/[^/]+\/user-comments\/[^/]+$/.test(path)) {
+        const parts = path.split("/");
+        const aptId = decodeURIComponent(parts[3]);
+        const commentId = decodeURIComponent(parts[5]);
+        return withCors(request, await deleteAptUserComment(request, env, aptId, commentId));
+      }
+      if (request.method === "POST" && /^\/api\/apartments\/[^/]+\/user-comments\/[^/]+\/report$/.test(path)) {
+        const parts = path.split("/");
+        const aptId = decodeURIComponent(parts[3]);
+        const commentId = decodeURIComponent(parts[5]);
+        return withCors(request, await reportAptUserComment(request, env, aptId, commentId));
       }
 
       return withCors(request, json({ error: "Not found" }, 404));

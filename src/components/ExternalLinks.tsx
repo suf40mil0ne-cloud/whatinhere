@@ -4,7 +4,8 @@ const LINKS = [
   {
     key: "naver",
     label: "네이버에서 검색",
-    href: (name: string) => `https://search.naver.com/search.naver?query=${encodeURIComponent(name)}`,
+    href: (name: string, address?: string | null) =>
+      `https://search.naver.com/search.naver?query=${encodeURIComponent(address ? `${name} (${address})` : name)}`,
     favicon: "https://www.naver.com/favicon.ico",
     fallback: "N",
   },
@@ -31,13 +32,13 @@ function FaviconIcon({ src, fallback }: { src: string; fallback: string }) {
   );
 }
 
-export function ExternalLinks({ name }: { name: string }) {
+export function ExternalLinks({ name, address }: { name: string; address?: string | null }) {
   return (
     <span className="ext-links" onClick={(e) => e.stopPropagation()}>
       {LINKS.map(({ key, label, href, favicon, fallback }) => (
         <a
           key={key}
-          href={href(name)}
+          href={href(name, address)}
           target="_blank"
           rel="noopener noreferrer"
           className="ext-link"
