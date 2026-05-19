@@ -304,8 +304,8 @@ async function main() {
     let sWalk: number | null = null;
     if (hasWalkRaw) {
       sWalk = round(
-        linearScore(row.parkArea1km,   500000, 0) * 0.45 +  // 50만㎡=100, 0=0
-        linearScore(row.parkCount1km,      10, 0) * 0.20 +
+        linearScore(row.parkArea1km,   800000, 0) * 0.45 +  // 80만㎡=100, 0=0
+        linearScore(row.parkCount1km,      15, 0) * 0.20 +
         linearScore(row.parkDistanceM,    300, 1500) * 0.20 +
         linearScore(row.parkFacilityCount,  5, 0) * 0.15, 2,
       );
