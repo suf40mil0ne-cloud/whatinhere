@@ -78,8 +78,10 @@ async function searchAptNear(lat: number, lng: number): Promise<KakaoPlace[]> {
       const docs = data.documents ?? [];
       const FACILITY_KEYWORDS = ["충전소", "주민회의실", "커뮤니티센터", "관리사무소", "경비실", "노인정", "경로당", "어린이집", "유치원", "상가", "주차장", "버스정류장", "승강장"];
       const APT_KEYWORDS = ["아파트", "단지", "래미안", "자이", "푸르지오", "힐스테이트", "e편한세상", "더샵", "트리지움", "롯데캐슬", "SK"];
+      const DONG_PATTERN = /\d+동$/; // "아파트 101동" 같은 동 번호 항목 제외
       places.push(...docs.filter((d) =>
         !FACILITY_KEYWORDS.some((kw) => d.place_name.includes(kw)) &&
+        !DONG_PATTERN.test(d.place_name) &&
         APT_KEYWORDS.some((kw) => d.place_name.includes(kw))
       ));
       if (data.meta?.is_end) break;

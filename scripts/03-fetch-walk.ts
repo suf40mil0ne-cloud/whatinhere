@@ -208,9 +208,9 @@ function applyWalkScores(districts: DistrictState[], parks: Park[]) {
 
     // absolute scoring: best → worst thresholds (㎡/세대, 개수, 거리m)
     district.s_walk = round(
-      linearScore(areaPerHousehold, 30,   0) * 0.45 +  // 30㎡/세대=100, 0=0
+      linearScore(areaPerHousehold, 55,   0) * 0.45 +  // 55㎡/세대=100, 0=0
       linearScore(parkCount1km,      5,   0) * 0.20 +  // 5개=100, 0=0
-      linearScore(parkDistanceM,   100, 1000) * 0.20 + // 100m=100, 1000m=0
+      linearScore(parkDistanceM,   300, 1500) * 0.20 + // 300m=100, 1500m=0
       linearScore(parkFacilityCount, 3,   0) * 0.15,   // 3개=100, 0=0
       2
     );

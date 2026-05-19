@@ -2,7 +2,7 @@ export function TermsPage() {
   return (
     <div className="content-page">
       <h1 className="content-page__title">이용약관</h1>
-      <p className="content-page__updated">최종 수정일: 2025년 1월 1일</p>
+      <p className="content-page__updated">최종 수정일: 2026년 5월 15일</p>
 
       <section className="content-page__section">
         <h2>1. 서비스 소개</h2>

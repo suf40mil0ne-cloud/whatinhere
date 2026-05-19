@@ -2,7 +2,7 @@ export function PrivacyPage() {
   return (
     <div className="content-page">
       <h1 className="content-page__title">개인정보처리방침</h1>
-      <p className="content-page__updated">최종 수정일: 2025년 1월 1일</p>
+      <p className="content-page__updated">최종 수정일: 2026년 5월 15일</p>
 
       <section className="content-page__section">
         <h2>1. 수집하는 정보</h2>
