@@ -21,7 +21,7 @@ const RESOLVED_COMPONENT_EXPR = [
 
 const S_SCALE_EXPR = [
   "CASE",
-  "  WHEN total_units IS NULL THEN 50",
+  "  WHEN total_units IS NULL THEN 0",
   "  ELSE MIN(100, MAX(0, ROUND((total_units - 50) * 100.0 / 950.0, 2)))",
   "END",
 ].join("\n");
@@ -41,7 +41,7 @@ async function main() {
   info("07-fetch-scale: using apt_complexes.total_units for s_scale");
   info("07-fetch-scale: total_units <= 50 => s_scale 0, factor 0.7");
   info("07-fetch-scale: total_units >= 1000 => s_scale 100, factor 1.0");
-  info("07-fetch-scale: total_units is null => s_scale 50, factor 0.85");
+  info("07-fetch-scale: total_units is null => s_scale 0, factor 0.7");
   info("07-fetch-scale: overall_score_adjusted uses existing component averages in current DB schema");
   info("07-fetch-scale: wrote output/07-scale.sql");
 }

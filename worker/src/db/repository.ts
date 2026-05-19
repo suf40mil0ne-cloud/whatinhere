@@ -779,7 +779,13 @@ export class Repository {
       ? `${rc(scoreCol)} * ${scaleFactor}`
       : `${rc(scoreCol)}`;
 
-    const where: string[] = [`(${scoreExpr}) IS NOT NULL`];
+    const where: string[] = [
+      `(${scoreExpr}) IS NOT NULL`,
+      "a.name NOT LIKE '%오피스텔%'",
+      "a.name NOT LIKE '%레지던스%'",
+      "a.name NOT LIKE '%생활숙박%'",
+      "a.name NOT LIKE '%호텔%'",
+    ];
     const binds: (string | number)[] = [];
     if (region) { where.push("d.sido = ?"); binds.push(region); }
     binds.push(limit);
