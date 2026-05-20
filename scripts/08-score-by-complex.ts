@@ -36,12 +36,11 @@ const SUBWAY_SEGS: TScoreSeg[] = [
 ];
 
 const BUS_SEGS: TScoreSeg[] = [
-  [0,   100, 100, 100],
-  [100, 200, 100,  85],
-  [200, 400,  85,  65],
-  [400, 600,  65,  40],
-  [600, 800,  40,  15],
-  [800, 1500, 15,   0],
+  [0,   200, 100, 100],
+  [200, 400, 100,  75],
+  [400, 600,  75,  50],
+  [600, 800,  50,  25],
+  [800, 1500, 25,   0],
 ];
 
 function tSegScore(distance: number | null, segs: TScoreSeg[]): number {
@@ -286,7 +285,7 @@ async function main() {
 
       // 버스: routeType 없음 → B급(1.0) 기본
       const busDistScore  = tSegScore(row.busStopDistanceM, BUS_SEGS);
-      const busCountScore = linearScore(row.busStopCount500m, 10, 0);
+      const busCountScore = linearScore(row.busStopCount500m, 20, 0);
       const transferScore = linearScore(row.transferCount1km,  2, 0);
 
       if (!hasBus) {
