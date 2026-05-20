@@ -774,7 +774,7 @@ export class Repository {
     const nullAwareCount = scoreKeys.map(c => `CASE WHEN ${rc(c)} IS NOT NULL THEN 1 ELSE 0 END`).join(" + ");
     const computedOverall = `(${scoreKeys.map(c => rc(c)).join(" + ")}) / NULLIF(${nullAwareCount}, 0)`;
     const scoreExpr = scoreCol === "s_overall"
-      ? `COALESCE(a.overall_score_adjusted, ${computedOverall})`
+      ? `COALESCE(a.overall_score_adjusted, ${computedOverall} * ${scaleFactor})`
       : `${rc(scoreCol)}`;
     // 카테고리 정렬은 세대수 보정 점수 사용, 표시값은 scoreExpr(원래 점수) 유지
     const sortExpr = scoreCol === "s_overall"
@@ -787,6 +787,7 @@ export class Repository {
       "a.name NOT LIKE '%레지던스%'",
       "a.name NOT LIKE '%생활숙박%'",
       "a.name NOT LIKE '%호텔%'",
+      "(a.total_units IS NULL OR a.total_units >= 50)",
     ];
     const binds: (string | number)[] = [];
     if (region) { where.push("d.sido = ?"); binds.push(region); }
