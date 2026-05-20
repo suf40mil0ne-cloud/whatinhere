@@ -769,15 +769,17 @@ export class Repository {
   }>> {
     const { region, scoreCol, limit } = opts;
     const rc = (col: string) => `COALESCE(NULLIF(a.${col},0), d.${col})`;
-    const scaleFactor = `MIN(1.0, MAX(0.7, 0.7 + COALESCE(a.s_scale, 50) / 100.0 * 0.3))`;
+    const scaleFactor = `MIN(1.0, MAX(0.7, 0.7 + COALESCE(a.s_scale, 0) / 100.0 * 0.3))`;
     const scoreKeys = ["s_transport", "s_walk", "s_value", "s_childcare", "s_safety"] as const;
     const nullAwareCount = scoreKeys.map(c => `CASE WHEN ${rc(c)} IS NOT NULL THEN 1 ELSE 0 END`).join(" + ");
     const computedOverall = `(${scoreKeys.map(c => rc(c)).join(" + ")}) / NULLIF(${nullAwareCount}, 0)`;
     const scoreExpr = scoreCol === "s_overall"
       ? `COALESCE(a.overall_score_adjusted, ${computedOverall})`
-      : scoreCol === "s_childcare"
-      ? `${rc(scoreCol)} * ${scaleFactor}`
       : `${rc(scoreCol)}`;
+    // 카테고리 정렬은 세대수 보정 점수 사용, 표시값은 scoreExpr(원래 점수) 유지
+    const sortExpr = scoreCol === "s_overall"
+      ? scoreExpr
+      : `${rc(scoreCol)} * ${scaleFactor}`;
 
     const where: string[] = [
       `(${scoreExpr}) IS NOT NULL`,
@@ -801,7 +803,7 @@ export class Repository {
       FROM apt_complexes a
       LEFT JOIN district_scores d ON d.code = a.district_code
       WHERE ${where.join(" AND ")}
-      ORDER BY score DESC
+      ORDER BY (${sortExpr}) DESC
       LIMIT ?
     `).bind(...binds).all<{
       id: string; name: string; address: string | null;
