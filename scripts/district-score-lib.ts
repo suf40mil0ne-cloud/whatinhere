@@ -34,6 +34,31 @@ export const CAPITAL_SIDO_NAMES = ["서울특별시", "경기도", "인천광역
 export const CAPITAL_SIDO_CODES = new Set(["11", "41", "28"]);
 export const DEFAULT_SERVICE_KEY = process.env.DATA_GO_KR_SERVICE_KEY ?? "93ab10ebd79f48772e33be1df27532bbfba053564aa834082eacb75da688c46b";
 
+const DISTRICT_GEOJSON_FILES = ["seoul-emd.json", "gyeonggi-emd.json", "incheon-emd.json"];
+let sigunguCodeMapCache: Map<string, string> | null = null;
+
+/**
+ * "시도:시군구" → 시군구코드(5자리). src/data/districts/*.json (00-fetch-districts.ts가 읽는 것과 동일한 파일)에서
+ * 직접 파생시켜 04/06/fetch-total-units가 각자 하드코딩된 표를 따로 들고 있지 않게 한다.
+ * 행정구역 개편 시 geojson만 갱신하면 이 맵을 쓰는 모든 스크립트에 자동 반영된다.
+ */
+export function getSigunguCodeMap(): Map<string, string> {
+  if (sigunguCodeMapCache) return sigunguCodeMapCache;
+  const map = new Map<string, string>();
+  for (const filename of DISTRICT_GEOJSON_FILES) {
+    const filePath = path.join(ROOT_DIR, "src", "data", "districts", filename);
+    const geojson = JSON.parse(fsSync.readFileSync(filePath, "utf8")) as {
+      features?: { properties?: { sidonm?: string; sggnm?: string; sgg?: string } }[];
+    };
+    for (const feature of geojson.features ?? []) {
+      const { sidonm, sggnm, sgg } = feature.properties ?? {};
+      if (sidonm && sggnm && sgg) map.set(`${sidonm}:${sggnm}`, sgg);
+    }
+  }
+  sigunguCodeMapCache = map;
+  return map;
+}
+
 export interface RawTransport {
   busStopCount500m: number | null;
   busStopDistanceM: number | null;
@@ -598,14 +623,15 @@ const CRIME_STATS_SAMPLE: Record<string, unknown>[] = [
   { "시군구코드": "11710", "시군구명": "송파구",     "5대범죄합계": 5040, "인구수": 700000, "인구10만명당발생건수":  720 },
   { "시군구코드": "11740", "시군구명": "강동구",     "5대범죄합계": 3381, "인구수": 490000, "인구10만명당발생건수":  690 },
   // 인천광역시
-  { "시군구코드": "28110", "시군구명": "중구",       "5대범죄합계":  378, "인구수":  25000, "인구10만명당발생건수": 1510 },
-  { "시군구코드": "28140", "시군구명": "동구",       "5대범죄합계":  253, "인구수":  16000, "인구10만명당발생건수": 1580 },
+  { "시군구코드": "28125", "시군구명": "제물포구",   "5대범죄합계":  310, "인구수":  20000, "인구10만명당발생건수": 1550 },
+  { "시군구코드": "28155", "시군구명": "영종구",     "5대범죄합계":  320, "인구수":  21000, "인구10만명당발생건수": 1520 },
   { "시군구코드": "28177", "시군구명": "미추홀구",   "5대범죄합계": 1548, "인구수": 120000, "인구10만명당발생건수": 1290 },
   { "시군구코드": "28185", "시군구명": "연수구",     "5대범죄합계": 1116, "인구수": 155000, "인구10만명당발생건수":  720 },
   { "시군구코드": "28200", "시군구명": "남동구",     "5대범죄합계": 1800, "인구수": 202000, "인구10만명당발생건수":  890 },
   { "시군구코드": "28237", "시군구명": "부평구",     "5대범죄합계": 2904, "인구수": 264000, "인구10만명당발생건수": 1100 },
   { "시군구코드": "28245", "시군구명": "계양구",     "5대범죄합계": 1176, "인구수": 140000, "인구10만명당발생건수":  840 },
-  { "시군구코드": "28260", "시군구명": "서구",       "5대범죄합계": 2136, "인구수": 270000, "인구10만명당발생건수":  790 },
+  { "시군구코드": "28275", "시군구명": "서해구",     "5대범죄합계": 1382, "인구수": 175000, "인구10만명당발생건수":  790 },
+  { "시군구코드": "28290", "시군구명": "검단구",     "5대범죄합계":  750, "인구수":  95000, "인구10만명당발생건수":  790 },
   { "시군구코드": "28710", "시군구명": "강화군",     "5대범죄합계":  268, "인구수":  69000, "인구10만명당발생건수":  390 },
   { "시군구코드": "28720", "시군구명": "옹진군",     "5대범죄합계":   56, "인구수":  20000, "인구10만명당발생건수":  280 },
   // 경기도

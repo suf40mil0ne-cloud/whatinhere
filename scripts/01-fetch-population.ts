@@ -1,16 +1,23 @@
 import {
   buildUpdateSql,
+  fetchJsonWithRetry,
   info,
   loadState,
+  parseJsonItems,
   paramsToUrl,
   saveState,
   warn,
   writeSqlFile,
-  xmlItems,
-  xmlTag,
 } from "./district-score-lib";
 
 const SERVICE_KEY = process.env.DATA_GO_KR_SERVICE_KEY;
+const POPULATION_API_BASE_URL = "https://apis.data.go.kr/1741000/admmPpltnHhStus/selectAdmmPpltnHhStus";
+
+// ponytail: 조회년월을 이번 달 단일 월로 고정. API 발표 지연으로 데이터가 없으면 전월로 당기는 보정 필요.
+function currentYearMonth(): string {
+  const now = new Date();
+  return `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}`;
+}
 
 async function main() {
   const districts = await loadState();
@@ -20,22 +27,26 @@ async function main() {
     return;
   }
 
+  const yearMonth = currentYearMonth();
+
   for (const district of districts) {
-    const url = paramsToUrl("https://apis.data.go.kr/1741000/admmPpltnHhStus", {
+    const url = paramsToUrl(POPULATION_API_BASE_URL, {
       serviceKey: SERVICE_KEY,
       pageNo: 1,
       numOfRows: 1000,
       admmCd: district.code,
+      srchFrYm: yearMonth,
+      srchToYm: yearMonth,
+      lv: 4,
+      regSeCd: 1,
+      type: "JSON",
     });
 
     try {
-      const xml = await fetch(url).then((response) => {
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        return response.text();
-      });
-      const item = xmlItems(xml)[0] ?? xml;
-      district.households = Number(xmlTag(item, "hhCnt") ?? 0) || null;
-      district.population = Number(xmlTag(item, "ppltnCnt") ?? 0) || null;
+      const payload = await fetchJsonWithRetry(url);
+      const item = parseJsonItems(payload)[0];
+      district.households = Number(item?.hhCnt ?? 0) || null;
+      district.population = Number(item?.ppltnCnt ?? 0) || null;
     } catch (error) {
       warn(`01-fetch-population: ${district.code} failed: ${error instanceof Error ? error.message : String(error)}`);
     }

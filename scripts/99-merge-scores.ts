@@ -95,6 +95,17 @@ async function main() {
     // 07-apt-complexes.sql not yet generated — skip
   }
 
+  // Update total_units from K-APT API (must run after apt_complexes rows are inserted)
+  const totalUnitsPath = path.join(OUTPUT_DIR, "update-total-units.sql");
+  try {
+    const totalUnitsSql = await fs.readFile(totalUnitsPath, "utf8");
+    if (totalUnitsSql.trim()) {
+      districtSql = `${districtSql}\n${totalUnitsSql}`;
+    }
+  } catch {
+    // update-total-units.sql not yet generated — skip
+  }
+
   // Append apt complex scores if available
   const aptScoresPath = path.join(OUTPUT_DIR, "08-apt-scores.sql");
   try {

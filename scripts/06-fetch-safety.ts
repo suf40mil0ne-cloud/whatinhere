@@ -27,6 +27,7 @@ import {
   CAPITAL_SIDO_NAMES,
   OUTPUT_DIR,
   ensureOutputDir,
+  getSigunguCodeMap,
 } from "./district-score-lib";
 
 const execFile = promisify(execFileCallback);
@@ -52,26 +53,18 @@ const SAFETY_INDEX_API_BASE_URL = "https://safety-proxy.vercel.app/api/safety-in
 
 const GRADE_SCORE: Record<number, number> = { 1: 100, 2: 80, 3: 60, 4: 40, 5: 20 };
 
-const LEGAL_SIGUNGU_CODE_TO_NAME = new Map<string, string>([
-  ["11110", "종로구"], ["11140", "중구"],    ["11170", "용산구"],  ["11200", "성동구"],
-  ["11215", "광진구"], ["11230", "동대문구"], ["11260", "중랑구"],  ["11290", "성북구"],
-  ["11305", "강북구"], ["11320", "도봉구"],  ["11350", "노원구"],  ["11380", "은평구"],
-  ["11410", "서대문구"],["11440", "마포구"], ["11470", "양천구"],  ["11500", "강서구"],
-  ["11530", "구로구"], ["11545", "금천구"],  ["11560", "영등포구"],["11590", "동작구"],
-  ["11620", "관악구"], ["11650", "서초구"],  ["11680", "강남구"],  ["11710", "송파구"],
-  ["11740", "강동구"],
-  ["28110", "중구"],   ["28140", "동구"],    ["28177", "미추홀구"],["28185", "연수구"],
-  ["28200", "남동구"], ["28237", "부평구"],  ["28245", "계양구"],  ["28260", "서구"],
-  ["28710", "강화군"], ["28720", "옹진군"],
-  ["41110", "수원시"], ["41130", "성남시"],  ["41150", "의정부시"],["41170", "안양시"],
-  ["41190", "부천시"], ["41210", "광명시"],  ["41220", "평택시"],  ["41250", "동두천시"],
-  ["41270", "안산시"], ["41280", "고양시"],  ["41290", "과천시"],  ["41310", "구리시"],
-  ["41360", "남양주시"],["41370", "오산시"], ["41390", "시흥시"],  ["41410", "군포시"],
-  ["41430", "의왕시"], ["41450", "하남시"],  ["41460", "용인시"],  ["41480", "파주시"],
-  ["41500", "이천시"], ["41550", "안성시"],  ["41570", "김포시"],  ["41590", "화성시"],
-  ["41610", "광주시"], ["41630", "양주시"],  ["41650", "포천시"],  ["41670", "여주시"],
-  ["41800", "연천군"], ["41820", "가평군"],  ["41830", "양평군"],
-]);
+let legalSigunguCodeToNameCache: Map<string, string> | null = null;
+
+// 법정동코드(DONG_CD) 앞 5자리 → 시군구명. getSigunguCodeMap()("시도:시군구" → 코드)의 역방향.
+function legalSigunguCodeToName(): Map<string, string> {
+  if (legalSigunguCodeToNameCache) return legalSigunguCodeToNameCache;
+  const reversed = new Map<string, string>();
+  for (const [key, code] of getSigunguCodeMap()) {
+    reversed.set(code, key.split(":")[1]);
+  }
+  legalSigunguCodeToNameCache = reversed;
+  return reversed;
+}
 
 function isAuthFailure(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error);
@@ -330,7 +323,7 @@ async function fetchSafetyIndex(): Promise<Map<string, number>> {
         const gradeRaw = numeric(item.STATS_VL ?? item.safetyGrade ?? item.grade);
         if (!dongCd || gradeRaw == null) continue;
         const sggCode = dongCd.padStart(10, "0").slice(0, 5);
-        const sggNm = LEGAL_SIGUNGU_CODE_TO_NAME.get(sggCode);
+        const sggNm = legalSigunguCodeToName().get(sggCode);
         if (!sggNm) continue;
         const score = GRADE_SCORE[Math.round(gradeRaw)] ?? 0;
         if (!result.has(sggNm) || score > (result.get(sggNm) ?? 0)) result.set(sggNm, score);

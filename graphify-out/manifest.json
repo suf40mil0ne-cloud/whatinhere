@@ -1,0 +1,1272 @@
+{
+  ".claude/settings.local.json": {
+    "mtime": 1786086716.036938,
+    "ast_hash": "ff053de3d7d7c5533ade8202aa186ede",
+    "semantic_hash": "ff053de3d7d7c5533ade8202aa186ede"
+  },
+  ".idx/mcp.json": {
+    "mtime": 1772613843.532255,
+    "ast_hash": "8f4209bb50ecbc54da01a2e3b94d12f0",
+    "semantic_hash": "8f4209bb50ecbc54da01a2e3b94d12f0"
+  },
+  ".vscode/settings.json": {
+    "mtime": 1772613843.532255,
+    "ast_hash": "949ed6a4766b6865c727e5b4129c3d53",
+    "semantic_hash": "949ed6a4766b6865c727e5b4129c3d53"
+  },
+  "app.js": {
+    "mtime": 1772700605.8876007,
+    "ast_hash": "47544e13e30f14bede62863d108046fb",
+    "semantic_hash": "47544e13e30f14bede62863d108046fb"
+  },
+  "childcare-proxy/api/childcare.js": {
+    "mtime": 1775905909.3872674,
+    "ast_hash": "0f4cdac74fbf55651b4de981cdaa76cf",
+    "semantic_hash": "0f4cdac74fbf55651b4de981cdaa76cf"
+  },
+  "childcare-proxy/vercel.json": {
+    "mtime": 1776413747.7527885,
+    "ast_hash": "97da60c7b52c7766c81e0f33dd335216",
+    "semantic_hash": "97da60c7b52c7766c81e0f33dd335216"
+  },
+  "config.js": {
+    "mtime": 1772761696.0610585,
+    "ast_hash": "d654645328a8da124bd8f3af381fe27c",
+    "semantic_hash": "d654645328a8da124bd8f3af381fe27c"
+  },
+  "data-sources/normalized/building-hub.json": {
+    "mtime": 1773122005.2465587,
+    "ast_hash": "3bfc4a3019d9128adb32beab6f96aa04",
+    "semantic_hash": "3bfc4a3019d9128adb32beab6f96aa04"
+  },
+  "data-sources/normalized/building-overview.json": {
+    "mtime": 1773122005.7555583,
+    "ast_hash": "58e0494c51d30eb3494f7c9198986bb9",
+    "semantic_hash": "58e0494c51d30eb3494f7c9198986bb9"
+  },
+  "data-sources/normalized/building-permits.json": {
+    "mtime": 1773122006.3025577,
+    "ast_hash": "992d67a991024b5520f86f4433f34ff8",
+    "semantic_hash": "992d67a991024b5520f86f4433f34ff8"
+  },
+  "data-sources/normalized/building-plot.json": {
+    "mtime": 1773122004.704559,
+    "ast_hash": "58e0494c51d30eb3494f7c9198986bb9",
+    "semantic_hash": "58e0494c51d30eb3494f7c9198986bb9"
+  },
+  "data-sources/normalized/cals-construction.json": {
+    "mtime": 1773994485.0511427,
+    "ast_hash": "58e0494c51d30eb3494f7c9198986bb9",
+    "semantic_hash": "58e0494c51d30eb3494f7c9198986bb9"
+  },
+  "data-sources/normalized/capital-building-permits.json": {
+    "mtime": 1773106201.9028587,
+    "ast_hash": "208ee0505d4c9fddbd56e951356bd7be",
+    "semantic_hash": "208ee0505d4c9fddbd56e951356bd7be"
+  },
+  "data-sources/normalized/capital-committee-results.json": {
+    "mtime": 1773106202.762858,
+    "ast_hash": "35ff6201d4a080f134f3c160ccc3dfe1",
+    "semantic_hash": "35ff6201d4a080f134f3c160ccc3dfe1"
+  },
+  "data-sources/normalized/capital-construction.json": {
+    "mtime": 1773122003.62456,
+    "ast_hash": "58e0494c51d30eb3494f7c9198986bb9",
+    "semantic_hash": "58e0494c51d30eb3494f7c9198986bb9"
+  },
+  "data-sources/normalized/capital-housing-approvals.json": {
+    "mtime": 1773106202.3388584,
+    "ast_hash": "4ada9778d8823e47715b13c3a67647b4",
+    "semantic_hash": "4ada9778d8823e47715b13c3a67647b4"
+  },
+  "data-sources/normalized/committee-results.json": {
+    "mtime": 1773108469.2728179,
+    "ast_hash": "9c8817dcf22f0755a5bd272de209220c",
+    "semantic_hash": "9c8817dcf22f0755a5bd272de209220c"
+  },
+  "data-sources/normalized/eia.json": {
+    "mtime": 1773108470.5788167,
+    "ast_hash": "c14a21cd5e36eb167217ba34312f7f0c",
+    "semantic_hash": "c14a21cd5e36eb167217ba34312f7f0c"
+  },
+  "data-sources/normalized/housing-approvals.json": {
+    "mtime": 1773122006.8105574,
+    "ast_hash": "517ae63ce9b9529d86856a2efe376f5d",
+    "semantic_hash": "517ae63ce9b9529d86856a2efe376f5d"
+  },
+  "data-sources/normalized/housing.json": {
+    "mtime": 1773122007.4465568,
+    "ast_hash": "58e0494c51d30eb3494f7c9198986bb9",
+    "semantic_hash": "58e0494c51d30eb3494f7c9198986bb9"
+  },
+  "data-sources/normalized/kiscon.json": {
+    "mtime": 1773122004.2125597,
+    "ast_hash": "58e0494c51d30eb3494f7c9198986bb9",
+    "semantic_hash": "58e0494c51d30eb3494f7c9198986bb9"
+  },
+  "data-sources/normalized/private-urban-plan.json": {
+    "mtime": 1773108470.166817,
+    "ast_hash": "ca49f9c8ce462be02402abc1bdef461d",
+    "semantic_hash": "ca49f9c8ce462be02402abc1bdef461d"
+  },
+  "data-sources/normalized/railway.json": {
+    "mtime": 1773122007.3715568,
+    "ast_hash": "58e0494c51d30eb3494f7c9198986bb9",
+    "semantic_hash": "58e0494c51d30eb3494f7c9198986bb9"
+  },
+  "data-sources/normalized/road.json": {
+    "mtime": 1773108467.977819,
+    "ast_hash": "58e0494c51d30eb3494f7c9198986bb9",
+    "semantic_hash": "58e0494c51d30eb3494f7c9198986bb9"
+  },
+  "data-sources/normalized/urban-plan.json": {
+    "mtime": 1773122007.5135567,
+    "ast_hash": "58e0494c51d30eb3494f7c9198986bb9",
+    "semantic_hash": "58e0494c51d30eb3494f7c9198986bb9"
+  },
+  "firebase.json": {
+    "mtime": 1772700287.6660166,
+    "ast_hash": "61ea6ed606dce2b34e6c6dfa8b730e01",
+    "semantic_hash": "61ea6ed606dce2b34e6c6dfa8b730e01"
+  },
+  "firebase_functions/index.js": {
+    "mtime": 1772685787.6192486,
+    "ast_hash": "3d6c5ef53811329eb4a946d537b1f238",
+    "semantic_hash": "3d6c5ef53811329eb4a946d537b1f238"
+  },
+  "firebase_functions/package.json": {
+    "mtime": 1772689789.3076038,
+    "ast_hash": "647373ca59c4ce3a20014a62918b41ec",
+    "semantic_hash": "647373ca59c4ce3a20014a62918b41ec"
+  },
+  "firebase_functions/src/etl/buildPermit.ts": {
+    "mtime": 1772688027.4372156,
+    "ast_hash": "8ddaf83809fc8ed12852686dabcce3d0",
+    "semantic_hash": "8ddaf83809fc8ed12852686dabcce3d0"
+  },
+  "firebase_functions/src/etl/dedup.ts": {
+    "mtime": 1772688027.4272156,
+    "ast_hash": "0eafa6ffc03a031d09f85f16235a2cf3",
+    "semantic_hash": "0eafa6ffc03a031d09f85f16235a2cf3"
+  },
+  "firebase_functions/src/etl/devPermit.ts": {
+    "mtime": 1772688027.4342155,
+    "ast_hash": "3d2566669e5e9a77a6ceefb90ef98848",
+    "semantic_hash": "3d2566669e5e9a77a6ceefb90ef98848"
+  },
+  "firebase_functions/src/etl/geocode.ts": {
+    "mtime": 1772689756.9696333,
+    "ast_hash": "5bc3524ec013e8ca3dea345c52283650",
+    "semantic_hash": "5bc3524ec013e8ca3dea345c52283650"
+  },
+  "firebase_functions/src/etl/grid.ts": {
+    "mtime": 1772688027.4532156,
+    "ast_hash": "f898ef44443703e4df061b200a5a0408",
+    "semantic_hash": "f898ef44443703e4df061b200a5a0408"
+  },
+  "firebase_functions/src/etl/normalize.ts": {
+    "mtime": 1772688027.4202156,
+    "ast_hash": "8e976dcad4808028dcedc3cbf58f7dfb",
+    "semantic_hash": "8e976dcad4808028dcedc3cbf58f7dfb"
+  },
+  "firebase_functions/src/etl/storage.ts": {
+    "mtime": 1772687006.744151,
+    "ast_hash": "3de4459c6b6e5118863ac23a39d2bf78",
+    "semantic_hash": "3de4459c6b6e5118863ac23a39d2bf78"
+  },
+  "firebase_functions/src/etl/tilesCache.ts": {
+    "mtime": 1772688027.4642155,
+    "ast_hash": "869a3bc520d0135e4cba6bb150dd9505",
+    "semantic_hash": "869a3bc520d0135e4cba6bb150dd9505"
+  },
+  "firebase_functions/src/index.ts": {
+    "mtime": 1772688177.6680787,
+    "ast_hash": "d5ec7a9d099c4bad397306db92500285",
+    "semantic_hash": "d5ec7a9d099c4bad397306db92500285"
+  },
+  "firebase_functions/src/shared/firestore.ts": {
+    "mtime": 1772687931.422303,
+    "ast_hash": "194ee9129a3c7a43ec23a4a6a3944ecf",
+    "semantic_hash": "194ee9129a3c7a43ec23a4a6a3944ecf"
+  },
+  "firebase_functions/src/shared/http.ts": {
+    "mtime": 1772689784.2496083,
+    "ast_hash": "ed49cf52869f363269cfdeecb289a949",
+    "semantic_hash": "ed49cf52869f363269cfdeecb289a949"
+  },
+  "firestore.indexes.json": {
+    "mtime": 1772687931.414303,
+    "ast_hash": "b58ce3f5635b2f544dc1d634558e0f39",
+    "semantic_hash": "b58ce3f5635b2f544dc1d634558e0f39"
+  },
+  "functions/api/[[path]].ts": {
+    "mtime": 1775202415.0302677,
+    "ast_hash": "8765be6aab0170caea4eeebb39ae22d6",
+    "semantic_hash": "8765be6aab0170caea4eeebb39ae22d6"
+  },
+  "lib/capital-normalizers.js": {
+    "mtime": 1773121967.1655934,
+    "ast_hash": "ea515798621c5dfaf8c6063067dbe62d",
+    "semantic_hash": "ea515798621c5dfaf8c6063067dbe62d"
+  },
+  "lib/normalize-building-plot.js": {
+    "mtime": 1773121784.5987597,
+    "ast_hash": "d0d6409774c7511a877fe2d30fa750db",
+    "semantic_hash": "d0d6409774c7511a877fe2d30fa750db"
+  },
+  "lib/normalize-building-supplements.js": {
+    "mtime": 1773121762.7687793,
+    "ast_hash": "a12f0671aacb236b8fb2b9098bf60d1d",
+    "semantic_hash": "a12f0671aacb236b8fb2b9098bf60d1d"
+  },
+  "lib/normalize-cals-construction.js": {
+    "mtime": 1773994395.3173163,
+    "ast_hash": "e94e327f0d0df37715eab1de1538bda7",
+    "semantic_hash": "e94e327f0d0df37715eab1de1538bda7"
+  },
+  "lib/normalize-lifesafety-construction.js": {
+    "mtime": 1773109711.9676974,
+    "ast_hash": "e66d8b323910a71bc1c2543641979b5d",
+    "semantic_hash": "e66d8b323910a71bc1c2543641979b5d"
+  },
+  "lib/normalize-public-projects.js": {
+    "mtime": 1773117428.6567037,
+    "ast_hash": "4a702831b8611d4242ec3607e25154ba",
+    "semantic_hash": "4a702831b8611d4242ec3607e25154ba"
+  },
+  "logs/diagnostics/building-hub.json": {
+    "mtime": 1773122008.5205557,
+    "ast_hash": "74a565ce7ae3c7b75b81263472166be5",
+    "semantic_hash": "74a565ce7ae3c7b75b81263472166be5"
+  },
+  "logs/diagnostics/building-overview.json": {
+    "mtime": 1773122008.5215557,
+    "ast_hash": "d9c7698dda6ca38c2908648fa22d2e99",
+    "semantic_hash": "d9c7698dda6ca38c2908648fa22d2e99"
+  },
+  "logs/diagnostics/building-permits.json": {
+    "mtime": 1773122008.5215557,
+    "ast_hash": "a49a82d7d6b836234fb449be9e757915",
+    "semantic_hash": "a49a82d7d6b836234fb449be9e757915"
+  },
+  "logs/diagnostics/building-plot.json": {
+    "mtime": 1773122008.5215557,
+    "ast_hash": "abd5f51699fd53196fea291788aaebf2",
+    "semantic_hash": "abd5f51699fd53196fea291788aaebf2"
+  },
+  "logs/diagnostics/cals-construction.json": {
+    "mtime": 1773994485.0541427,
+    "ast_hash": "9eab79d1671f39d34efe96893260ecc9",
+    "semantic_hash": "9eab79d1671f39d34efe96893260ecc9"
+  },
+  "logs/diagnostics/capital-construction-debug.json": {
+    "mtime": 1773122008.5225558,
+    "ast_hash": "6c693d11e83e178713bfa5389ac513c4",
+    "semantic_hash": "6c693d11e83e178713bfa5389ac513c4"
+  },
+  "logs/diagnostics/capital-construction.json": {
+    "mtime": 1773122008.5225558,
+    "ast_hash": "e04134dab15c8e57ae8d0deed060528d",
+    "semantic_hash": "e04134dab15c8e57ae8d0deed060528d"
+  },
+  "logs/diagnostics/committee-results.json": {
+    "mtime": 1773122008.5235558,
+    "ast_hash": "30829e9d94c055647a6b516d631fbe3d",
+    "semantic_hash": "30829e9d94c055647a6b516d631fbe3d"
+  },
+  "logs/diagnostics/housing-approvals.json": {
+    "mtime": 1773122008.5235558,
+    "ast_hash": "ded0991a621fdbb71d403b0fbb7875c3",
+    "semantic_hash": "ded0991a621fdbb71d403b0fbb7875c3"
+  },
+  "logs/diagnostics/housing.json": {
+    "mtime": 1773122008.5235558,
+    "ast_hash": "8ce35cda31034fb593702dd279e7be8f",
+    "semantic_hash": "8ce35cda31034fb593702dd279e7be8f"
+  },
+  "logs/diagnostics/kiscon.json": {
+    "mtime": 1773122008.5245557,
+    "ast_hash": "21841be1c2d3b89f2f0410acd906ebfe",
+    "semantic_hash": "21841be1c2d3b89f2f0410acd906ebfe"
+  },
+  "logs/diagnostics/molit-meta.json": {
+    "mtime": 1773122008.5245557,
+    "ast_hash": "9b5873a3c1bf7a4b9cd6135ca7cbc963",
+    "semantic_hash": "9b5873a3c1bf7a4b9cd6135ca7cbc963"
+  },
+  "logs/diagnostics/railway.json": {
+    "mtime": 1773122008.5245557,
+    "ast_hash": "10bf7bf2374375496b85cfef26191815",
+    "semantic_hash": "10bf7bf2374375496b85cfef26191815"
+  },
+  "logs/diagnostics/summary.json": {
+    "mtime": 1773122008.5255556,
+    "ast_hash": "a13a23dd0ac88d56539402e75ac53c7f",
+    "semantic_hash": "a13a23dd0ac88d56539402e75ac53c7f"
+  },
+  "logs/diagnostics/urban-plan.json": {
+    "mtime": 1773122008.5245557,
+    "ast_hash": "821f882a2b308501ae089596cdc7b7dd",
+    "semantic_hash": "821f882a2b308501ae089596cdc7b7dd"
+  },
+  "logs/raw/building-hub.normalize-summary.json": {
+    "mtime": 1773122005.2525587,
+    "ast_hash": "f5e4523ce5e384d70c907c94f4f84cc8",
+    "semantic_hash": "f5e4523ce5e384d70c907c94f4f84cc8"
+  },
+  "logs/raw/building-hub.preview.json": {
+    "mtime": 1773122005.2365587,
+    "ast_hash": "d2a996a5ec476581be01d617169e689d",
+    "semantic_hash": "d2a996a5ec476581be01d617169e689d"
+  },
+  "logs/raw/building-overview.normalize-summary.json": {
+    "mtime": 1773122005.7615583,
+    "ast_hash": "f239c10d85f5c77a99309b781280c4c8",
+    "semantic_hash": "f239c10d85f5c77a99309b781280c4c8"
+  },
+  "logs/raw/building-permits.preview.json": {
+    "mtime": 1773122006.2995577,
+    "ast_hash": "aa21addec8719c5f61f926ded452d727",
+    "semantic_hash": "aa21addec8719c5f61f926ded452d727"
+  },
+  "logs/raw/cals-construction.normalize-summary.json": {
+    "mtime": 1773994485.0541427,
+    "ast_hash": "579922b345c3c5c78a395aefc92d3e57",
+    "semantic_hash": "579922b345c3c5c78a395aefc92d3e57"
+  },
+  "logs/raw/capital-construction.preview.json": {
+    "mtime": 1773108469.7168174,
+    "ast_hash": "e2ee2eca097107119ed2611c029a4e07",
+    "semantic_hash": "e2ee2eca097107119ed2611c029a4e07"
+  },
+  "logs/raw/committee-results.preview.json": {
+    "mtime": 1773108469.2708178,
+    "ast_hash": "1fcd5155764c4e98628f318b77a9eddc",
+    "semantic_hash": "1fcd5155764c4e98628f318b77a9eddc"
+  },
+  "logs/raw/housing-approvals.preview.json": {
+    "mtime": 1773122006.8075573,
+    "ast_hash": "8d0a59adda37d7fdfccda095a0b6fe33",
+    "semantic_hash": "8d0a59adda37d7fdfccda095a0b6fe33"
+  },
+  "logs/raw/housing.normalize-summary.json": {
+    "mtime": 1773122007.4475567,
+    "ast_hash": "636bb3193c7015f903e3781a4597ef5c",
+    "semantic_hash": "636bb3193c7015f903e3781a4597ef5c"
+  },
+  "logs/raw/lifesafety-construction.getLayerData.summary.json": {
+    "mtime": 1773122002.6105611,
+    "ast_hash": "79290c123a0052e27585e066df7dcb7c",
+    "semantic_hash": "79290c123a0052e27585e066df7dcb7c"
+  },
+  "logs/raw/lifesafety-construction.sm-apis.summary.json": {
+    "mtime": 1773122002.3605614,
+    "ast_hash": "e79d2423a2b05dea3d6ec5a84677fd2d",
+    "semantic_hash": "e79d2423a2b05dea3d6ec5a84677fd2d"
+  },
+  "logs/raw/railway.normalize-summary.json": {
+    "mtime": 1773122007.3715568,
+    "ast_hash": "636bb3193c7015f903e3781a4597ef5c",
+    "semantic_hash": "636bb3193c7015f903e3781a4597ef5c"
+  },
+  "logs/raw/urban-plan.normalize-summary.json": {
+    "mtime": 1773122007.5145566,
+    "ast_hash": "636bb3193c7015f903e3781a4597ef5c",
+    "semantic_hash": "636bb3193c7015f903e3781a4597ef5c"
+  },
+  "main.js": {
+    "mtime": 1772700614.3055897,
+    "ast_hash": "47544e13e30f14bede62863d108046fb",
+    "semantic_hash": "47544e13e30f14bede62863d108046fb"
+  },
+  "map.js": {
+    "mtime": 1772761487.1252458,
+    "ast_hash": "d4a6a4d5dd74585f77eb500f38fbc5de",
+    "semantic_hash": "d4a6a4d5dd74585f77eb500f38fbc5de"
+  },
+  "output/00-districts.sql": {
+    "mtime": 1775203709.3585827,
+    "ast_hash": "65d20b051b0160ffc6deabbe3181012a",
+    "semantic_hash": "65d20b051b0160ffc6deabbe3181012a"
+  },
+  "output/01-population.sql": {
+    "mtime": 1775204386.310703,
+    "ast_hash": "2fcccd54f65274878bc8cdca13f6c756",
+    "semantic_hash": "2fcccd54f65274878bc8cdca13f6c756"
+  },
+  "output/02-transport.sql": {
+    "mtime": 1776823887.314077,
+    "ast_hash": "e18b1f75d2e72c7c5c4861c026aede16",
+    "semantic_hash": "e18b1f75d2e72c7c5c4861c026aede16"
+  },
+  "output/03-walk.sql": {
+    "mtime": 1779167600.5141141,
+    "ast_hash": "34f946117e254e8cbbe2183e9db1169e",
+    "semantic_hash": "34f946117e254e8cbbe2183e9db1169e"
+  },
+  "output/04-apt-prices.sql": {
+    "mtime": 1778640601.6603086,
+    "ast_hash": "5dd057d3d512e0259db30439aafd3cfd",
+    "semantic_hash": "5dd057d3d512e0259db30439aafd3cfd"
+  },
+  "output/04-apt-prices.state.json": {
+    "mtime": 1778640601.6773098,
+    "ast_hash": "c14c2e8912d77cace21eca4cc1afdf88",
+    "semantic_hash": "c14c2e8912d77cace21eca4cc1afdf88"
+  },
+  "output/04-sgg-prices.state.json": {
+    "mtime": 1778640602.3503568,
+    "ast_hash": "22a163857312cb5fda2caebc3b48a976",
+    "semantic_hash": "22a163857312cb5fda2caebc3b48a976"
+  },
+  "output/04-value.sql": {
+    "mtime": 1778640599.191136,
+    "ast_hash": "b25e6b0d5188d69554b70bcad80a9f54",
+    "semantic_hash": "b25e6b0d5188d69554b70bcad80a9f54"
+  },
+  "output/05-childcare.sql": {
+    "mtime": 1778125146.1814349,
+    "ast_hash": "de4f77b27f7ddaf86d75b335a04adfa0",
+    "semantic_hash": "de4f77b27f7ddaf86d75b335a04adfa0"
+  },
+  "output/06-safety.sql": {
+    "mtime": 1777014652.6720085,
+    "ast_hash": "8e0d998da4cff274e20b8a371a20554c",
+    "semantic_hash": "8e0d998da4cff274e20b8a371a20554c"
+  },
+  "output/07-apt-complexes.sql": {
+    "mtime": 1778134855.1790113,
+    "ast_hash": "e8b7e37b67bf774532f1a7c2132dc74d",
+    "semantic_hash": "e8b7e37b67bf774532f1a7c2132dc74d"
+  },
+  "output/07-scale.sql": {
+    "mtime": 1779252261.8539333,
+    "ast_hash": "c73ae181007ffad4ab1e26e9342b2f16",
+    "semantic_hash": "c73ae181007ffad4ab1e26e9342b2f16"
+  },
+  "output/08-apt-scores.sql": {
+    "mtime": 1779252259.8178,
+    "ast_hash": "f7f0d960e5295ce56274223065438f8a",
+    "semantic_hash": "f7f0d960e5295ce56274223065438f8a"
+  },
+  "output/99-final.sql": {
+    "mtime": 1779252263.8830664,
+    "ast_hash": "fd6e3485f5d550a783c4caeced59a5d4",
+    "semantic_hash": "fd6e3485f5d550a783c4caeced59a5d4"
+  },
+  "output/apt-complexes.state.json": {
+    "mtime": 1778134855.2640114,
+    "ast_hash": "fc82af3eeb18cda7a5bec166aa7b8ec4",
+    "semantic_hash": "fc82af3eeb18cda7a5bec166aa7b8ec4"
+  },
+  "output/childcare-raw.json": {
+    "mtime": 1778125146.4204345,
+    "ast_hash": "5802db4d4cbdc2c010677b6eddbc3c90",
+    "semantic_hash": "5802db4d4cbdc2c010677b6eddbc3c90"
+  },
+  "output/district-scores.state.json": {
+    "mtime": 1779167600.486114,
+    "ast_hash": "7a754e815a4a25d39517416682891e79",
+    "semantic_hash": "7a754e815a4a25d39517416682891e79"
+  },
+  "output/migration-add-scale-columns.sql": {
+    "mtime": 1776306691.65465,
+    "ast_hash": "cbc169828cfbe01fecdb1de3971e4240",
+    "semantic_hash": "cbc169828cfbe01fecdb1de3971e4240"
+  },
+  "output/rollback-apt-scores.sql": {
+    "mtime": 1775699061.261065,
+    "ast_hash": "254854149643c8c5b08a2163a7f81428",
+    "semantic_hash": "254854149643c8c5b08a2163a7f81428"
+  },
+  "output/safety-raw.json": {
+    "mtime": 1777014652.9750426,
+    "ast_hash": "d429515b01f4a3564da5d2df8f9d17d9",
+    "semantic_hash": "d429515b01f4a3564da5d2df8f9d17d9"
+  },
+  "output/transport-raw.json": {
+    "mtime": 1776823887.4500768,
+    "ast_hash": "447adb6c0586900ce88538b79d9c70fd",
+    "semantic_hash": "447adb6c0586900ce88538b79d9c70fd"
+  },
+  "output/update-total-units.report.json": {
+    "mtime": 1779417455.9406047,
+    "ast_hash": "55b01a3526bca272559fe3cc0b24b754",
+    "semantic_hash": "55b01a3526bca272559fe3cc0b24b754"
+  },
+  "output/update-total-units.sql": {
+    "mtime": 1779417455.931604,
+    "ast_hash": "68b329da9893e34099c7d8ad5cb9c940",
+    "semantic_hash": "68b329da9893e34099c7d8ad5cb9c940"
+  },
+  "output/walk-raw.json": {
+    "mtime": 1779167600.550114,
+    "ast_hash": "c5f256380a42ee8ca117dd9e53840666",
+    "semantic_hash": "c5f256380a42ee8ca117dd9e53840666"
+  },
+  "package.json": {
+    "mtime": 1778053807.985232,
+    "ast_hash": "9bd365b70740f7d1d39808ac5b67911a",
+    "semantic_hash": "9bd365b70740f7d1d39808ac5b67911a"
+  },
+  "public-data-sources.sample.json": {
+    "mtime": 1772677896.782518,
+    "ast_hash": "18a98ede5a3fec09b2318ed3ca1c23a8",
+    "semantic_hash": "18a98ede5a3fec09b2318ed3ca1c23a8"
+  },
+  "public/data/metro-seoul-projects.json": {
+    "mtime": 1772787055.249323,
+    "ast_hash": "6d08b010438133fb08fc5cdd28471833",
+    "semantic_hash": "6d08b010438133fb08fc5cdd28471833"
+  },
+  "public/data/projects.generated.json": {
+    "mtime": 1773994775.7675798,
+    "ast_hash": "226796e99b8f0424e97f6b4045048b30",
+    "semantic_hash": "226796e99b8f0424e97f6b4045048b30"
+  },
+  "public/data/projects.json": {
+    "mtime": 1773030994.7962785,
+    "ast_hash": "0618b69312f3e9383730552a7f609cf0",
+    "semantic_hash": "0618b69312f3e9383730552a7f609cf0"
+  },
+  "safety-proxy/api/cctv-admin.js": {
+    "mtime": 1776995435.5320995,
+    "ast_hash": "fff76e38a7b4f8a52efd42f31e67a7ca",
+    "semantic_hash": "fff76e38a7b4f8a52efd42f31e67a7ca"
+  },
+  "safety-proxy/api/cctv-info.js": {
+    "mtime": 1776933402.8320928,
+    "ast_hash": "f2189835fb310f9b21b98d7a50da478e",
+    "semantic_hash": "f2189835fb310f9b21b98d7a50da478e"
+  },
+  "safety-proxy/api/cctv.js": {
+    "mtime": 1776931893.9394422,
+    "ast_hash": "3d6834d511cb8ce4d18a0dae467f91ab",
+    "semantic_hash": "3d6834d511cb8ce4d18a0dae467f91ab"
+  },
+  "safety-proxy/api/safety-index.js": {
+    "mtime": 1776931816.5315113,
+    "ast_hash": "0a8397276945d4931161ba34fc789d28",
+    "semantic_hash": "0a8397276945d4931161ba34fc789d28"
+  },
+  "safety-proxy/vercel.json": {
+    "mtime": 1776930637.7985654,
+    "ast_hash": "97da60c7b52c7766c81e0f33dd335216",
+    "semantic_hash": "97da60c7b52c7766c81e0f33dd335216"
+  },
+  "scripts/00-fetch-districts.ts": {
+    "mtime": 1775203703.68559,
+    "ast_hash": "038984f93af9aecdaee328c152910313",
+    "semantic_hash": "038984f93af9aecdaee328c152910313"
+  },
+  "scripts/01-fetch-population.ts": {
+    "mtime": 1775182345.9144132,
+    "ast_hash": "b57632001f3ea2ad66b52b4c0a095afb",
+    "semantic_hash": "b57632001f3ea2ad66b52b4c0a095afb"
+  },
+  "scripts/02-fetch-transport.ts": {
+    "mtime": 1776831469.6400926,
+    "ast_hash": "825729e336360fad28d0f536e610d94a",
+    "semantic_hash": "825729e336360fad28d0f536e610d94a"
+  },
+  "scripts/03-fetch-walk.ts": {
+    "mtime": 1779166668.7324808,
+    "ast_hash": "0557fdc6b7e48c56f892721bbd20761b",
+    "semantic_hash": "0557fdc6b7e48c56f892721bbd20761b"
+  },
+  "scripts/04-fetch-value.ts": {
+    "mtime": 1778736448.8160946,
+    "ast_hash": "483b97cf83dd1aaa772a77a1da0d6d99",
+    "semantic_hash": "483b97cf83dd1aaa772a77a1da0d6d99"
+  },
+  "scripts/05-fetch-childcare.ts": {
+    "mtime": 1778117555.9463801,
+    "ast_hash": "a3583e10069c0a64cd43a18ecb19bdcd",
+    "semantic_hash": "a3583e10069c0a64cd43a18ecb19bdcd"
+  },
+  "scripts/06-fetch-safety.ts": {
+    "mtime": 1777012038.7670827,
+    "ast_hash": "f971d1b55359c2705c0e0ebc0352c46f",
+    "semantic_hash": "f971d1b55359c2705c0e0ebc0352c46f"
+  },
+  "scripts/07-fetch-apt-complexes.ts": {
+    "mtime": 1778832285.234055,
+    "ast_hash": "5564cfadc2690a1e34d817a63bd20a85",
+    "semantic_hash": "5564cfadc2690a1e34d817a63bd20a85"
+  },
+  "scripts/07-fetch-scale.ts": {
+    "mtime": 1779171912.537126,
+    "ast_hash": "31a76b3ea0948f3cf377687cdce8dc1e",
+    "semantic_hash": "31a76b3ea0948f3cf377687cdce8dc1e"
+  },
+  "scripts/08-score-by-complex.ts": {
+    "mtime": 1779244014.1711295,
+    "ast_hash": "86e708908405034639407b9216a179d6",
+    "semantic_hash": "86e708908405034639407b9216a179d6"
+  },
+  "scripts/99-merge-scores.ts": {
+    "mtime": 1779329457.1530578,
+    "ast_hash": "795edfc19862fbbda6a6a3bca9ac798a",
+    "semantic_hash": "795edfc19862fbbda6a6a3bca9ac798a"
+  },
+  "scripts/build-pages.js": {
+    "mtime": 1772761533.0822046,
+    "ast_hash": "667e1e266b94db0fc37165edc9e95b5b",
+    "semantic_hash": "667e1e266b94db0fc37165edc9e95b5b"
+  },
+  "scripts/capital-source-seeds.js": {
+    "mtime": 1773105134.980824,
+    "ast_hash": "880519f9937ddbf9c5b8dac690b1c06a",
+    "semantic_hash": "880519f9937ddbf9c5b8dac690b1c06a"
+  },
+  "scripts/childcare-proxy-server.mjs": {
+    "mtime": 1775905527.6737669,
+    "ast_hash": "0de5d0bc71f0645f549a0653a8787389",
+    "semantic_hash": "0de5d0bc71f0645f549a0653a8787389"
+  },
+  "scripts/debug-lifesafety-construction.js": {
+    "mtime": 1773109711.9676974,
+    "ast_hash": "cbe8fbdc2362c589e45860c148e2434b",
+    "semantic_hash": "cbe8fbdc2362c589e45860c148e2434b"
+  },
+  "scripts/district-score-lib.ts": {
+    "mtime": 1777351156.4362411,
+    "ast_hash": "954948b1018e7fe46667dd66729906be",
+    "semantic_hash": "954948b1018e7fe46667dd66729906be"
+  },
+  "scripts/fetch-building-hub.js": {
+    "mtime": 1773121825.4037225,
+    "ast_hash": "086e626fb411b19e6bf4902efea8ffcf",
+    "semantic_hash": "086e626fb411b19e6bf4902efea8ffcf"
+  },
+  "scripts/fetch-building-permits-regional.js": {
+    "mtime": 1773118504.8497298,
+    "ast_hash": "61b412974804c53e034e5cff1e55a0f4",
+    "semantic_hash": "61b412974804c53e034e5cff1e55a0f4"
+  },
+  "scripts/fetch-building-permits.js": {
+    "mtime": 1773107954.770282,
+    "ast_hash": "0917209e781939e716b2b8492d2c5769",
+    "semantic_hash": "0917209e781939e716b2b8492d2c5769"
+  },
+  "scripts/fetch-cals-construction.js": {
+    "mtime": 1773994395.3473163,
+    "ast_hash": "4244fc70e26e6f517e45ea57e2a27b79",
+    "semantic_hash": "4244fc70e26e6f517e45ea57e2a27b79"
+  },
+  "scripts/fetch-capital-building-permits.js": {
+    "mtime": 1773105134.980824,
+    "ast_hash": "08ccfab6977cfbea9211fc3067dca57a",
+    "semantic_hash": "08ccfab6977cfbea9211fc3067dca57a"
+  },
+  "scripts/fetch-capital-committee-results.js": {
+    "mtime": 1773105134.981824,
+    "ast_hash": "18c36adaa2567202433ea5502425f25e",
+    "semantic_hash": "18c36adaa2567202433ea5502425f25e"
+  },
+  "scripts/fetch-capital-construction.js": {
+    "mtime": 1773107954.770282,
+    "ast_hash": "2d6f637bfe953c2bb899df20eedb55ba",
+    "semantic_hash": "2d6f637bfe953c2bb899df20eedb55ba"
+  },
+  "scripts/fetch-capital-housing-approvals.js": {
+    "mtime": 1773105134.980824,
+    "ast_hash": "18fc0bcba8df185804e95d253cd45d0e",
+    "semantic_hash": "18fc0bcba8df185804e95d253cd45d0e"
+  },
+  "scripts/fetch-committee-results.js": {
+    "mtime": 1773107954.770282,
+    "ast_hash": "037d0c0853d3c2ae1febd2edf7e7aa61",
+    "semantic_hash": "037d0c0853d3c2ae1febd2edf7e7aa61"
+  },
+  "scripts/fetch-eia.js": {
+    "mtime": 1773036339.281409,
+    "ast_hash": "6fbbff3722b25af7f66adb78a8aebf8d",
+    "semantic_hash": "6fbbff3722b25af7f66adb78a8aebf8d"
+  },
+  "scripts/fetch-housing-approvals-regional.js": {
+    "mtime": 1773118504.8497298,
+    "ast_hash": "972e7df3917269f2d9beb3d6329e984b",
+    "semantic_hash": "972e7df3917269f2d9beb3d6329e984b"
+  },
+  "scripts/fetch-housing-approvals.js": {
+    "mtime": 1773107954.770282,
+    "ast_hash": "3dbf8079d7603d82810827b70c23135b",
+    "semantic_hash": "3dbf8079d7603d82810827b70c23135b"
+  },
+  "scripts/fetch-housing.js": {
+    "mtime": 1773117428.6577036,
+    "ast_hash": "303736dada2b4325c9a796f4a0fbc75a",
+    "semantic_hash": "303736dada2b4325c9a796f4a0fbc75a"
+  },
+  "scripts/fetch-kiscon.js": {
+    "mtime": 1773107954.766282,
+    "ast_hash": "3f9f8f6332b494c0171d7e71804a3e2f",
+    "semantic_hash": "3f9f8f6332b494c0171d7e71804a3e2f"
+  },
+  "scripts/fetch-lifesafety-construction.js": {
+    "mtime": 1773109711.9676974,
+    "ast_hash": "cfad816ef9b77067be2804d6c6839788",
+    "semantic_hash": "cfad816ef9b77067be2804d6c6839788"
+  },
+  "scripts/fetch-molit-meta.js": {
+    "mtime": 1773118504.8497298,
+    "ast_hash": "9fb4204b895c54edb9581d40436ae06f",
+    "semantic_hash": "9fb4204b895c54edb9581d40436ae06f"
+  },
+  "scripts/fetch-private-urban-plan.js": {
+    "mtime": 1773036339.281409,
+    "ast_hash": "4a131c274c2e5e5e4fabf588bcbc23b4",
+    "semantic_hash": "4a131c274c2e5e5e4fabf588bcbc23b4"
+  },
+  "scripts/fetch-railway.js": {
+    "mtime": 1773117428.6567037,
+    "ast_hash": "41bafa71aea3adea505c35a359b82845",
+    "semantic_hash": "41bafa71aea3adea505c35a359b82845"
+  },
+  "scripts/fetch-road.js": {
+    "mtime": 1773035488.5901759,
+    "ast_hash": "7e01f273a9a00e2d15939db2595fc605",
+    "semantic_hash": "7e01f273a9a00e2d15939db2595fc605"
+  },
+  "scripts/fetch-total-units.ts": {
+    "mtime": 1779416745.36285,
+    "ast_hash": "8693ea8c282d45c299035dc3f6124c18",
+    "semantic_hash": "8693ea8c282d45c299035dc3f6124c18"
+  },
+  "scripts/fetch-urban-plan.js": {
+    "mtime": 1773117428.6577036,
+    "ast_hash": "48d46505bc855d0a45019e0ea3b39982",
+    "semantic_hash": "48d46505bc855d0a45019e0ea3b39982"
+  },
+  "scripts/ingest-building-overview.js": {
+    "mtime": 1773121878.2556744,
+    "ast_hash": "31add294ffbc75e093a9c55b1787348c",
+    "semantic_hash": "31add294ffbc75e093a9c55b1787348c"
+  },
+  "scripts/ingest-building-plot.js": {
+    "mtime": 1773121790.5577543,
+    "ast_hash": "4b426b3cd408e8135ebeb29e1ae4bd34",
+    "semantic_hash": "4b426b3cd408e8135ebeb29e1ae4bd34"
+  },
+  "scripts/ingest-kiscon-file.js": {
+    "mtime": 1773118504.8497298,
+    "ast_hash": "e1d568d054c2b5927be37ae9e40b2bc7",
+    "semantic_hash": "e1d568d054c2b5927be37ae9e40b2bc7"
+  },
+  "scripts/merge-projects.js": {
+    "mtime": 1773994395.2683165,
+    "ast_hash": "18bfc7183e238558603360eac55bc63e",
+    "semantic_hash": "18bfc7183e238558603360eac55bc63e"
+  },
+  "scripts/private-source-seeds.js": {
+    "mtime": 1773038878.6650898,
+    "ast_hash": "84e5ed73d0853d743bfae204f2c15ee6",
+    "semantic_hash": "84e5ed73d0853d743bfae204f2c15ee6"
+  },
+  "scripts/project-normalizers.js": {
+    "mtime": 1773038983.2659943,
+    "ast_hash": "5e5cf8957774c9c21b9ac5032c5cffab",
+    "semantic_hash": "5e5cf8957774c9c21b9ac5032c5cffab"
+  },
+  "scripts/run-script.js": {
+    "mtime": 1773118504.8497298,
+    "ast_hash": "73f0a85d7cacd9d46cd6b6fa0325def2",
+    "semantic_hash": "73f0a85d7cacd9d46cd6b6fa0325def2"
+  },
+  "scripts/source-diagnostics.js": {
+    "mtime": 1773107954.766282,
+    "ast_hash": "c6b619c987698f8a0cd2b192d020ea07",
+    "semantic_hash": "c6b619c987698f8a0cd2b192d020ea07"
+  },
+  "src/App.tsx": {
+    "mtime": 1778636829.2294145,
+    "ast_hash": "989efcd2ea55e90e6be9a6482493f058",
+    "semantic_hash": "989efcd2ea55e90e6be9a6482493f058"
+  },
+  "src/components/AptComments.tsx": {
+    "mtime": 1778810465.7049768,
+    "ast_hash": "f6acd156cdd8ce320dd2138c259330f2",
+    "semantic_hash": "f6acd156cdd8ce320dd2138c259330f2"
+  },
+  "src/components/AptPanel.tsx": {
+    "mtime": 1775182503.0870838,
+    "ast_hash": "c01b5a9befa1cf94b03cfc314e7e1586",
+    "semantic_hash": "c01b5a9befa1cf94b03cfc314e7e1586"
+  },
+  "src/components/AptStatsCard.tsx": {
+    "mtime": 1776226065.7673237,
+    "ast_hash": "951e81d0578605424d75359ee683224d",
+    "semantic_hash": "951e81d0578605424d75359ee683224d"
+  },
+  "src/components/AuthProvider.tsx": {
+    "mtime": 1775636975.0142844,
+    "ast_hash": "de672e09c6dc68b8f0595e2b79fb4afb",
+    "semantic_hash": "de672e09c6dc68b8f0595e2b79fb4afb"
+  },
+  "src/components/CategoryFilter.tsx": {
+    "mtime": 1773995832.0555224,
+    "ast_hash": "13613ed20d714fe226ec4445b667e94d",
+    "semantic_hash": "13613ed20d714fe226ec4445b667e94d"
+  },
+  "src/components/ContentPage.tsx": {
+    "mtime": 1774846558.0541768,
+    "ast_hash": "dbe2b3e075a6008a3231961e387fedb7",
+    "semantic_hash": "dbe2b3e075a6008a3231961e387fedb7"
+  },
+  "src/components/DistrictMap.tsx": {
+    "mtime": 1775182396.4741673,
+    "ast_hash": "b41f4711c1fd7f8cd79ff87a82ba99f9",
+    "semantic_hash": "b41f4711c1fd7f8cd79ff87a82ba99f9"
+  },
+  "src/components/DistrictPanel.tsx": {
+    "mtime": 1775182353.3239634,
+    "ast_hash": "737def12616b9e39b897fb74e19c276f",
+    "semantic_hash": "737def12616b9e39b897fb74e19c276f"
+  },
+  "src/components/ExternalLinks.tsx": {
+    "mtime": 1778733775.8926103,
+    "ast_hash": "7f171fea5d062a11177d90578eb558e8",
+    "semantic_hash": "7f171fea5d062a11177d90578eb558e8"
+  },
+  "src/components/Footer.tsx": {
+    "mtime": 1773029251.5608668,
+    "ast_hash": "6bfdee4bc69790e728cfaa2faccf3f36",
+    "semantic_hash": "6bfdee4bc69790e728cfaa2faccf3f36"
+  },
+  "src/components/MapView.tsx": {
+    "mtime": 1774846381.6303372,
+    "ast_hash": "437ea3f8a389cb1da9fedbf641c3d29f",
+    "semantic_hash": "437ea3f8a389cb1da9fedbf641c3d29f"
+  },
+  "src/components/ProjectPanel.tsx": {
+    "mtime": 1774237955.4751003,
+    "ast_hash": "5a75bfefe511230382ce75144fa1ab4b",
+    "semantic_hash": "5a75bfefe511230382ce75144fa1ab4b"
+  },
+  "src/components/SiteLayout.tsx": {
+    "mtime": 1776233785.1697283,
+    "ast_hash": "eb7f7248d37f3a52cc4d21ff3ca5b8e6",
+    "semantic_hash": "eb7f7248d37f3a52cc4d21ff3ca5b8e6"
+  },
+  "src/contexts/AuthContext.tsx": {
+    "mtime": 1775637041.439198,
+    "ast_hash": "f61df43ef029c739be5b061cadb3b1f0",
+    "semantic_hash": "f61df43ef029c739be5b061cadb3b1f0"
+  },
+  "src/data/districts/gyeonggi-emd.json": {
+    "mtime": 1775116435.2541084,
+    "ast_hash": "eb10c4879b623ecd065658086ecf2898",
+    "semantic_hash": "eb10c4879b623ecd065658086ecf2898"
+  },
+  "src/data/districts/incheon-emd.json": {
+    "mtime": 1775116435.2871108,
+    "ast_hash": "c92910387f3161656c5b97b88b4b3d1c",
+    "semantic_hash": "c92910387f3161656c5b97b88b4b3d1c"
+  },
+  "src/data/districts/seoul-emd.json": {
+    "mtime": 1775116435.0810955,
+    "ast_hash": "c9949409f097c81b8cac7722fd008a03",
+    "semantic_hash": "c9949409f097c81b8cac7722fd008a03"
+  },
+  "src/hooks/useMapState.ts": {
+    "mtime": 1774846534.845198,
+    "ast_hash": "55c22d54e2ea408384bd5545388a67ad",
+    "semantic_hash": "55c22d54e2ea408384bd5545388a67ad"
+  },
+  "src/hooks/useProjects.ts": {
+    "mtime": 1774846528.5822036,
+    "ast_hash": "ded3627343f4bd30815357327531f677",
+    "semantic_hash": "ded3627343f4bd30815357327531f677"
+  },
+  "src/hooks/useSeoMeta.ts": {
+    "mtime": 1774846525.4062064,
+    "ast_hash": "5bd8a5a878526ee16fcdd8535b309384",
+    "semantic_hash": "5bd8a5a878526ee16fcdd8535b309384"
+  },
+  "src/lib/auth.ts": {
+    "mtime": 1775631277.2536974,
+    "ast_hash": "236116fed052b1c69f60711e0cfe5395",
+    "semantic_hash": "236116fed052b1c69f60711e0cfe5395"
+  },
+  "src/lib/district-types.ts": {
+    "mtime": 1775182328.2901044,
+    "ast_hash": "7e74e0c15625bfdd71c794b4c1e8eb80",
+    "semantic_hash": "7e74e0c15625bfdd71c794b4c1e8eb80"
+  },
+  "src/lib/env.ts": {
+    "mtime": 1772782458.442444,
+    "ast_hash": "c80b384bf8d3cf211bf5be95007c58c8",
+    "semantic_hash": "c80b384bf8d3cf211bf5be95007c58c8"
+  },
+  "src/lib/geolocation.ts": {
+    "mtime": 1772784996.4521675,
+    "ast_hash": "34f40c654bb9c2d8f06bbba5f0b60fe2",
+    "semantic_hash": "34f40c654bb9c2d8f06bbba5f0b60fe2"
+  },
+  "src/lib/kakao.ts": {
+    "mtime": 1774846357.1023598,
+    "ast_hash": "c5e80b4674ed8e387fa75caadeb815d9",
+    "semantic_hash": "c5e80b4674ed8e387fa75caadeb815d9"
+  },
+  "src/lib/mock-projects.ts": {
+    "mtime": 1773030994.7962785,
+    "ast_hash": "29f9096d12a789669155ef65c4b09084",
+    "semantic_hash": "29f9096d12a789669155ef65c4b09084"
+  },
+  "src/lib/project-types.ts": {
+    "mtime": 1773036339.2794092,
+    "ast_hash": "a6ae2c45cc44d7e942c39e894fabf85f",
+    "semantic_hash": "a6ae2c45cc44d7e942c39e894fabf85f"
+  },
+  "src/lib/project-utils.ts": {
+    "mtime": 1773036339.2794092,
+    "ast_hash": "785ea7e703f5400ff3ed05680bbdf59f",
+    "semantic_hash": "785ea7e703f5400ff3ed05680bbdf59f"
+  },
+  "src/main.tsx": {
+    "mtime": 1773020194.695187,
+    "ast_hash": "5aa8b076e8402c5ecdb6d9c2bcbd6b88",
+    "semantic_hash": "5aa8b076e8402c5ecdb6d9c2bcbd6b88"
+  },
+  "src/pages/AboutPage.tsx": {
+    "mtime": 1776306685.1190932,
+    "ast_hash": "85f5c75d3a943be4cc7f977a46bb5676",
+    "semantic_hash": "85f5c75d3a943be4cc7f977a46bb5676"
+  },
+  "src/pages/AdminPage.tsx": {
+    "mtime": 1776058587.2755263,
+    "ast_hash": "bc75f3089672dd3d38c97ed3d8820d56",
+    "semantic_hash": "bc75f3089672dd3d38c97ed3d8820d56"
+  },
+  "src/pages/AptDetailPage.tsx": {
+    "mtime": 1778811472.1790352,
+    "ast_hash": "2caa3186c66340495bebb0e891014dce",
+    "semantic_hash": "2caa3186c66340495bebb0e891014dce"
+  },
+  "src/pages/AuthCallbackPage.tsx": {
+    "mtime": 1775637087.3801382,
+    "ast_hash": "fd7956be82d2a8f991797a03a99d19c5",
+    "semantic_hash": "fd7956be82d2a8f991797a03a99d19c5"
+  },
+  "src/pages/BattlePage.tsx": {
+    "mtime": 1776058003.3902326,
+    "ast_hash": "c97f54896fcb5f60aa9f54b8b4630f7d",
+    "semantic_hash": "c97f54896fcb5f60aa9f54b8b4630f7d"
+  },
+  "src/pages/BattleResultPage.tsx": {
+    "mtime": 1778637174.4285626,
+    "ast_hash": "8494b65db1fe903d4081a369bf96c4a7",
+    "semantic_hash": "8494b65db1fe903d4081a369bf96c4a7"
+  },
+  "src/pages/CommentsPage.tsx": {
+    "mtime": 1776233760.5233548,
+    "ast_hash": "19e235da8557b72adcdd4487001eb874",
+    "semantic_hash": "19e235da8557b72adcdd4487001eb874"
+  },
+  "src/pages/HomePage.tsx": {
+    "mtime": 1775454275.3339708,
+    "ast_hash": "a9e47513fcc26820dd21e9b92488aa21",
+    "semantic_hash": "a9e47513fcc26820dd21e9b92488aa21"
+  },
+  "src/pages/HotPage.tsx": {
+    "mtime": 1775201194.442857,
+    "ast_hash": "9924ce765cdb8f350fd9a83ab4b7883f",
+    "semantic_hash": "9924ce765cdb8f350fd9a83ab4b7883f"
+  },
+  "src/pages/MyAptPage.tsx": {
+    "mtime": 1778733801.4705765,
+    "ast_hash": "fdf237d89eee1c54fb8c65511b913dc6",
+    "semantic_hash": "fdf237d89eee1c54fb8c65511b913dc6"
+  },
+  "src/pages/NotFoundPage.tsx": {
+    "mtime": 1776146069.6122937,
+    "ast_hash": "2f50e5cc69693a295a88e190274c5fce",
+    "semantic_hash": "2f50e5cc69693a295a88e190274c5fce"
+  },
+  "src/pages/PrivacyPage.tsx": {
+    "mtime": 1778831868.7267604,
+    "ast_hash": "5a45406902231092f87cb5d685b4003b",
+    "semantic_hash": "5a45406902231092f87cb5d685b4003b"
+  },
+  "src/pages/RankingPage.tsx": {
+    "mtime": 1778733781.317603,
+    "ast_hash": "64f486b962d33489cb04940825be2ab0",
+    "semantic_hash": "64f486b962d33489cb04940825be2ab0"
+  },
+  "src/pages/TermsPage.tsx": {
+    "mtime": 1778831881.1710842,
+    "ast_hash": "41b6ca388d2df9a5b555e6822abcd1c9",
+    "semantic_hash": "41b6ca388d2df9a5b555e6822abcd1c9"
+  },
+  "src/pages/TrendPage.tsx": {
+    "mtime": 1776146136.1222057,
+    "ast_hash": "e60cba1292b198241c1689d3cb0aeb3e",
+    "semantic_hash": "e60cba1292b198241c1689d3cb0aeb3e"
+  },
+  "src/types/kakao.d.ts": {
+    "mtime": 1775116883.269377,
+    "ast_hash": "7c7f916f13d44fa766afb29ad8bc4c3c",
+    "semantic_hash": "7c7f916f13d44fa766afb29ad8bc4c3c"
+  },
+  "src/utils/anonymousId.ts": {
+    "mtime": 1776062480.5480473,
+    "ast_hash": "edfd233cf8f35debf7a887514327acd2",
+    "semantic_hash": "edfd233cf8f35debf7a887514327acd2"
+  },
+  "tsconfig.json": {
+    "mtime": 1772773985.838049,
+    "ast_hash": "55d98777c4155f0ebc73a76154cd275f",
+    "semantic_hash": "55d98777c4155f0ebc73a76154cd275f"
+  },
+  "vite.config.ts": {
+    "mtime": 1775453733.8681128,
+    "ast_hash": "842c98f2bec9c0e14531afe00330a9c3",
+    "semantic_hash": "842c98f2bec9c0e14531afe00330a9c3"
+  },
+  "worker/src/api/admin.ts": {
+    "mtime": 1776058558.181612,
+    "ast_hash": "00b99c23ed876c130e22eab17ed59ebb",
+    "semantic_hash": "00b99c23ed876c130e22eab17ed59ebb"
+  },
+  "worker/src/api/apartments.ts": {
+    "mtime": 1778639176.5646186,
+    "ast_hash": "85e3d0fc3e4826a9218436e70475a784",
+    "semantic_hash": "85e3d0fc3e4826a9218436e70475a784"
+  },
+  "worker/src/api/aptUserComments.ts": {
+    "mtime": 1778810409.6921873,
+    "ast_hash": "c81abc8ddf908b71608bb1f88c884399",
+    "semantic_hash": "c81abc8ddf908b71608bb1f88c884399"
+  },
+  "worker/src/api/auth.ts": {
+    "mtime": 1776062474.8120642,
+    "ast_hash": "5e1387965bdc5b930cfc421652c2d56d",
+    "semantic_hash": "5e1387965bdc5b930cfc421652c2d56d"
+  },
+  "worker/src/api/battles.ts": {
+    "mtime": 1776233722.6667092,
+    "ast_hash": "ea10dafedb45c54bcefeda197b8fb7d7",
+    "semantic_hash": "ea10dafedb45c54bcefeda197b8fb7d7"
+  },
+  "worker/src/api/districts.ts": {
+    "mtime": 1775182432.210821,
+    "ast_hash": "a246e4ea12767639477d3c32503cd2f7",
+    "semantic_hash": "a246e4ea12767639477d3c32503cd2f7"
+  },
+  "worker/src/api/http.ts": {
+    "mtime": 1775621679.6761901,
+    "ast_hash": "82cbfc71d138cec09c00763165388c4a",
+    "semantic_hash": "82cbfc71d138cec09c00763165388c4a"
+  },
+  "worker/src/api/projectMapper.ts": {
+    "mtime": 1772785983.365283,
+    "ast_hash": "75f42356028f2b03a721fcb8aabcec70",
+    "semantic_hash": "75f42356028f2b03a721fcb8aabcec70"
+  },
+  "worker/src/api/projects.ts": {
+    "mtime": 1772785983.366283,
+    "ast_hash": "0e013b9d196880601325b074f87b0f95",
+    "semantic_hash": "0e013b9d196880601325b074f87b0f95"
+  },
+  "worker/src/api/ranking.ts": {
+    "mtime": 1776060593.0516136,
+    "ast_hash": "33d0d9cf9a8e12ced4c1a89f567d2fe7",
+    "semantic_hash": "33d0d9cf9a8e12ced4c1a89f567d2fe7"
+  },
+  "worker/src/api/richgo.ts": {
+    "mtime": 1778203944.113178,
+    "ast_hash": "09f2b3f746877b314aab8fa244856926",
+    "semantic_hash": "09f2b3f746877b314aab8fa244856926"
+  },
+  "worker/src/api/trends.ts": {
+    "mtime": 1776060599.014596,
+    "ast_hash": "1dcb16e51079c7eda71fb85f6a5b9d4f",
+    "semantic_hash": "1dcb16e51079c7eda71fb85f6a5b9d4f"
+  },
+  "worker/src/cron/collectSafety.ts": {
+    "mtime": 1775529353.1091383,
+    "ast_hash": "529204ad44fce58aaabe467fe1011836",
+    "semantic_hash": "529204ad44fce58aaabe467fe1011836"
+  },
+  "worker/src/cron/collectTransport.ts": {
+    "mtime": 1775534446.224462,
+    "ast_hash": "25c8b939833c78faf883f754ce8e61c0",
+    "semantic_hash": "25c8b939833c78faf883f754ce8e61c0"
+  },
+  "worker/src/cron/collectWalk.ts": {
+    "mtime": 1775529348.060145,
+    "ast_hash": "9d572a2c43dc9c0fe60680f832a86464",
+    "semantic_hash": "9d572a2c43dc9c0fe60680f832a86464"
+  },
+  "worker/src/cron/utils.ts": {
+    "mtime": 1775455628.2761436,
+    "ast_hash": "a81ee60b716a8a04c61a67675d8476e1",
+    "semantic_hash": "a81ee60b716a8a04c61a67675d8476e1"
+  },
+  "worker/src/db/repository.ts": {
+    "mtime": 1779258049.2003288,
+    "ast_hash": "9f55d979495120f04927b3cd024e5721",
+    "semantic_hash": "9f55d979495120f04927b3cd024e5721"
+  },
+  "worker/src/db/schema.sql": {
+    "mtime": 1776306620.4275832,
+    "ast_hash": "fc5d5bc7cb19744769411941c4ed07a2",
+    "semantic_hash": "fc5d5bc7cb19744769411941c4ed07a2"
+  },
+  "worker/src/index.ts": {
+    "mtime": 1778810434.8913422,
+    "ast_hash": "1dfe67dc67db0b224016f0f5d6c8cc4b",
+    "semantic_hash": "1dfe67dc67db0b224016f0f5d6c8cc4b"
+  },
+  "worker/src/lib/apt-scores.ts": {
+    "mtime": 1775544631.644107,
+    "ast_hash": "b3ec2a39d27c9de9cb699557396d38a9",
+    "semantic_hash": "b3ec2a39d27c9de9cb699557396d38a9"
+  },
+  "worker/src/mock/sampleData.ts": {
+    "mtime": 1772785983.366283,
+    "ast_hash": "9c3be645e1021a7c686da44d3fa2a454",
+    "semantic_hash": "9c3be645e1021a7c686da44d3fa2a454"
+  },
+  "worker/src/normalize/address.ts": {
+    "mtime": 1772774391.3436856,
+    "ast_hash": "cf4dcbcf49331af62b361eefad7ebc42",
+    "semantic_hash": "cf4dcbcf49331af62b361eefad7ebc42"
+  },
+  "worker/src/normalize/dedupe.ts": {
+    "mtime": 1772775616.3705878,
+    "ast_hash": "e5e0ef12e40b9b26cd96374dab93d2ec",
+    "semantic_hash": "e5e0ef12e40b9b26cd96374dab93d2ec"
+  },
+  "worker/src/normalize/projectBuilder.ts": {
+    "mtime": 1772774391.3496857,
+    "ast_hash": "445e57e29504fc3288efb8dfa39a2f68",
+    "semantic_hash": "445e57e29504fc3288efb8dfa39a2f68"
+  },
+  "worker/src/normalize/status.ts": {
+    "mtime": 1772774391.3396857,
+    "ast_hash": "de5510269ad9b4a1a27d2536a81b0d72",
+    "semantic_hash": "de5510269ad9b4a1a27d2536a81b0d72"
+  },
+  "worker/src/services/childcare.ts": {
+    "mtime": 1775904844.7686646,
+    "ast_hash": "d55c3711dcc6d4764c29d9fe5269f5c1",
+    "semantic_hash": "d55c3711dcc6d4764c29d9fe5269f5c1"
+  },
+  "worker/src/services/geocode.ts": {
+    "mtime": 1772774742.5553708,
+    "ast_hash": "f90d719e490d53f02a64f087374b25e6",
+    "semantic_hash": "f90d719e490d53f02a64f087374b25e6"
+  },
+  "worker/src/services/syncService.ts": {
+    "mtime": 1772775601.2996013,
+    "ast_hash": "9c88a968b9f16c486ea9e7ab0c6b4819",
+    "semantic_hash": "9c88a968b9f16c486ea9e7ab0c6b4819"
+  },
+  "worker/src/sources/archPmsHubFetcher.ts": {
+    "mtime": 1776305991.5620227,
+    "ast_hash": "385a795966ff102f91a6fc8bc21ad07f",
+    "semantic_hash": "385a795966ff102f91a6fc8bc21ad07f"
+  },
+  "worker/src/sources/buildingBasicFetcher.ts": {
+    "mtime": 1772774540.8585517,
+    "ast_hash": "5bc6f9c7e684ce459cfc840e557af2c8",
+    "semantic_hash": "5bc6f9c7e684ce459cfc840e557af2c8"
+  },
+  "worker/src/sources/buildingHubFetcher.ts": {
+    "mtime": 1772774540.8615515,
+    "ast_hash": "99e380a12767b654d668288bf123cce5",
+    "semantic_hash": "99e380a12767b654d668288bf123cce5"
+  },
+  "worker/src/sources/common.ts": {
+    "mtime": 1772774540.8525517,
+    "ast_hash": "bc0bb475bc369a7cd65ccab41171ac21",
+    "semantic_hash": "bc0bb475bc369a7cd65ccab41171ac21"
+  },
+  "worker/src/sources/developmentPermitFetcher.ts": {
+    "mtime": 1772774540.8565516,
+    "ast_hash": "bfd6445625cdc7794ca9fd48108e59c3",
+    "semantic_hash": "bfd6445625cdc7794ca9fd48108e59c3"
+  },
+  "worker/src/sources/localFileParser.ts": {
+    "mtime": 1772774540.8695517,
+    "ast_hash": "ae2310335973ae55aa7ccefca7757167",
+    "semantic_hash": "ae2310335973ae55aa7ccefca7757167"
+  },
+  "worker/src/sources/registry.ts": {
+    "mtime": 1776305965.3187876,
+    "ast_hash": "b3ec416c3f6eac0208882805f4b9c5d6",
+    "semantic_hash": "b3ec416c3f6eac0208882805f4b9c5d6"
+  },
+  "worker/src/types.ts": {
+    "mtime": 1778810364.4083154,
+    "ast_hash": "a06ff2abda7770b5dc28ac906e6314fc",
+    "semantic_hash": "a06ff2abda7770b5dc28ac906e6314fc"
+  },
+  "worker/src/utils/hash.ts": {
+    "mtime": 1772774391.3346856,
+    "ast_hash": "cd782e9501f827a791d223c642442659",
+    "semantic_hash": "cd782e9501f827a791d223c642442659"
+  },
+  "worker/src/utils/id.ts": {
+    "mtime": 1772774391.3376856,
+    "ast_hash": "a7bd1893664f926a2b96d43074c0698c",
+    "semantic_hash": "a7bd1893664f926a2b96d43074c0698c"
+  },
+  ".github/workflows/collect-data.yml": {
+    "mtime": 1775635500.4282036,
+    "ast_hash": "2c0f0ec5b93c79a1dd326494682cefac",
+    "semantic_hash": "2c0f0ec5b93c79a1dd326494682cefac"
+  },
+  "GEMINI.md": {
+    "mtime": 1772613843.533255,
+    "ast_hash": "f57978309ab8afb6204f4628f9b5ba6d",
+    "semantic_hash": "f57978309ab8afb6204f4628f9b5ba6d"
+  },
+  "README.md": {
+    "mtime": 1777350433.2301888,
+    "ast_hash": "f98fd1d9e726d0f50eae518a03ab8fa3",
+    "semantic_hash": "f98fd1d9e726d0f50eae518a03ab8fa3"
+  },
+  "docs/data-ingestion-plan.md": {
+    "mtime": 1772685002.389966,
+    "ast_hash": "654cc28c0dbf8a15df7753d6f523a9a3",
+    "semantic_hash": "654cc28c0dbf8a15df7753d6f523a9a3"
+  },
+  "docs/deployment.md": {
+    "mtime": 1772782590.6843255,
+    "ast_hash": "75420a44b74dee07a19157c18ac9aa36",
+    "semantic_hash": "75420a44b74dee07a19157c18ac9aa36"
+  },
+  "index.html": {
+    "mtime": 1776156905.3740644,
+    "ast_hash": "b516678e5fbaecb17dbf490e157b2b13",
+    "semantic_hash": "b516678e5fbaecb17dbf490e157b2b13"
+  },
+  "logs/raw/lifesafety-construction.getLayerData.raw.txt": {
+    "mtime": 1773122002.6105611,
+    "ast_hash": "aac355c06691cb88cde5890e6f1edf97",
+    "semantic_hash": "aac355c06691cb88cde5890e6f1edf97"
+  },
+  "logs/raw/lifesafety-construction.sm-apis.raw.txt": {
+    "mtime": 1773122002.3595614,
+    "ast_hash": "e164ef02b468cd366253649ee0a5b180",
+    "semantic_hash": "e164ef02b468cd366253649ee0a5b180"
+  },
+  "public/ads.txt": {
+    "mtime": 1772676829.8254795,
+    "ast_hash": "92ff5bc6fcbfa82ccb1dac29af0dae6a",
+    "semantic_hash": "92ff5bc6fcbfa82ccb1dac29af0dae6a"
+  },
+  "public/robots.txt": {
+    "mtime": 1773029251.6228666,
+    "ast_hash": "b5d2541185dbff5cf40f540a07126838",
+    "semantic_hash": "b5d2541185dbff5cf40f540a07126838"
+  },
+  "public/og-image.svg": {
+    "mtime": 1774846239.5324678,
+    "ast_hash": "56cb9897135112f297a50810571c6678",
+    "semantic_hash": "56cb9897135112f297a50810571c6678"
+  }
+}
