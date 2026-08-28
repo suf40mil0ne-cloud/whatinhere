@@ -323,22 +323,20 @@ async function main() {
       const households = Math.max(row.totalUnits, 1);
       const centerPerUnit = row.childcareCount1km / households;
       
-      const childcareScore = cap(centerPerUnit / 0.03, 1);
+      const childcareScore = cap(centerPerUnit / 0.06, 1);
       const elementaryScore = row.elementaryDistanceM != null ? decay(row.elementaryDistanceM, 400) : 0;
-      const academyScore = cap(row.academyCount1km, 10) / 10;
-      const diversityScore = cap(row.academyDiversityScore, 5) / 5;
-      const mallScore = cap(row.mallCount2km, 2) / 2;
-      const pediatricScore = cap(row.pediatricCount1km, 3) / 3;
-      const libraryScore = row.libraryExists2km ? 1 : 0;
+      const academyScore = cap(row.academyCount1km, 60) / 60;
+      const diversityScore = cap(row.academyDiversityScore, 12) / 12;
+      const mallScore = cap(row.mallCount2km, 8) / 8;
+      const pediatricScore = cap(row.pediatricCount1km, 8) / 8;
 
       const weights = {
-        childcare: 0.18,
-        elementary: 0.18,
-        academy: 0.14,
+        childcare: 0.20,
+        elementary: 0.30,
+        academy: 0.15,
         diversity: 0.10,
-        mall: 0.08,
-        pediatric: 0.12,
-        library: 0.08
+        mall: 0.12,
+        pediatric: 0.13,
       };
 
       const rawScore =
@@ -347,10 +345,9 @@ async function main() {
         academyScore * weights.academy +
         diversityScore * weights.diversity +
         mallScore * weights.mall +
-        pediatricScore * weights.pediatric +
-        libraryScore * weights.library;
+        pediatricScore * weights.pediatric;
 
-      let finalScore = Math.max(0, Math.min(100, (rawScore / 0.88) * 100));
+      let finalScore = rawScore * 100;
 
       const hasChildcareOrKindergarten = row.childcareCount1km > 0;
       if (!hasChildcareOrKindergarten) {
@@ -362,15 +359,14 @@ async function main() {
     // ── 안심 ───────────────────────────────────────────────────────────────────
     let sSafety: number | null = null;
     if (hasSafetyRaw) {
-      const cctvCountScore = linearScore(row.cctvCount500m,   20,    0);
-      const cctvDistScore  = linearScore(row.cctvDistanceM,  100, 1000);
-      const childZoneScore = linearScore(row.childZoneCount1km, 4,   0);
+      const cctvCountScore = linearScore(row.cctvCount500m,  150,    0);
+      const cctvDistScore  = linearScore(row.cctvDistanceM,  100,  500);
+      const childZoneScore = linearScore(row.childZoneCount1km, 15,   0);
       const crimeRateScore = linearScore(row.crimeRate,      500, 3000);
       const components: Array<[number, number]> = [
-        [childZoneScore, 0.15],
+        [childZoneScore, 0.30],
         ...(hasCctv      ? [[cctvCountScore, 0.25], [cctvDistScore, 0.10]] as [number, number][] : []),
-        ...(hasSafetyIdx ? [[row.safetyIndexScore, 0.25]] as [number, number][] : []),
-        ...(hasCrimeStats ? [[crimeRateScore, 0.25]] as [number, number][] : []),
+        ...(hasCrimeStats ? [[crimeRateScore, 0.35]] as [number, number][] : []),
       ];
       const tw = components.reduce((s, [, w]) => s + w, 0);
       sSafety = tw > 0 ? round(components.reduce((s, [sc, w]) => s + sc * w, 0) / tw, 2) : 0;

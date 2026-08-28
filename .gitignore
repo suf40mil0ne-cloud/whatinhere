@@ -8,3 +8,6 @@ firebase-debug.log
 data/*.csv
 .vercel
 .env*.local
+graphify-out/
+.serena/
+.claude/
